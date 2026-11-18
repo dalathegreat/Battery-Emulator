@@ -2003,10 +2003,10 @@ static bool render_live(CheckedHtml& content) {
     }
 
     if (clock_valid) {
-      // As Unix seconds, which the page script shows as a date and keeps ticking between polls.
-      // Formatting it here would pull strftime and the newlib time tables into the image.
-      char clock[80];
-      snprintf(clock, sizeof(clock), "<h4>Time (UTC): <span id='utc' data-t='%llu'></span></h4>",
+      // As Unix seconds, which the page script shows as "2026-11-18 08:08:21 UTC" and keeps ticking
+      // between polls. Formatting it here would pull strftime and the newlib time tables into the image.
+      char clock[64];
+      snprintf(clock, sizeof(clock), "<h4><span id='utc' data-t='%llu'></span></h4>",
                (unsigned long long)clock_utc_s());
       content += clock;
     }
@@ -2118,7 +2118,8 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
      or ends a text selection, and not within 1 s of the last request, so tapping away cannot
      hammer the emulator. A tap that fails is reported at once, without waiting for a second.
    - The emulator's clock, once valid, comes in the live part as Unix seconds (data-t of #utc). It
-     is shown as a UTC date, and ticks on by the browser's clock until the next poll brings it anew.
+     is shown as "2026-11-18 08:08:21 UTC", and ticks on by the browser's clock until the next poll
+     brings it anew.
    Plain ES5, so a browser too old for fetch() still parses it and falls back to reloading. The
    page does without COMMON_JAVASCRIPT: its reboot() would navigate away after a fixed delay. */
 static const char main_page_end[] =
@@ -2131,7 +2132,7 @@ function PauseBattery(p){send('/pause?value='+p)}
 function estop(s){send('/equipmentStop?value='+s)}
 function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
 var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0,X=0,O=0;
-function clk(){var u=g('utc');if(u)u.textContent=new Date(+new Date+O).toISOString().replace('T',' ').slice(0,19)}
+function clk(){var u=g('utc');if(u)u.textContent=new Date(+new Date+O).toISOString().replace('T',' ').slice(0,19)+' UTC'}
 function state(){var s=g('S'),u=g('utc');if(u){O=u.getAttribute('data-t')*1000-new Date;clk()}if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
 g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
 function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
