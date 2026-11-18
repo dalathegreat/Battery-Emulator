@@ -5,6 +5,36 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+// CRC-16/XMODEM (poly 0x1021, init 0, no reflection) step for one byte
+uint16_t Kia64FDBattery::crc16_xmodem_update(uint16_t crc, uint8_t b) {
+  crc ^= static_cast<uint16_t>(b) << 8;
+  for (uint8_t i = 0; i < 8; i++) {
+    crc = (crc & 0x8000) ? static_cast<uint16_t>((crc << 1) ^ 0x1021) : static_cast<uint16_t>(crc << 1);
+  }
+  return crc;
+}
+
+// Hyundai/Kia E-GMP CAN-FD frame check.
+// CRC is stored little-endian in data[0..1] and covers data[2..len-1],
+// followed by the CAN ID (low byte, then high byte), then XORed with a
+// length-specific constant. 0x215 is always 32 bytes, so only that length
+// (final XOR 0x9F5B) is supported here.
+bool Kia64FDBattery::hkg_canfd_crc_ok(uint32_t can_id, const uint8_t* d, uint8_t len) {
+  if (len != 32) {
+    return false;
+  }
+  uint16_t crc = 0;
+  for (uint8_t i = 2; i < len; i++) {
+    crc = crc16_xmodem_update(crc, d[i]);
+  }
+  crc = crc16_xmodem_update(crc, static_cast<uint8_t>(can_id & 0xFF));
+  crc = crc16_xmodem_update(crc, static_cast<uint8_t>((can_id >> 8) & 0xFF));
+  crc ^= 0x9F5B;
+
+  const uint16_t rx_crc = static_cast<uint16_t>(d[0] | (d[1] << 8));
+  return crc == rx_crc;
+}
+
 // Function to estimate SOC based on cell voltage
 uint16_t Kia64FDBattery::estimateSOCFromCell(uint16_t cellVoltage) {
   if (cellVoltage >= voltage[0]) {
@@ -362,6 +392,10 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x215:  //High precision cell voltages - Only present on newer batteries
+      if (!hkg_canfd_crc_ok(rx_frame.ID, rx_frame.data.u8, rx_frame.DLC)) {
+        datalayer_battery->status.CAN_error_counter++;
+        break;  // Corrupt frame: drop it before it touches any cell voltage, alive flag or mode flag
+      }
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       high_precision_cell_voltages = true;
       handle_215_cell_voltages(rx_frame);
