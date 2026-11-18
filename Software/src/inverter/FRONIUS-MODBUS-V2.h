@@ -128,7 +128,8 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
      STANDBY, but a GEN24 that has lost the battery to a fault may also stay quiet for good, with
      GEN24-1250 standing. Answered with INACTIVE or ACTIVE, such a GEN24 asked for STANDBY straight
      back. So the state is DARKSTART from the start, with the contactors open, until the inverter's
-     first request, which is answered as ever. */
+     first request is answered: one for STANDBY at once, one for INACTIVE or ACTIVE only once the
+     contactors have closed, with no STANDBY in between. */
   bool darkstart_until_request = true;
   bool contactor_closing_allowed = false;
   bool contactor_lock = false;  // "Lock contactors closed after first close request" has seen that request

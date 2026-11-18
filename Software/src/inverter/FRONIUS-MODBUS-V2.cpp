@@ -304,9 +304,13 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
 
   // STANDBY until the battery is both asked for and connected. That covers the precharge after a
   // request, during which the inverter must not count on the battery yet, and the hand-over to
-  // STANDBY, where the state goes first and the contactors after.
-  if (!battery_wanted || !bus_connected()) {
+  // STANDBY, where the state goes first and the contactors after. The DARKSTART of the start is
+  // kept through the first precharge instead, see darkstart_until_request
+  if (!battery_wanted) {
     return STATE_STANDBY;
+  }
+  if (!bus_connected()) {
+    return (last_reported_state == STATE_DARKSTART) ? STATE_DARKSTART : STATE_STANDBY;
   }
   return (requested_op_mode == REQUEST_INACTIVE) ? STATE_INACTIVE : STATE_ACTIVE;
 }

@@ -236,6 +236,9 @@ TEST_F(FroniusGenericStorageTest, ContactorsStayOpenUntilTheInverterAsksForTheBa
 // How a GEN24 brings the battery up: INACTIVE, which closes the contactors, then ACTIVE (asked for
 // as 2, answered with 3), which leaves them as they are
 TEST_F(FroniusGenericStorageTest, InactiveConnectsTheBatteryAndActiveKeepsIt) {
+  inverter.write_op_mode(FGS::REQUEST_STANDBY);  // Parked, past the DARKSTART of the start
+  inverter.update_values();
+
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
@@ -254,6 +257,9 @@ TEST_F(FroniusGenericStorageTest, InactiveConnectsTheBatteryAndActiveKeepsIt) {
 }
 
 TEST_F(FroniusGenericStorageTest, ActiveStraightFromStandbyConnectsTheBatteryToo) {
+  inverter.write_op_mode(FGS::REQUEST_STANDBY);  // Parked, past the DARKSTART of the start
+  inverter.update_values();
+
   inverter.write_op_mode(FGS::REQUEST_ACTIVE);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
@@ -435,7 +441,29 @@ TEST_F(FroniusGenericStorageTest, DarkstartIsReportedUntilTheFirstRequest) {
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
 }
 
-TEST_F(FroniusGenericStorageTest, InactiveRequestEndsTheDarkstart) {
+// Asked for the battery, the state stays DARKSTART until the contactors have closed: no STANDBY in
+// between. Only that first time: off the DC link later on, the battery is in STANDBY as ever
+TEST_F(FroniusGenericStorageTest, DarkstartStaysUntilTheContactorsHaveClosed) {
+  inverter.write_op_mode(FGS::REQUEST_ACTIVE);
+  inverter.update_values();
+  EXPECT_TRUE(inverter.allows_contactor_closing());
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);  // Precharging, not there yet
+
+  set_millis64(1000 + 10000);
+  inverter.inverter_talks();
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);
+
+  datalayer.system.status.dc_bus_live = true;
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_ACTIVE);
+
+  datalayer.system.status.dc_bus_live = false;
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
+}
+
+TEST_F(FroniusGenericStorageTest, InactiveRequestEndsTheDarkstartOnceConnected) {
   datalayer.system.status.dc_bus_live = true;
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
   inverter.update_values();
