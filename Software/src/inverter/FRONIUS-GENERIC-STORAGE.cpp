@@ -1,6 +1,8 @@
 #include "FRONIUS-GENERIC-STORAGE.h"
-#include <esp_mac.h>  // esp_read_mac()
-#include <cstdlib>    // std::abs()
+#include <esp_mac.h>         // esp_read_mac()
+#include <mbedtls/sha256.h>  // mbedtls_sha256()
+#include <cstdlib>           // std::abs()
+#include <cstring>           // memcpy()
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/safety/safety.h"
@@ -105,11 +107,17 @@ void FroniusGenericStorageInverter::handle_static_data() {
     battery_name = "Battery";
   }
 
-  // Unique per device: the inverter tells batteries apart by their serial number
-  uint8_t mac[6] = {0};
-  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  /* Unique per board, as the inverter tells batteries apart by their serial number: "BE" and the
+     first 6 bytes of a hash of the MAC address, so the serial does not show the MAC. Anyone who
+     knows how it is made can still work the MAC out, by trying all of Espressif's addresses. */
+  static const char SERIAL_SALT[] = "Battery-Emulator Fronius Generic Storage";
+  uint8_t hash_input[sizeof(SERIAL_SALT) - 1 + 6];
+  memcpy(hash_input, SERIAL_SALT, sizeof(SERIAL_SALT) - 1);
+  esp_read_mac(hash_input + sizeof(SERIAL_SALT) - 1, ESP_MAC_WIFI_STA);
+  uint8_t hash[32];
+  mbedtls_sha256(hash_input, sizeof(hash_input), hash, 0);
   char serial[15];
-  snprintf(serial, sizeof(serial), "BE%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  snprintf(serial, sizeof(serial), "BE%02X%02X%02X%02X%02X%02X", hash[0], hash[1], hash[2], hash[3], hash[4], hash[5]);
 
   // DeviceIdentificationData
   put_u32(REG_IDENTIFICATION, 0x53490001);                    // InterfaceID, "SI" and 1

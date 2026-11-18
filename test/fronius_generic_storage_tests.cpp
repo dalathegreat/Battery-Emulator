@@ -93,8 +93,11 @@ class FroniusGenericStorageTest : public ::testing::Test {
 TEST_F(FroniusGenericStorageTest, IdentifiesAsItselfOnTheVersion2Map) {
   EXPECT_EQ(inverter.u32(100), 0x53490001u);  // InterfaceID
   EXPECT_EQ(inverter.text(102, 16), "BatteryEmulator");
-  EXPECT_EQ(inverter.text(150, 16), "BE3C8427C5A1F0");  // From the MAC address of test/emul/esp_mac.h
-  EXPECT_EQ(inverter.mbPV[166], 2);                     // RegMapVrMajor
+  // SN, from the MAC address of test/emul/esp_mac.h, worked out apart from the firmware with:
+  // python3 -c "import hashlib; print('BE' + hashlib.sha256(b'Battery-Emulator Fronius Generic Storage'
+  //   + bytes.fromhex('3C8427C5A1F0')).hexdigest()[:12].upper())"
+  EXPECT_EQ(inverter.text(150, 16), "BEC60883ADC047");
+  EXPECT_EQ(inverter.mbPV[166], 2);  // RegMapVrMajor
   EXPECT_EQ(inverter.mbPV[167], 0);
   EXPECT_EQ(inverter.text(218, 4), "BYD2");  // MsgPrefix
   EXPECT_EQ(inverter.mbPV[2000], 0);         // UPD_TYPE
