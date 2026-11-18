@@ -21,9 +21,6 @@ class FroniusProbe : public FroniusGenericStorageInverter {
   // A request from the inverter, as any of the FC workers registers it
   void inverter_talks() { notify_inverter_communication(); }
 
-  // The watchdog the inverter flips once a period. Left alone for several, it counts as missing
-  void watchdog_tick() { mbPV[501] = (mbPV[501] == 0x00FF) ? 0xFF00 : 0x00FF; }
-
   void write_op_mode(uint16_t mode) {
     inverter_talks();
     mbPV[500] = mode;
@@ -408,53 +405,6 @@ TEST_F(FroniusGenericStorageTest, SilentInverterLosesItsRequest) {
   EXPECT_FALSE(inverter.allows_contactor_closing());
 
   inverter.inverter_talks();  // Back again, and the last opMode still stands
-  inverter.update_values();
-  EXPECT_TRUE(inverter.allows_contactor_closing());
-}
-
-// The inverter sends its request only until the state answers it, so after a restart of the
-// emulator it may have nothing to ask. With nothing asked for a minute while it talks, the battery
-// comes up to ACTIVE by itself, and a request for STANDBY still parks it as ever
-TEST_F(FroniusGenericStorageTest, NoRequestForAMinuteBringsTheBatteryUpToActive) {
-  datalayer.system.status.dc_bus_live = true;
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_FALSE(inverter.allows_contactor_closing());
-
-  set_millis64(1000 + 59000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
-  inverter.update_values();
-  EXPECT_FALSE(inverter.allows_contactor_closing());
-  EXPECT_FALSE(inverter.active_without_request());
-
-  set_millis64(1000 + 60000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
-  inverter.update_values();
-  EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_TRUE(inverter.active_without_request());
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_ACTIVE);
-
-  inverter.write_op_mode(FGS::REQUEST_STANDBY);
-  inverter.update_values();
-  EXPECT_FALSE(inverter.active_without_request());
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-}
-
-// An inverter that does not talk at all may be switched off: it gets no ACTIVE, and once it talks
-// the minute starts from there
-TEST_F(FroniusGenericStorageTest, NoActiveWithoutRequestForAnInverterThatDoesNotTalk) {
-  set_millis64(1000 + 600000);
-  inverter.update_values();
-  EXPECT_FALSE(inverter.allows_contactor_closing());
-
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_FALSE(inverter.allows_contactor_closing());
-
-  set_millis64(1000 + 600000 + 60000);
-  inverter.inverter_talks();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
 }
