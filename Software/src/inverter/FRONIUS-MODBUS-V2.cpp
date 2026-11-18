@@ -30,6 +30,7 @@ const FroniusGenericStorageInverter::FaultMapping FroniusGenericStorageInverter:
     {EVENT_CONTACTOR_OPEN, 3, 44},               // BCU_Main Circuit Failure
     {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
     {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery Break
     {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
     {EVENT_PRECHARGE_FAILURE, 1, 48},            // Pre-charge Fault
     {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault
@@ -151,7 +152,7 @@ void FroniusGenericStorageInverter::handle_static_data() {
 
   mbPV[REG_CONTROL] = REQUEST_NONE;  // opMode
   mbPV[REG_UPDATE] = 0;              // UPD_TYPE, no firmware update through the inverter
-  unrequested_since_ms = millis();   // See UNREQUESTED_INACTIVE_MS
+  unrequested_since_ms = millis();   // See UNREQUESTED_ACTIVE_MS
 
   update_monitoring();
 }
@@ -231,17 +232,17 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   const uint32_t now = millis();
   const bool silent = !inverter_detected || (now - last_request) > INVERTER_SILENCE_MS;
 
-  // No request since the emulator started, from an inverter that talks: see UNREQUESTED_INACTIVE_MS
+  // No request since the emulator started, from an inverter that talks: see UNREQUESTED_ACTIVE_MS
   if (op_mode != REQUEST_NONE || silent) {
     unrequested_since_ms = now;
-    unrequested_inactive = false;
-  } else if (!unrequested_inactive && (now - unrequested_since_ms) >= UNREQUESTED_INACTIVE_MS) {
-    unrequested_inactive = true;
+    unrequested_active = false;
+  } else if (!unrequested_active && (now - unrequested_since_ms) >= UNREQUESTED_ACTIVE_MS) {
+    unrequested_active = true;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("%sNo request from the inverter for %lu s, bringing the battery up to INACTIVE\n", log_prefix,
-                   (unsigned long)(UNREQUESTED_INACTIVE_MS / 1000));
+    logging.printf("%sNo request from the inverter for %lu s, bringing the battery up to ACTIVE\n", log_prefix,
+                   (unsigned long)(UNREQUESTED_ACTIVE_MS / 1000));
   }
-  battery_wanted = !silent && (op_mode == REQUEST_INACTIVE || op_mode == REQUEST_ACTIVE || unrequested_inactive);
+  battery_wanted = !silent && (op_mode == REQUEST_INACTIVE || op_mode == REQUEST_ACTIVE || unrequested_active);
 
   // The workarounds decide over the contactors only. The state still answers the request
   switch (user_selected_inverter_contactor_mode) {
@@ -314,7 +315,7 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
   if (!battery_wanted || !bus_connected()) {
     return STATE_STANDBY;
   }
-  return (requested_op_mode == REQUEST_ACTIVE) ? STATE_ACTIVE : STATE_INACTIVE;
+  return (requested_op_mode == REQUEST_INACTIVE) ? STATE_INACTIVE : STATE_ACTIVE;
 }
 
 void FroniusGenericStorageInverter::update_monitoring() {

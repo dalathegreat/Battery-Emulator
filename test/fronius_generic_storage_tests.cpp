@@ -413,38 +413,38 @@ TEST_F(FroniusGenericStorageTest, SilentInverterLosesItsRequest) {
 }
 
 // The inverter sends its request only until the state answers it, so after a restart of the
-// emulator it may have nothing to ask. With nothing asked for 5 minutes while it talks, the battery
-// comes up to INACTIVE by itself, and a request for STANDBY still parks it as ever
-TEST_F(FroniusGenericStorageTest, NoRequestForFiveMinutesBringsTheBatteryUpToInactive) {
+// emulator it may have nothing to ask. With nothing asked for a minute while it talks, the battery
+// comes up to ACTIVE by itself, and a request for STANDBY still parks it as ever
+TEST_F(FroniusGenericStorageTest, NoRequestForAMinuteBringsTheBatteryUpToActive) {
   datalayer.system.status.dc_bus_live = true;
   inverter.inverter_talks();
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
 
-  set_millis64(1000 + 299000);
+  set_millis64(1000 + 59000);
   inverter.inverter_talks();
   inverter.watchdog_tick();
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
-  EXPECT_FALSE(inverter.inactive_without_request());
+  EXPECT_FALSE(inverter.active_without_request());
 
-  set_millis64(1000 + 300000);
+  set_millis64(1000 + 60000);
   inverter.inverter_talks();
   inverter.watchdog_tick();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_TRUE(inverter.inactive_without_request());
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_INACTIVE);
+  EXPECT_TRUE(inverter.active_without_request());
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_ACTIVE);
 
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
-  EXPECT_FALSE(inverter.inactive_without_request());
+  EXPECT_FALSE(inverter.active_without_request());
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
 }
 
-// An inverter that does not talk at all may be switched off: it gets no INACTIVE, and once it
-// talks the 5 minutes start from there
-TEST_F(FroniusGenericStorageTest, NoInactiveWithoutRequestForAnInverterThatDoesNotTalk) {
+// An inverter that does not talk at all may be switched off: it gets no ACTIVE, and once it talks
+// the minute starts from there
+TEST_F(FroniusGenericStorageTest, NoActiveWithoutRequestForAnInverterThatDoesNotTalk) {
   set_millis64(1000 + 600000);
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
@@ -453,7 +453,7 @@ TEST_F(FroniusGenericStorageTest, NoInactiveWithoutRequestForAnInverterThatDoesN
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
 
-  set_millis64(1000 + 600000 + 300000);
+  set_millis64(1000 + 600000 + 60000);
   inverter.inverter_talks();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
@@ -635,6 +635,18 @@ TEST_F(FroniusGenericStorageTest, FaultsAreStampedFromTheClock) {
   EXPECT_EQ(inverter.mbPV[1005], 47);
 
   clear_event(EVENT_HVIL_FAILURE, 1);
+}
+
+// An equipment stop drops the battery off the inverter's DC link, as a broken battery would
+TEST_F(FroniusGenericStorageTest, EquipmentStopIsReportedAsBatteryBreak) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_EQUIPMENT_STOP, 1);
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.u32(1002), 1794299900u);
+  EXPECT_EQ(inverter.mbPV[1005], 45);  // Battery Break
+
+  clear_event(EVENT_EQUIPMENT_STOP);
 }
 
 // The BYD-Modbus driver shares the ControlData handling and must keep reading it where version 1
