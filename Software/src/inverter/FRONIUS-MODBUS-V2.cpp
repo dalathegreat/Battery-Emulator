@@ -131,7 +131,7 @@ void FroniusGenericStorageInverter::handle_static_data() {
   put_string(REG_IDENTIFICATION + 68, 50, battery_name);      // DisplayName
   put_string(REG_IDENTIFICATION + 118, 4, MSG_PREFIX);        // MsgPrefix
 
-  // NameplateData, all but the three values update_nameplate() keeps following the battery
+  // NameplateData, all but the values update_nameplate() keeps following the battery
   // The inverter reads the capability flags once, while it sets the battery up
   put_u32(REG_NAMEPLATE, user_selected_fronius_iso_check ? CAPABILITY_ISOLATION_CHECK : 0);  // BatteryCapabilityFlags
   put_u32(REG_NAMEPLATE + 4, 40960);                                                         // ContMaxChargePwr
@@ -148,8 +148,6 @@ void FroniusGenericStorageInverter::handle_static_data() {
   mbPV[REG_NAMEPLATE + 20] = (uint16_t)BATTERY_MAXTEMPERATURE;  // TCellMax
   put_u32(REG_NAMEPLATE + 21, CAL_MODE_NONE);                   // CalMode
   // CalWaitDischargeT, CalPower* and ImmediateChargeRequestStop (+23 to +32) stay 0
-  mbPV[REG_NAMEPLATE + 33] = 1;  // NumberParallelStacks. Several packs are presented as one
-  mbPV[REG_NAMEPLATE + 34] = 1;  // NumberModulesPerStack
 
   mbPV[REG_CONTROL] = REQUEST_NONE;  // opMode
   mbPV[REG_UPDATE] = 0;              // UPD_TYPE, no firmware update through the inverter
@@ -169,11 +167,12 @@ void FroniusGenericStorageInverter::update_values() {
 }
 
 void FroniusGenericStorageInverter::update_nameplate() {
-  /* The three nameplate values that come from the battery. They cannot go in with the rest in
-     handle_static_data(): the inverter is set up before the battery, so the aggregate holds no
-     capacity and no voltage limits yet at that point. They also move at runtime, when a 2nd or
-     3rd pack joins, when the battery driver learns its real capacity, or with the SOC scaling
-     settings. BYD-Modbus refreshes the same values in its p201 block for the same reason. */
+  /* The nameplate values that come from the battery. They cannot go in with the rest in
+     handle_static_data(): the inverter is set up before the battery, so at that point the
+     aggregate holds no capacity and no voltage limits yet, and a 2nd or 3rd pack does not exist.
+     They also move at runtime, when a 2nd or 3rd pack joins, when the battery driver learns its
+     real capacity or cell count, or with the SOC scaling settings. BYD-Modbus refreshes the
+     capacity and voltages in its p201 block for the same reason. */
   put_u32(REG_NAMEPLATE + 2, datalayer.aggregate.reported_total_capacity_Wh);  // NominalCapacity
   if (user_selected_primo_gen24) {
     // MaxUDC. If the battery is higher the Gen24 forces discharge. Capped to 450.0V for the Primo
@@ -182,6 +181,10 @@ void FroniusGenericStorageInverter::update_nameplate() {
     mbPV[REG_NAMEPLATE + 8] = datalayer.aggregate.max_design_voltage_dV;
   }
   mbPV[REG_NAMEPLATE + 9] = datalayer.aggregate.min_design_voltage_dV;  // MinUDC, below it the Gen24 disables battery
+  // A stack for each pack of a double or triple battery, and the cells of a pack as its modules,
+  // as Battery Emulator knows nothing of modules. 1 until the battery has said how many it has
+  mbPV[REG_NAMEPLATE + 33] = datalayer.system.info.configured_batteries;                     // NumberParallelStacks
+  mbPV[REG_NAMEPLATE + 34] = std::max<uint16_t>(datalayer.battery.info.number_of_cells, 1);  // NumberModulesPerStack
 }
 
 void FroniusGenericStorageInverter::handle_inverter_details() {

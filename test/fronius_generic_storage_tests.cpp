@@ -143,6 +143,26 @@ TEST_F(FroniusGenericStorageTest, MonitoringValuesLandOnTheirRegisters) {
   EXPECT_EQ(inverter.u32(401), 0x86u);  // link OK, full and discharging
 }
 
+// A stack for each pack, and the cells of a pack as its modules, once the battery has said how many
+TEST_F(FroniusGenericStorageTest, StacksAndModulesFollowThePacks) {
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[333], 1);  // NumberParallelStacks
+  EXPECT_EQ(inverter.mbPV[334], 1);  // NumberModulesPerStack, the cell count is not known yet
+
+  datalayer.battery.info.number_of_cells = 96;
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[334], 96);
+
+  datalayer.system.info.configured_batteries = 2;  // Double battery
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[333], 2);
+
+  datalayer.system.info.configured_batteries = 3;  // Triple battery
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[333], 3);
+  EXPECT_EQ(inverter.mbPV[334], 96);
+}
+
 TEST_F(FroniusGenericStorageTest, NameplateCarriesTheTemperatureRangeAndNoCalibration) {
   inverter.update_values();
 
