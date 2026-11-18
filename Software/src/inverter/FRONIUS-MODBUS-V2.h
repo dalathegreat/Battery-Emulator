@@ -47,6 +47,8 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   const char* inverter_firmware() const { return inverter_firmware_text; }
   // The last opMode the inverter wrote, REQUEST_NONE before the first one
   uint16_t requested_mode() const { return requested_op_mode; }
+  // Brought up to INACTIVE without a request, see UNREQUESTED_INACTIVE_MS
+  bool inactive_without_request() const { return unrequested_inactive; }
   static const char* request_name(uint16_t request);
 
  protected:
@@ -118,11 +120,21 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   // ...and if the inverter does not read the state at all, they open after this long, as for an
   // inverter that has gone silent
   static constexpr uint32_t STANDBY_UNSEEN_MS = INVERTER_SILENCE_MS;
+  /* The inverter sends its request only until the state answers it, so after a restart of the
+     emulator it may have nothing to ask, with the battery in STANDBY. That is what it wants after
+     parking the battery, but a GEN24 that has lost the battery to a fault can also stay quiet for
+     good, with GEN24-1250 standing. With no request for this long while the inverter talks, the
+     battery comes up to INACTIVE by itself, the inverter's own first step, and waits there for its
+     next request. Parked, the inverter just asks for STANDBY again. */
+  static constexpr uint32_t UNREQUESTED_INACTIVE_MS = 5 * 60 * 1000;
 
   uint16_t requested_op_mode = REQUEST_NONE;
   uint16_t last_reported_state = STATE_STANDBY;
   uint16_t last_inverter_rebooting = 0;
-  bool battery_wanted = false;  // The inverter asks for INACTIVE or ACTIVE, and is still talking
+  // The inverter asks for INACTIVE or ACTIVE, or has asked for nothing for long, and is still talking
+  bool battery_wanted = false;
+  bool unrequested_inactive = false;  // Brought up to INACTIVE without a request, see UNREQUESTED_INACTIVE_MS
+  uint32_t unrequested_since_ms = 0;
   bool contactor_closing_allowed = false;
   bool contactor_lock = false;  // "Lock contactors closed after first close request" has seen that request
   bool standby_handover = false;

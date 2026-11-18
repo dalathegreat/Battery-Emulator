@@ -1155,7 +1155,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     if (var == "FGSMODE") {
       const uint16_t mode = fronius->requested_mode();
       if (mode == FroniusGenericStorageInverter::REQUEST_NONE) {
-        return "not yet received";
+        return fronius->inactive_without_request() ? "not yet received, so Inactive by itself" : "not yet received";
       }
       return String(FroniusGenericStorageInverter::request_name(mode)) + " (" + String(mode) + ")";
     }
