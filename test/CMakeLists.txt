@@ -79,6 +79,8 @@ include_directories(../Software)
 
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
+# The inter-unit CRC tests are kept in the tree but not run in CI.
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/inter_unit_crc_tests\\.cpp$")
 
 # The firmware sources stay an explicit, curated list, and must. It is not
 # "every file under Software/src" - it is the subset that links in a host build.
@@ -88,6 +90,9 @@ list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
 add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
+    ../Software/src/communication/can/CONTROLLER-CAN.cpp
+    ../Software/src/communication/can/BATTERY-NODE-CAN.cpp
+    ../Software/src/communication/can/INTER-UNIT-CONTROLLER-HTML.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp

@@ -1219,6 +1219,12 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "SLAVENODEID") {
+    return String(settings.getUInt("SLAVENODEID", 1));
+  }
+#endif  // SMALL_FLASH_DEVICE
+
   if (var == "FOXESSTYPE") {
     return String(settings.getUInt("FOXESSTYPE", 0));
   }
@@ -1250,6 +1256,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return "UNKNOWN";
   }
 }
+
+#ifndef SMALL_FLASH_DEVICE
+#define INTER_UNIT_NODE_SETTING \
+  R"rawliteral(
+        <div class="if-inter-node">
+        <label for='SLAVENODEID'>Battery node ID (1-24): </label>
+        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
+        min='1' max='24' step='1'
+        title="Unique ID for this battery node. Each node must have a different ID (1-24)." />
+        </div>
+  )rawliteral"
+#else
+#define INTER_UNIT_NODE_SETTING ""
+#endif
 
 #ifndef SMALL_FLASH_DEVICE
 String qnhck_zero_text(uint16_t zero_mV) {
@@ -1696,8 +1716,20 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     form .if-battery, form .if-inverter, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
-    form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-battery="60"] .if-battery { display: none; }
+
+    /* Battery/controller CAN interface select: shown for every battery type except None.
+       The Inter-Unit Controller (60) also uses can_config.battery (BATTCOMM). */
+    form .if-batt-iface { display: contents; }
+    form[data-battery="0"] .if-batt-iface { display: none; }
+    form[data-inverter="0"] .if-inverter { display: none; }
+    /* Inter-Unit Node (26) uses the same "Inverter interface" (INVCOMM) select as a
+       normal inverter, so it stays shown. A separate duplicate select would submit a
+       second INVCOMM value and overwrite the choice (falling back to CAN Native). */
     form[data-shunttype="0"] .if-shunt { display: none; }
+
+    form .if-not-inter-controller { display: contents; }
+    form[data-battery="60"] .if-not-inter-controller { display: none; }
 
     /* Shunt types the selected battery/inverter can't use.
        Rules are generated at runtime from the shunt capability predicates. */
@@ -1805,6 +1837,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-inter-node { display: none; }
+    form[data-inverter="26"] .if-inter-node {
       display: contents;
     }
 
@@ -2173,11 +2210,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% />
         </div>
 
-        <div class="if-battery">
+        <div class="if-batt-iface">
         <label for='BATTCOMM'>Battery interface: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
         </select>
+        </div>
 
+        <div class="if-battery">
         <div class="if-nissan">
             <label for='CHGSTARQ'>Balancing strategy: </label>
             <select name='CHGSTARQ' id='CHGSTARQ'>
@@ -2268,9 +2307,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %INVTYPE%
         </select>
 
-        <div class="if-inverter">        
-        <label>Inverter interface: </label><select name='INVCOMM'>
-        %INVCOMM%     
+        )rawliteral" INTER_UNIT_NODE_SETTING R"rawliteral(
+
+        <div class="if-inverter">
+        <label for='INVCOMM'>Inverter interface: </label><select name='INVCOMM' id='INVCOMM'>
+        %INVCOMM%
         </select>
         </div>
 

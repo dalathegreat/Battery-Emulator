@@ -1,7 +1,11 @@
 #pragma once
 
-// Host-side stub for the arduino-esp32 IPAddress only to satisfy the compiler
-class IPAddress {
+#include <stdint.h>
+#include "IPAddress.h"
+
+class WiFiClass {
  public:
-  bool fromString(const char*) { return false; }
+  IPAddress localIP() { return IPAddress((uint32_t)0); }
 };
+
+inline WiFiClass WiFi;

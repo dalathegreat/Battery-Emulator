@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
@@ -36,6 +37,18 @@ void StellantisProOneBattery::
 
     datalayer.battery.status.max_discharge_power_W = ((discharge_power_dA / 10) * (pack_voltage / 10));
     datalayer.battery.status.max_charge_power_W = ((charge_power_dA / 10) * (pack_voltage / 10));
+  }
+
+  // Report the BMS contactor state. Guarded so the GPIO contactor state machine stays authoritative
+  // when enabled. Only the known ON value counts as closed (8 off, 9 precharge, 10 on).
+  if (!contactor_control_enabled) {
+    if (contactor_status == CONTACTORS_ON) {
+      datalayer.system.status.contactors_engaged = 1;
+    } else if (contactor_status == CONTACTORS_PRECHARGE) {
+      datalayer.system.status.contactors_engaged = 3;
+    } else {
+      datalayer.system.status.contactors_engaged = 0;
+    }
   }
 
   if (pack_capacity_ah_tenths > 0) {
