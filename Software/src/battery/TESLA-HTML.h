@@ -14,9 +14,19 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html();
 
- private:
+ protected:
   DATALAYER_INFO_TESLA* tesla_info;
   DATALAYER_BATTERY_TYPE* core_data;
+};
+
+// Status page for the legacy Model S/X (2012-2020) packs. The calculated values block is the Model 3/Y one (the legacy driver
+// fills the same datalayer fields).
+class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
+ public:
+  TeslaLegacyHtmlRenderer(DATALAYER_INFO_TESLA* extended, DATALAYER_BATTERY_TYPE* core)
+      : TeslaHtmlRenderer(extended, core) {}
+
+  String get_status_html();
 };
 
 #endif
