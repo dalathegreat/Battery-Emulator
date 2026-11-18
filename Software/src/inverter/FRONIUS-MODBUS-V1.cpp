@@ -1,4 +1,4 @@
-#include "BYD-MODBUS.h"
+#include "FRONIUS-MODBUS-V1.h"
 #include "../battery/BATTERIES.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../communication/rs485/comm_rs485.h"

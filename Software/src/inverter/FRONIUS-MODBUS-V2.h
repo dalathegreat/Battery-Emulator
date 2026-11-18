@@ -1,8 +1,8 @@
-#ifndef FRONIUS_GENERIC_STORAGE_H
-#define FRONIUS_GENERIC_STORAGE_H
+#ifndef FRONIUS_MODBUS_V2_H
+#define FRONIUS_MODBUS_V2_H
 
 #include "../devboard/utils/events.h"
-#include "BYD-MODBUS.h"
+#include "FRONIUS-MODBUS-V1.h"
 
 /* Fronius "Generic Storage" over Modbus RTU, register map version 2.
 
@@ -24,7 +24,7 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   void update_values() override;
   bool controls_contactor() override { return true; }
   bool allows_contactor_closing() override { return contactor_closing_allowed; }
-  static constexpr const char* Name = "Fronius Generic Storage";
+  static constexpr const char* Name = "Fronius Generic Storage v2";
 
   // MonitoringData.state, the mode the battery is in
   static constexpr uint16_t STATE_STANDBY = 0;   // Contactors open

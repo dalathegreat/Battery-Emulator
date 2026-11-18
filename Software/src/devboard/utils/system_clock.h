@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 /* The ESP32's system clock, in UTC. Battery Emulator has no network time, so only the inverter sets
-   it, from the clock it sends once an hour (BYD HVS/HVM over Modbus and Fronius Generic Storage).
+   it, from the clock it sends once an hour (Fronius Generic Storage v1 and v2).
    Until the first time arrives the clock holds no real time, and clock_valid is false.
 
    A restart of the firmware, such as a reboot, a crash or the inverter's reboot command, keeps the

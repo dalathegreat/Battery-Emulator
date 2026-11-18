@@ -1,4 +1,4 @@
-#include "FRONIUS-GENERIC-STORAGE.h"
+#include "FRONIUS-MODBUS-V2.h"
 #include <esp_mac.h>         // esp_read_mac()
 #include <mbedtls/sha256.h>  // mbedtls_sha256()
 #include <cstdlib>           // std::abs()

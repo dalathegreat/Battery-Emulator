@@ -13,7 +13,7 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
-#include "src/inverter/FRONIUS-GENERIC-STORAGE.h"
+#include "src/inverter/FRONIUS-MODBUS-V2.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
@@ -104,6 +104,19 @@ String options_from_map(int selected, const TMap& value_name_map) {
     options += "</option>";
   }
   return options;
+}
+
+// The inverter dropdown names Fronius' storage protocol once, for both of its versions: the
+// Storage protocol dropdown (FRONIUSVER) picks one
+static const char* name_for_inverter_option(InverterProtocolType type) {
+  switch (type) {
+    case InverterProtocolType::BydModbus:
+      return "Fronius Generic Storage";
+    case InverterProtocolType::FroniusGenericStorage:
+      return nullptr;
+    default:
+      return name_for_inverter_type(type);
+  }
 }
 
 // Shared IPv4 validation regex for every IP input on the settings page. Injected via the %IPPATTERN%
@@ -325,9 +338,19 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_chemistry);
   }
   if (var == "INVTYPE") {
-    return options_for_enum_with_none(
-        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
-        InverterProtocolType::None);
+    // Both versions of Fronius' storage protocol are one entry here, under the value of version 1.
+    // FRONIUSVER picks the version, and saving turns the pair back into an inverter type.
+    auto selected = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+    if (selected == InverterProtocolType::FroniusGenericStorage) {
+      selected = InverterProtocolType::BydModbus;
+    }
+    return options_for_enum_with_none(selected, name_for_inverter_option, InverterProtocolType::None);
+  }
+  if (var == "FRONIUSVER") {
+    const bool v2 = settings.getUInt("INVTYPE", (int)InverterProtocolType::None) ==
+                    (int)InverterProtocolType::FroniusGenericStorage;
+    return String("<option value='1'") + (v2 ? "" : " selected") + ">Version 1</option><option value='2'" +
+           (v2 ? " selected" : "") + ">Version 2</option>";
   }
   if (var == "INVCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
@@ -1858,14 +1881,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    form .if-bydmodbus { display: none; }
-    form[data-inverter="3"] .if-bydmodbus,
-    form[data-inverter="26"] .if-bydmodbus {
+    form .if-fronius { display: none; }
+    form[data-inverter="3"] .if-fronius {
       display: contents;
     }
 
-    form .if-froniusgs { display: none; }
-    form[data-inverter="26"] .if-froniusgs {
+    form .if-froniusv2 { display: none; }
+    form[data-inverter="3"][data-froniusver="2"] .if-froniusv2 {
       display: contents;
     }
 
@@ -2299,6 +2321,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %INVTYPE%
         </select>
 
+        <div class="if-fronius">
+        <label>Storage protocol: </label><select name='FRONIUSVER'>
+        %FRONIUSVER%
+        </select>
+        </div>
+
         <div class="if-inverter">        
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
@@ -2329,7 +2357,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
-        <div class="if-bydmodbus">
+        <div class="if-fronius">
         <label>Accept reboot command from inverter: </label>
         <input type='checkbox' name='INVACCREB' value='on' %INVACCREB% />
 
@@ -2341,7 +2369,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label>Inverter time (UTC): </label><span class='settings-value' data-h=invutc><span id='invutc'>%INVUTC%</span></span>
         </div>
 
-        <div class="if-froniusgs">
+        <div class="if-froniusv2">
         <label>Include battery in insulation test: </label>
         <input type='checkbox' name='FRONIUSISO' value='on' %FRONIUSISO% />
 
@@ -2392,7 +2420,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
         </div>
         
-        <div class="if-kostal if-solax if-froniusgs">
+        <div class="if-kostal if-solax if-froniusv2">
         <label>Inverter Contactor Workaround: </label>
         <select name='INVICNT'>
           %INVICNT%

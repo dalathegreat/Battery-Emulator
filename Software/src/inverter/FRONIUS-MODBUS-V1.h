@@ -1,5 +1,5 @@
-#ifndef BYD_MODBUS_H
-#define BYD_MODBUS_H
+#ifndef FRONIUS_MODBUS_V1_H
+#define FRONIUS_MODBUS_V1_H
 
 #include "../devboard/utils/types.h"
 #include "ModbusInverterProtocol.h"
@@ -17,7 +17,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   const char* name() override { return Name; }
   bool setup() override;
   void update_values() override;
-  static constexpr const char* Name = "BYD HVS/HVM over Modbus";
+  static constexpr const char* Name = "Fronius Generic Storage v1";
 
  protected:
   // Fills the registers that never change. Called once from setup()

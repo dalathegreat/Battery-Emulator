@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../Software/src/datalayer/datalayer.h"
-#include "../Software/src/inverter/BYD-MODBUS.h"
+#include "../Software/src/inverter/FRONIUS-MODBUS-V1.h"
 
 /* The Fronius Gen24 stops charge and discharge below -10 degrees C, because the pack it was
    designed for is LFP. The cap that works around that belongs to this inverter's registers: the

@@ -2,11 +2,11 @@
 
 #include "AFORE-CAN.h"
 #include "BYD-CAN.h"
-#include "BYD-MODBUS.h"
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
 #include "FOXESS-EP-CAN.h"
-#include "FRONIUS-GENERIC-STORAGE.h"
+#include "FRONIUS-MODBUS-V1.h"
+#include "FRONIUS-MODBUS-V2.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
 #include "GROWATT-WIT-CAN.h"

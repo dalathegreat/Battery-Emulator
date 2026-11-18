@@ -4,7 +4,7 @@
 #include "../Software/src/battery/TEST-FAKE-BATTERY.h"
 #include "../Software/src/datalayer/battery_aggregate.h"
 #include "../Software/src/datalayer/datalayer.h"
-#include "../Software/src/inverter/BYD-MODBUS.h"
+#include "../Software/src/inverter/FRONIUS-MODBUS-V1.h"
 
 /* BYD-Modbus hands the Fronius its limits as power, in registers 306 (discharge) and 307 (charge).
    A current limit set over MQTT used to land on the current fields only, so the main page showed

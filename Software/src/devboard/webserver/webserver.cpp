@@ -704,6 +704,14 @@ void init_webserver() {
           auto p = request->getParam(i);
           if (p->name() == "inverter") {
             auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+            // The form offers both versions of Fronius' storage protocol as one inverter, under the
+            // value of version 1, and the Storage protocol dropdown picks the version
+            if (type == InverterProtocolType::BydModbus) {
+              auto version = request->getParam("FRONIUSVER", true);
+              if (version && version->value() == "2") {
+                type = InverterProtocolType::FroniusGenericStorage;
+              }
+            }
             settings.saveUInt("INVTYPE", (int)type);
           } else if (p->name() == "INVCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));

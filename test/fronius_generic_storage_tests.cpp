@@ -5,7 +5,7 @@
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
 #include "../Software/src/devboard/utils/system_clock.h"
-#include "../Software/src/inverter/FRONIUS-GENERIC-STORAGE.h"
+#include "../Software/src/inverter/FRONIUS-MODBUS-V2.h"
 #include "../Software/src/inverter/INVERTERS.h"
 
 /* Fronius Generic Storage, register map version 2. These pin the register positions the inverter
