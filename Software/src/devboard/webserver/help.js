@@ -11,7 +11,9 @@
 //   - a form field, keyed by its name attribute; the button goes right of the field, sharing its
 //     grid cell through a wrapper, so the two stay on one line however narrow the screen. Every
 //     field of the form gets the wrapper, with or without a text, so they all line up
-//   - any element with a data-h attribute, keyed by that value; the button goes inside it
+//   - any element with a data-h attribute, keyed by that value. A value shown in a settings row
+//     gets the same wrapper as a field, so its button lines up with theirs; anywhere else the
+//     button goes inside the element
 // Pressing the button opens the text right below the element, pressing it again closes it. It
 // works the same with a mouse and a finger. Pages that reload themselves, or swap parts in place
 // (the main page refreshes its live part that way), reopen what was open.
@@ -78,16 +80,16 @@
     // Every control that follows a label in a form (a settings row), and every data-h element.
     document.querySelectorAll('form label+*,[data-h]').forEach(function (el) {
       if (el.handled) return;
-      var field = !el.dataset.h, key = el.dataset.h || el.name, text = help[key];
-      if (!field && !text) return;
+      var row = el.matches('form label+*'), key = el.dataset.h || el.name, text = help[key];
+      if (!row && !text) return;
       // Wait until the element is complete (a data-h element's content, a select's options),
       // which is certain once something follows it.
       if (loading && !el.nextSibling) return;
       el.handled = 1;
-      // A settings control moves into a wrapper that takes its grid cell, with room for the
-      // button after it, whether or not this one has a text.
+      // A settings row's control, or value, moves into a wrapper that takes its grid cell, with room
+      // for the button after it, whether or not this one has a text.
       var cell = el;
-      if (field) {
+      if (row) {
         cell = document.createElement('span');
         cell.className = 'hw';
         cell.handled = 1;

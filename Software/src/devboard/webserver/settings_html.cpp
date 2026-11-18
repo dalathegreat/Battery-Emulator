@@ -1716,6 +1716,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       align-items: center; 
       min-height: 1.5em; 
       padding-left: 5px; 
+      text-align: left;
     }
 
     .inactiveSoc {
