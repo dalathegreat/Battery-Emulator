@@ -31,6 +31,10 @@ struct BatteryCommand {
 
   // Reload page after running (for read commands).
   bool reload_after = false;
+
+  // Optional: send the browser's local time with the request and call this instead of action.
+  // Arguments are year, month (1-12), day, hour, minute, milliseconds within the minute.
+  std::function<void(Battery*, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint16_t)> action_with_time = nullptr;
 };
 
 extern std::vector<BatteryCommand> battery_commands;
