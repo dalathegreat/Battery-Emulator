@@ -225,7 +225,7 @@ using FGS = FroniusGenericStorageInverter;
 TEST_F(FroniusGenericStorageTest, ContactorsStayOpenUntilTheInverterAsksForTheBattery) {
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);  // Nothing asked yet
 
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
@@ -413,107 +413,46 @@ TEST_F(FroniusGenericStorageTest, SilentInverterLosesItsRequest) {
 }
 
 // The inverter sends its request only until the state answers it, so after a restart of the
-// emulator it may have nothing to ask. With nothing asked for a minute while it talks, FAULT is
-// reported once, until the inverter has read it and 30 s have passed, then STANDBY again
-TEST_F(FroniusGenericStorageTest, NoRequestForAMinuteReportsFaultOnce) {
-  datalayer.system.status.dc_bus_live = true;
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
+// emulator it may have nothing to ask. The state is DARKSTART from the start, with the contactors
+// open, for as long as the inverter asks nothing, and its first request is answered as ever
+TEST_F(FroniusGenericStorageTest, DarkstartIsReportedUntilTheFirstRequest) {
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);  // From the start already
 
-  set_millis64(1000 + 59999);
+  set_millis64(1000 + 600000);  // Ten minutes of polls without a request
   inverter.inverter_talks();
   inverter.watchdog_tick();
   inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-
-  set_millis64(1000 + 60000);
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);
-  EXPECT_EQ(datalayer.system.status.system_status, ACTIVE);  // Not a fault of the emulator's own
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);
+  EXPECT_EQ(datalayer.system.status.system_status, ACTIVE);  // No state of the emulator's own
   EXPECT_FALSE(inverter.allows_contactor_closing());
 
-  inverter.inverter_reads_monitoring();
-  inverter.inverter_reads_monitoring();
-  set_millis64(1000 + 60000 + 29999);
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);  // Read, but not shown for long enough yet
-
-  set_millis64(1000 + 60000 + 30000);
-  inverter.inverter_talks();
+  inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-  EXPECT_FALSE(inverter.allows_contactor_closing());
 
-  set_millis64(1000 + 60000 + 30000 + 600000);  // Ten more minutes without a request: no second one
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
+  inverter.write_op_mode(FGS::REQUEST_NONE);  // Once the inverter has asked, never again
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
 }
 
-// An inverter that never reads the state gets STANDBY back all the same, after a minute
-TEST_F(FroniusGenericStorageTest, UnreadFaultWithoutRequestEndsAfterAMinute) {
-  inverter.inverter_talks();
-  inverter.update_values();
-  set_millis64(1000 + 60000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
-  inverter.update_values();
-  ASSERT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);
-
-  set_millis64(1000 + 60000 + 59999);
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);
-
-  set_millis64(1000 + 60000 + 60000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-}
-
-TEST_F(FroniusGenericStorageTest, RequestEndsTheFaultWithoutRequestAtOnce) {
+TEST_F(FroniusGenericStorageTest, InactiveRequestEndsTheDarkstart) {
   datalayer.system.status.dc_bus_live = true;
-  inverter.inverter_talks();
-  inverter.update_values();
-  set_millis64(1000 + 60000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
-  inverter.update_values();
-  ASSERT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);
-
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_INACTIVE);
   EXPECT_TRUE(inverter.allows_contactor_closing());
 }
 
-// An inverter that does not talk at all may be switched off: it gets no FAULT, and once it talks
-// the minute starts from there
-TEST_F(FroniusGenericStorageTest, NoFaultWithoutRequestForAnInverterThatDoesNotTalk) {
-  set_millis64(1000 + 600000);
-  inverter.watchdog_tick();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-
+// An emulator fault still comes first, as an equipment stop that has outlived the restart
+TEST_F(FroniusGenericStorageTest, EmulatorFaultIsReportedInsteadOfTheDarkstart) {
   inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-
-  set_millis64(1000 + 600000 + 59999);
-  inverter.inverter_talks();
-  inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);
-
-  set_millis64(1000 + 600000 + 60000);
-  inverter.inverter_talks();
-  inverter.watchdog_tick();
+  set_event(EVENT_EQUIPMENT_STOP, 1);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_FAULT);
+
+  clear_event(EVENT_EQUIPMENT_STOP);
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);  // Still nothing asked
 }
 
 // The workaround decides over the contactors only. The state still answers the request
@@ -523,7 +462,7 @@ TEST_F(FroniusGenericStorageTest, AlwaysClosedWorkaroundOnlyKeepsTheContactorsCl
 
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);  // Nothing asked yet
+  EXPECT_EQ(inverter.mbPV[400], FGS::STATE_DARKSTART);  // Nothing asked yet
 
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
   inverter.update_values();
