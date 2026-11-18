@@ -1074,3 +1074,18 @@ TEST(BydAtto3DmPackTests, ClosedPack0x441Byte6FollowsPackFamily) {
 
   delete battery;
 }
+
+// Near full a DM pack shows bit 0x10 in place of 0x20; booting into that state must still latch.
+TEST(BydAtto3DmPackTests, NearFullFeedbackBitLatchesDmHandling) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  for (uint32_t ms = 0; ms < 1000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x12, 0x00), ms);
+    tick(battery, ms);
+  }
+  EXPECT_NE(last_transmitted_frame(0x343), nullptr);
+
+  delete battery;
+}
