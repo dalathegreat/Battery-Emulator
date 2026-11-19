@@ -63,6 +63,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static const int GROUP2_CELLVOLTAGES_2_POLL = 0x42;  // Cells 63-96
   static const int GROUP3_METRICS = 0x61;              // Mileage + alltime energy
   static const int GROUP6_BALANCING = 0x07;            // Balancing status bits
+  static const int GROUP4_MODULE_TEMPS = 0x04;         // Per-module temperatures
+
+  static const uint8_t NUMBER_OF_MODULES = 12;
+  static const int16_t MODULE_TEMP_UNKNOWN = INT16_MIN;  // Not yet read, or sensor byte 0xFF
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000_69f = 0;
@@ -128,6 +132,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   uint32_t calculated_total_pack_voltage_mV = 0;
   uint16_t battery_mileage_in_km = 0;
   uint16_t kWh_from_beginning_of_battery_life = 0;
+  int16_t module_temperature_C[NUMBER_OF_MODULES] = {MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN};
 };
 
 #endif
