@@ -312,9 +312,12 @@ static void run_contactors() {
   }
 
   if (contactor_control_enabled) {
-    // DC is only live to the inverter once precharge is fully complete (COMPLETED). Re-evaluated every
-    // call, so any transition (open, fault-latch, precharge) is reflected within one 10 ms tick.
-    datalayer.system.status.dc_bus_live = (contactorStatus == COMPLETED);
+    // DC is live to the inverter once both main contactors are closed: from the positive closing,
+    // while the precharge relay is still on beside it, through COMPLETED. During the precharge
+    // itself the link is only fed through the resistor, which must not carry the inverter's
+    // current. Re-evaluated every call, so any transition (open, fault-latch, precharge) is
+    // reflected within one 10 ms tick.
+    datalayer.system.status.dc_bus_live = (contactorStatus == PRECHARGE_OFF || contactorStatus == COMPLETED);
 
     // First check if we have any active errors, incase we do, turn off the battery
     if (datalayer.system.status.system_status == FAULT) {
