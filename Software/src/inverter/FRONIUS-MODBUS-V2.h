@@ -123,6 +123,7 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   uint16_t last_reported_state = STATE_STANDBY;
   uint16_t last_inverter_rebooting = 0;
   bool battery_wanted = false;  // The inverter asks for INACTIVE or ACTIVE, and is still talking
+  bool bus_hidden = false;      // Bus values read as a dead bus: from INACTIVE until ACTIVE
   /* The inverter sends its request only until the state answers it, so after a restart of the
      emulator it may have nothing to ask. That is what it wants after parking the battery in
      STANDBY, but a GEN24 that has lost the battery to a fault may also stay quiet for good, with
