@@ -412,10 +412,9 @@ TEST_F(ContactorSequenceTest, LeavesOtherBatteriesAsTheyWereAcrossABmsReset) {
 }
 
 // dc_bus_live is what tells the rest of the firmware that the DC link is
-// energized. It is false while only the negative contactor is closed and during
-// the precharge, when the link is only fed through the resistor, and true once
-// the positive contactor has closed as well.
-TEST_F(ContactorSequenceTest, DcBusIsLiveOnceBothMainContactorsAreClosed) {
+// energized. It must be false for every step of the closing ladder and true
+// only once the sequence has completed.
+TEST_F(ContactorSequenceTest, DcBusIsLiveOnlyWhenTheSequenceHasCompleted) {
   const unsigned long t = kBootMs;
 
   tick_at(t);
@@ -425,17 +424,13 @@ TEST_F(ContactorSequenceTest, DcBusIsLiveOnceBothMainContactorsAreClosed) {
   EXPECT_FALSE(datalayer.system.status.dc_bus_live) << "reported live during precharge";
 
   tick_at(t + kNegativeToPrechargeMs + precharge_time_ms);
-  ASSERT_EQ(contactorStatus, PRECHARGE_OFF);
-  // Still false on the tick that closes the positive contactor: the flag is
-  // computed from the status at the top of the pass, before the ladder advances.
-  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
-
-  tick_at(t + kNegativeToPrechargeMs + precharge_time_ms + 1);
-  EXPECT_TRUE(datalayer.system.status.dc_bus_live) << "not live with both main contactors closed";
+  EXPECT_FALSE(datalayer.system.status.dc_bus_live) << "reported live before the sequence completed";
 
   tick_at(t + kNegativeToPrechargeMs + precharge_time_ms + kPrechargeToEconomizeMs);
   ASSERT_EQ(contactorStatus, COMPLETED);
-  EXPECT_TRUE(datalayer.system.status.dc_bus_live);
+  // Still false on the completing tick: the flag is computed from the status at
+  // the top of the pass, before the ladder advances.
+  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
 
   tick_at(t + kNegativeToPrechargeMs + precharge_time_ms + kPrechargeToEconomizeMs + 1);
   EXPECT_TRUE(datalayer.system.status.dc_bus_live);
