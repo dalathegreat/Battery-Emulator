@@ -95,7 +95,8 @@ class FroniusGenericStorageTest : public ::testing::Test {
 
 TEST_F(FroniusGenericStorageTest, IdentifiesAsItselfOnTheVersion2Map) {
   EXPECT_EQ(inverter.u32(100), 0x53490001u);  // InterfaceID
-  EXPECT_EQ(inverter.text(102, 16), "BatteryEmulator");
+  EXPECT_EQ(inverter.text(102, 16), "Battery Emulator");
+  EXPECT_EQ(inverter.text(134, 8), "10.0");  // Opt
   // SN, from the MAC address of test/emul/esp_mac.h, worked out apart from the firmware with:
   // python3 -c "import hashlib; print('BE' + hashlib.sha256(b'Battery-Emulator Fronius Generic Storage'
   //   + bytes.fromhex('3C8427C5A1F0')).hexdigest()[:12].upper())"

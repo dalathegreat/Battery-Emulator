@@ -121,16 +121,16 @@ void FroniusGenericStorageInverter::handle_static_data() {
   snprintf(serial, sizeof(serial), "BE%02X%02X%02X%02X%02X%02X", hash[0], hash[1], hash[2], hash[3], hash[4], hash[5]);
 
   // DeviceIdentificationData
-  put_u32(REG_IDENTIFICATION, 0x53490001);                    // InterfaceID, "SI" and 1
-  put_string(REG_IDENTIFICATION + 2, 16, "BatteryEmulator");  // Mn, manufacturer
-  put_string(REG_IDENTIFICATION + 18, 16, battery_name);      // Md, model
-  put_string(REG_IDENTIFICATION + 34, 8, "1.0");              // Opt
-  put_string(REG_IDENTIFICATION + 42, 8, BUILD_VERSION);      // Vr, software version
-  put_string(REG_IDENTIFICATION + 50, 16, serial);            // SN
-  mbPV[REG_IDENTIFICATION + 66] = 2;                          // RegMapVrMajor
-  mbPV[REG_IDENTIFICATION + 67] = 0;                          // RegMapVrMinor
-  put_string(REG_IDENTIFICATION + 68, 50, battery_name);      // DisplayName
-  put_string(REG_IDENTIFICATION + 118, 4, MSG_PREFIX);        // MsgPrefix
+  put_u32(REG_IDENTIFICATION, 0x53490001);                     // InterfaceID, "SI" and 1
+  put_string(REG_IDENTIFICATION + 2, 16, "Battery Emulator");  // Mn, manufacturer
+  put_string(REG_IDENTIFICATION + 18, 16, battery_name);       // Md, model
+  put_string(REG_IDENTIFICATION + 34, 8, "10.0");              // Opt
+  put_string(REG_IDENTIFICATION + 42, 8, BUILD_VERSION);       // Vr, software version
+  put_string(REG_IDENTIFICATION + 50, 16, serial);             // SN
+  mbPV[REG_IDENTIFICATION + 66] = 2;                           // RegMapVrMajor
+  mbPV[REG_IDENTIFICATION + 67] = 0;                           // RegMapVrMinor
+  put_string(REG_IDENTIFICATION + 68, 50, battery_name);       // DisplayName
+  put_string(REG_IDENTIFICATION + 118, 4, MSG_PREFIX);         // MsgPrefix
 
   // NameplateData, all but the three values update_nameplate() keeps following the battery
   // The inverter reads the capability flags once, while it sets the battery up
