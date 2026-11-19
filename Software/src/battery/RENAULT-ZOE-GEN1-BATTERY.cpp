@@ -260,17 +260,30 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
-static const uint16_t ZOE_STATE_OPEN_SESSION = 1;
-
-void RenaultZoeGen1Battery::read_DTC() {
-  start_sequence(ZOE_STATE_OPEN_SESSION);
+void RenaultZoeGen1Battery::reset_DTC() {
+  start_sequence(ZOE_STATE_CLEAR_START);
 }
 
 void RenaultZoeGen1Battery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
-  if (state == ZOE_STATE_OPEN_SESSION) {
-    send_sequence_message(ZOE_STATE_OPEN_SESSION + 10, SID::DiagnosticSessionControl, (const uint8_t*)"\xC0", 1, 20, 2);
-  } else if (state == ZOE_STATE_OPEN_SESSION + 10 && sid == UDS_RESPONSE_SID_OF(SID::DiagnosticSessionControl)) {
-    // Session 0xC0 granted! Transmit UDS ReadDTCInformation with status mask 0x09 (Active/Confirmed DTCs)
-    send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2, 20, 2);
+  switch (state) {
+    case ZOE_STATE_CLEAR_START:
+      // Enter session 0xC0 first
+      send_sequence_message(ZOE_STATE_CLEAR_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\xC0", 1, 20, 2);
+      break;
+    case ZOE_STATE_CLEAR_SESSION:
+      if (sid == UDS_RESPONSE_SID_OF(SID::DiagnosticSessionControl)) {
+        // Do a standard DTC clear
+        send_sequence_message(ZOE_STATE_CLEAR_NORMAL, SID::ClearDiagnosticInformation, (const uint8_t*)"\xFF\xFF\xFF",
+                              3, 25, 2);
+      }
+      break;
+    case ZOE_STATE_CLEAR_NORMAL:
+      // Now do a protected-DTC clear using the routine
+      send_sequence_message(ZOE_STATE_CLEAR_PROTECTED, SID::RoutineControl, (const uint8_t*)"\x05\x00", 2, 25, 2);
+      break;
+    case ZOE_STATE_CLEAR_PROTECTED:
+      // Now re-read DTCs
+      send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2, 20, 2);
+      break;
   }
 }
