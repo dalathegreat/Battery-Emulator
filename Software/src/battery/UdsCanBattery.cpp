@@ -100,6 +100,7 @@ bool UdsCanBattery::transaction_tick() {
       return true;
     }
     const uint16_t failed = seq_state;
+    logging.printf("UDS: SID %02X state %04X timeout\n", seq_msg.sid, failed);
     seq_state = UDS_STATE_IDLE;
     // Notify the subclass that it failed
     on_uds_sequence_timeout(failed);
@@ -376,6 +377,9 @@ void UdsCanBattery::on_uds_receive(const uint8_t* data, uint16_t len) {
       // the real response and extend the transaction timeout.
       uds_transaction_timeout = seq_msg.timeout_ticks;
     } else if (matched) {
+      if (sid == kNegativeResponseSid) {
+        logging.printf("UDS: SID %02X state %04X NRC %02X\n", seq_msg.sid, seq_state, data[2]);
+      }
       // The current transaction is now finished.
       uds_transaction_timeout = 0;
       uds_current_response_address = 0;
