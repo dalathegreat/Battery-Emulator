@@ -29,7 +29,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
   bool get_dtc_standard_code_string() override { return false; }
-  void read_DTC() override;
+  void reset_DTC() override;
 
  protected:
   // Called by the UDS superclass for every successful PID response. `data`
@@ -39,6 +39,14 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
 
  private:
+  enum ZoeUdsState : uint16_t {
+    // DTC clear sequence (normal + protected), followed by a DTC re-read
+    ZOE_STATE_CLEAR_START = 0x01,
+    ZOE_STATE_CLEAR_SESSION,    // 0x10 0xC0 (diagnostic session)
+    ZOE_STATE_CLEAR_NORMAL,     // 0x14 FF FF FF (ClearDiagnosticInformation)
+    ZOE_STATE_CLEAR_PROTECTED,  // 0x31 05 00 (KWP2000 StartRoutineByLocalIdentifier 0x05)
+  };
+
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
