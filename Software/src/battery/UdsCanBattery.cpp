@@ -452,15 +452,14 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
   if (dtc == nullptr)
     return;
 
-  const bool is_kwp2000 = (pid_scan_id_bytes == 1);
-  const bool valid_header = is_kwp2000 ? (data[0] == 0x59) : (data[1] == 0x02);
-
-  if (len < 2 || !valid_header) {
+  // Expect 59 02 <statusAvailabilityMask> followed by 4-byte records (3-byte DTC + status). This holds for ECUs
+  // that are otherwise polled with KWP2000-style one-byte local IDs too (e.g. Renault Zoe Gen1 LBC).
+  if (len < 3 || data[1] != 0x02) {
     // Unexpected report type or a malformed response — treat as a failed readout.
     dtc->dtc_read_failed = true;
   } else {
     dtc->dtc_read_failed = false;
-    int dtcStartIndex = is_kwp2000 ? 2 : 3;  // KWP2000 starts at offset 2, standard UDS skips 59 02 <mask>
+    int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
     int availableBytes = len - dtcStartIndex;
     int maxDtcCount = availableBytes / 4;
 
@@ -474,7 +473,7 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
     for (int i = 0; i < maxDtcCount; i++) {
       int offset = dtcStartIndex + (i * 4);
       // Bounds check to ensure we don't read beyond the buffer
-      if (offset + 3 > len)
+      if (offset + 4 > len)
         break;
       // Combine 3 bytes into a single uint32
       uint32_t dtcCode =
