@@ -78,6 +78,7 @@ class MultiBatterySafetyTest : public ::testing::Test {
       }
     }
     update_machineryprotection(0);
+    combine_pack_limits();
     update_aggregate_limits();
   }
 

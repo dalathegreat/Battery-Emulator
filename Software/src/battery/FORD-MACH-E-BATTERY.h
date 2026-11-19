@@ -50,7 +50,7 @@ class FordMachEBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
-  static const int CELL_TEMPERATURE_OFFSET = 22;  // Calibrated against BECM PID min/max cell temperatures
+  static const int CELL_TEMPERATURE_OFFSET = 40;  // Calibrated against BECM PID min/max cell temperatures
 
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send

@@ -177,10 +177,10 @@ TEST_F(FoxessEpEnergyTest, EveryExistingReadinessGateEncodesStartupAndZeroLimits
   datalayer.battery.status.max_charge_power_W = 4000;
   datalayer.battery.status.max_discharge_power_W = 8000;
   for (unsigned gate = 0; gate < 4; ++gate) {
+    SCOPED_TRACE(gate);
     datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     datalayer.battery.status.real_bms_status = BMS_ACTIVE;
     datalayer.system.status.system_status = ACTIVE;
-    datalayer.system.status.battery_allows_contactor_closing = true;
     if (gate == 0) {
       datalayer.battery.status.CAN_battery_still_alive = 0;
     }
@@ -191,7 +191,7 @@ TEST_F(FoxessEpEnergyTest, EveryExistingReadinessGateEncodesStartupAndZeroLimits
       datalayer.system.status.system_status = FAULT;
     }
     if (gate == 3) {
-      datalayer.system.status.battery_allows_contactor_closing = false;
+      datalayer.system.status.system_status = STANDBY;
     }
     auto data = frames();
     EXPECT_EQ(data.at(0x187B).data.u8[1], 4);

@@ -39,6 +39,7 @@ bool battery_supports_chemistry_selection(BatteryType type);
 
 bool byd_cell_balance_times_available(uint8_t index);
 bool request_byd_cell_balance_times(uint8_t index);
+bool set_byd_cell_balance_automation(uint8_t index, bool enabled);
 String byd_cell_balance_times_json(uint8_t index);
 
 extern uint16_t user_selected_max_pack_voltage_dV;
@@ -51,6 +52,9 @@ extern bool user_selected_LEAF_interlock_mandatory;
 extern uint8_t user_selected_LEAF_chg_sta_rq[3];
 extern bool user_selected_LEAF_auto_current_offset;
 extern bool user_selected_tesla_digital_HVIL;
+#ifndef SMALL_FLASH_DEVICE
+extern uint8_t user_selected_bmw_i3_soc_havrla;  // 0=disable, 1=auto, 2=enable
+#endif                                           // SMALL_FLASH_DEVICE
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;
 extern uint16_t user_selected_tesla_GTW_mapRegion;

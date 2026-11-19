@@ -83,14 +83,23 @@ PlatformIO is an extension that adds all the necessary functionality to VSCode.
 - Take the firmware.bin file
 - [OTA update](https://github.com/dalathegreat/Battery-Emulator/wiki/OTA-Update) the board with this file
 
-### ⚠️ Troubleshooting & Tips
+## Note on testing
+There are a few things to consider for testing.
+**Safety testing.** Since Battery-Emulator has either explicit contactor control via GPIO, or a CAN controlled contactor option where it can command a pack to close/open contactors, it comes with great responsibility to try and actuate the contactors according to the incoming BMS sensor data. These are the most critical operations that BE needs to perform:
+- Open contactors if battery voltage goes over the designed battery pack max voltage
+- Open contactors if battery voltage goes under the designed battery pack min voltage
+- Open contactors if a cell goes over the designed cell max voltage
+- Open contactors if a cell goes under the designed cell min voltage
+- Open contactors if the battery temperature goes above the designed max temperature
+- Open contactors if the battery temperature goes below the designed min temperature
+- Open contactors if a FAULT event triggers (Component communication down, HVIL broken, etc.)
+- Only allow contactor closing if no FAULTs are active
+- If a fault latches for more than 120s, latch permanently OFF
+- Stop allowing power in/out if battery says 0A allowed
 
-#### "Upload port not found" or wrong port errors:
+All other scenarios to turn off battery are up to the solar inverter (Insulation leak, inverter problem).  Note that BE relies on CAN data, and cannot spot corrosion, damage, water ingress, loose terminals etc. That is up to the user to periodically inspect. 
 
-- Find the correct port:
-    - Windows: Check Device Manager under "Ports (COM & LPT)". It's usually COM3, COM4, etc.
-    - macOS/Linux: Run ls /dev/tty.* or ls /dev/ttyUSB* in a terminal. It's often /dev/tty.usbserial-XXX or /dev/ttyUSB0.
-- Add the line upload_port = COM4 (replace COM4 with your port) to your platformio.ini file in the [env:...] section.
+**Integration testing.** Since each release of BE can change how CAN/Modbus data is being handled, detailed integration tests that utilize real CAN logs from working systems are required to be integrated to the CI pipeline. We have some start of this, but we want to get away from users having to test each PR to ensure nothing is broken. Lots of CAN logs will be required to handle this!
 
 ## Code formatting 📜
 The project enforces a specific code formatting in the workflows. To get your code formatted properly, it is easiest to use a pre-commit hook before pushing the code to a pull request.

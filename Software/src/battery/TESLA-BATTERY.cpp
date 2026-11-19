@@ -1540,6 +1540,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
       // brick_volts, mux_zero_counter, mux_max are instance member variables (TESLA-BATTERY.h)
+      if (mux >= 64) {
+        break;  // never index past the cell array, will crash. mux is normally 0-31
+      }
       if (rx_frame.data.u8[1] == 0x2A)  // full frame, 3 cell voltages
       {
         brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;

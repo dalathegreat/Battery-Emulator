@@ -4,6 +4,7 @@
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "../../Software/src/datalayer/datalayer_extended.h"
@@ -721,6 +722,51 @@ TEST(NissanLeafCellTests, ShouldKeepPreviousMinMaxWhenNoCellReports) {
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
 }
 
+// 0x1DC carries both power limits in 0.25 kW steps. A taper below 1 kW has to come through as such
+// rather than as no allowance, and the LBC's 0x3FF "not available" value is no allowance, not 255 kW.
+namespace {
+CAN_frame leaf_1dc_frame(NissanLeafBattery* battery, uint16_t discharge_raw, uint16_t charge_raw) {
+  CAN_frame frame =
+      leaf_frame(0x1DC, {(uint8_t)(discharge_raw >> 2), (uint8_t)(((discharge_raw & 0x03) << 6) | (charge_raw >> 4)),
+                         (uint8_t)((charge_raw & 0x0F) << 4)});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+}  // namespace
+
+TEST(NissanLeafPowerLimitTests, ShouldKeepQuarterKilowattSteps) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 3, 1));  // 0.75 kW / 0.25 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 750u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 250u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldDecodeFullScaleLimits) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 1016, 202));  // 254 kW / 50.5 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 254000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 50500u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldTreatUnavailableLimitsAsNoAllowance) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 0x3FF, 0x3FF));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  delete battery;
+}
+
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();
   battery->setup();
@@ -773,6 +819,21 @@ TEST(NissanLeafDtcTests, ShouldParseMultiFrameReply) {
 
 // A healthy pack answers with the 3-byte header and nothing else, padded with FF. That is a
 // successful read of zero codes, not a failed read.
+// LB_Output_Power_Limit_Reason sits in 0x5BC byte 5 bits 7-5, above the max GID mux bit (bit 4).
+// Decoding and logging it must leave the GID decode alone.
+TEST(NissanLeafPowerLimitReasonTests, ShouldNotDisturbTheGidDecode) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00}));  // 3
+  battery->update_values();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));  // 0
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.GIDS, 320u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 273u * WH_PER_GID);  // Mux bit was never set
+  delete battery;
+}
+
 TEST(NissanLeafDtcTests, ShouldReportNoDtcsStored) {
   auto battery = battery_awaiting_dtc_reply();
 
@@ -1125,6 +1186,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
 // heading, then Status, Health and lifetime usage, the trouble codes and the degradation reset.
 TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  datalayer_extended.nissanleaf.LEAF_gen = 1;  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
 
@@ -1135,7 +1197,7 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "GIDS",
                             "Temperature 4",
                             "Insulation",
-                            "Heating stopped",
+                            "Too low to heat",
                             "Failsafe status",
                             "Relay cut request",
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
@@ -1291,19 +1353,21 @@ TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
 // fields, failsafe status and relay cut request, by the names of their states.
 TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   battery->update_values();
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
   for (const char* label :
        {"Fully charged", "Battery empty", "Failsafe status", "Interlock", "Main relay ON", "Relay cut request",
-        "Heater present", "Heating requested", "Heating started", "Heating stopped"}) {
+        "Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
     EXPECT_NE(html.find(std::string("<h4>") + label + ": Unknown</h4>"), std::string::npos) << label;
   }
 }
 
 TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
   // 0x1DB at 360 V: failsafe status 2 (charging mode stop request), no relay cut request, main
@@ -1332,9 +1396,9 @@ TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   html = renderer.get_status_html().str();
   EXPECT_NE(html.find("<h4>Battery empty: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heater present: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Battery cold: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heating requested: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: &#10007;</h4>"), std::string::npos);
 }
 
 // The serial number is the 16 characters straight after the 61 84 header, starting in the first
@@ -1359,6 +1423,7 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
   auto& leaf = datalayer_extended.nissanleaf;
   leaf.StatusSeen = 0x01;  //0x1DB has arrived
+  leaf.LEAF_gen = 1;       //AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
 
   const char* failsafe[] = {"Normal",
@@ -1383,9 +1448,29 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
 
   // Last in the status list but for the automatic current offset, which is on by default
   std::string html = renderer.get_status_html().str();
-  EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: Unknown</h4><h4>Failsafe status: "), std::string::npos);
   EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4><h4>Automatic current offset: "),
             std::string::npos);
+}
+
+// The ZE0 LBC sends none of the 0x5C0 heater flags, so a ZE0 pack gets no heater rows at all,
+// while the flags of the same broadcast that it does send are still listed.
+TEST(NissanLeafStatusFlagTests, ShouldLeaveHeaterRowsOutOnZe0) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto& leaf = datalayer_extended.nissanleaf;
+  leaf.StatusSeen = 0x07;  //All three broadcasts have arrived
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
+
+  for (uint8_t gen = 0; gen < 3; gen++) {
+    leaf.LEAF_gen = gen;
+    const std::string html = renderer.get_status_html().str();
+    for (const char* label : {"Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
+      const bool shown = html.find(std::string("<h4>") + label + ":") != std::string::npos;
+      EXPECT_EQ(shown, gen != 0) << label << " on generation " << (int)gen;
+    }
+    EXPECT_NE(html.find("<h4>Fully charged: "), std::string::npos) << (int)gen;
+    EXPECT_NE(html.find("<h4>Failsafe status: "), std::string::npos) << (int)gen;
+  }
 }
 
 // Automatic current offset correction
@@ -1794,7 +1879,7 @@ class NissanLeafBalancingStrategyTests : public ::testing::Test {
     saved_battery[1] = datalayer.battery2;
     saved_battery[2] = datalayer.battery3;
     saved_reset_status = datalayer.system.status.bms_reset_status;
-    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;  // Nothing goes out during a reset
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;  // A reset changes what goes out, and when
   }
 
   void TearDown() override {
@@ -1869,4 +1954,685 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
 
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
+}
+
+// U1000 ("CAN communication") is stored by the LBC within a second of missing a message it expects
+// while its ignition input is on, and never ages out. With CANMASK (0x50B byte 2 bit 2) clear, a
+// ZE0/AZE0 expects only 0x1D4, 0x1F2, 0x50B and 0x50C, and a ZE1 0x1D4, 0x1F2, 0x50B, 0x3B8 and
+// 0x5EC. These run the driver on a 1 ms core loop against an LBC that sends 0x1DB every 10 ms and
+// 0x5BC every 100 ms, and check what reaches the LBC.
+class NissanLeafU1000Tests : public ::testing::Test {
+ protected:
+  struct Sent {
+    unsigned long t;
+    CAN_frame frame;
+  };
+  unsigned long t = 200000;
+  BMSResetState saved_reset_status = BMS_RESET_IDLE;
+  NissanLeafBattery* battery = nullptr;
+  std::vector<Sent> sent;
+
+  void SetUp() override {
+    saved_reset_status = datalayer.system.status.bms_reset_status;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    set_millis64(t);
+    battery = new NissanLeafBattery();
+    battery->setup();
+  }
+
+  void TearDown() override {
+    datalayer.system.status.bms_reset_status = saved_reset_status;
+    delete battery;
+  }
+
+  // Runs the core loop for duration_ms. While the LBC talks, its 0x1DB arrives every 10 ms, together
+  // with the given broadcast when one is named, and its 0x5BC every 100 ms. Everything sent is
+  // collected in `sent`.
+  void run(unsigned long duration_ms, bool lbc_talking = true, uint32_t broadcast = 0) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+        if (broadcast != 0) {
+          battery->handle_incoming_can_frame(leaf_frame(broadcast, {0, 0, 0, 0, 0, 0, 0, 0}));
+        }
+      }
+      if (lbc_talking && t % 100 == 5) {
+        battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0, 0, 0, 0, 0, 0, 0}));
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        sent.push_back({t, frame});
+      }
+    }
+  }
+
+  std::vector<Sent> sent_with_id(uint32_t id, unsigned long from = 0) const {
+    std::vector<Sent> matching;
+    for (const Sent& s : sent) {
+      if (s.frame.ID == id && s.t >= from) {
+        matching.push_back(s);
+      }
+    }
+    return matching;
+  }
+
+  // Longest the LBC went without a message of the given ID between `from` and now, edges included
+  unsigned long longest_gap(uint32_t id, unsigned long from) const {
+    unsigned long gap = 0;
+    unsigned long previous = from;
+    for (const Sent& s : sent_with_id(id, from)) {
+      gap = std::max(gap, s.t - previous);
+      previous = s.t;
+    }
+    return std::max(gap, t - previous);
+  }
+
+  static bool canmask(const Sent& s) { return (s.frame.data.u8[2] & 0x04) != 0; }
+};
+
+// A ZE0 sends 0x5BC only every 500 ms, longer than the LBC waits for 0x50B and 0x50C, so its first
+// message of any kind is what starts the cyclic messages.
+TEST_F(NissanLeafU1000Tests, ShouldStartOnTheFirstMessageFromTheLbc) {
+  run(50, false);
+  EXPECT_TRUE(sent.empty());
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x50C}) {
+    EXPECT_EQ(sent_with_id(id).size(), 1u) << std::hex << id;
+  }
+}
+
+// CANMASK stays clear and nothing stands in for the inverter, charger or climate control, whether the
+// pack stays a ZE0, announces itself as an AZE0 with 0x59E, or as a ZE1 with 0x1C2.
+TEST_F(NissanLeafU1000Tests, ShouldKeepCanmaskClearOnEveryGeneration) {
+  for (uint32_t broadcast : {0x000u, 0x59Eu, 0x1C2u}) {
+    sent.clear();
+    run(3000, true, broadcast);
+    ASSERT_FALSE(sent_with_id(0x50B).empty());
+    for (const Sent& s : sent_with_id(0x50B)) {
+      EXPECT_FALSE(canmask(s)) << std::hex << broadcast;
+    }
+    for (uint32_t id : {0x1DA, 0x380, 0x390, 0x54C}) {
+      EXPECT_TRUE(sent_with_id(id).empty()) << std::hex << id;
+    }
+  }
+}
+
+// A ZE1 gets 0x3B8 and 0x5EC too, which it allows 0.29 and 0.99 s between, from the first pass on
+TEST_F(NissanLeafU1000Tests, ShouldSendTheZe1SetWithinItsLimits) {
+  run(3000, true, 0x1C2);
+  ASSERT_FALSE(sent.empty());
+  const unsigned long from = sent.front().t;
+  for (uint32_t id : {0x1D4, 0x1F2}) {
+    EXPECT_LE(longest_gap(id, from), 10u) << std::hex << id;
+  }
+  for (uint32_t id : {0x50B, 0x3B8}) {
+    EXPECT_LE(longest_gap(id, from), 100u) << std::hex << id;
+  }
+  EXPECT_LE(longest_gap(0x5EC, from), 500u);
+}
+
+// The LBC's first message can come before its 0x1C2. The 100 ms and 500 ms slots have run by then,
+// and run again once it has shown itself as a ZE1, rather than leaving 0x3B8 and 0x5EC to their next
+// turn.
+TEST_F(NissanLeafU1000Tests, ShouldStartTheZe1SetAsSoonAsItShowsItself) {
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  run(1, false);
+  ASSERT_FALSE(sent_with_id(0x50B).empty());
+  EXPECT_TRUE(sent_with_id(0x3B8).empty());
+  EXPECT_TRUE(sent_with_id(0x5EC).empty());
+
+  battery->handle_incoming_can_frame(leaf_frame(0x1C2, {0, 0, 0, 0, 0, 0, 0, 0}));
+  const unsigned long shown = t + 1;
+  run(1, false);
+  EXPECT_EQ(sent_with_id(0x3B8, shown).size(), 1u);
+  EXPECT_EQ(sent_with_id(0x5EC, shown).size(), 1u);
+
+  run(2000, true, 0x1C2);
+  EXPECT_LE(longest_gap(0x3B8, shown), 100u);
+  EXPECT_LE(longest_gap(0x5EC, shown), 500u);
+}
+
+// While the reset waits for the pause to take effect the LBC is still powered, so it is kept fed. The
+// group polling waits for the reset to be over.
+TEST_F(NissanLeafU1000Tests, ShouldKeepFeedingTheLbcWhileTheResetWaitsForThePause) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+  const unsigned long from = t;
+  run(10000);
+  for (uint32_t id : {0x1D4, 0x1F2}) {
+    EXPECT_LE(longest_gap(id, from), 10u) << std::hex << id;
+  }
+  for (uint32_t id : {0x50B, 0x50C}) {
+    EXPECT_LE(longest_gap(id, from), 100u) << std::hex << id;
+  }
+  EXPECT_TRUE(sent_with_id(0x79B, from).empty());
+}
+
+// Where only its ignition line is cut, the LBC may talk on, and is answered with the terminating
+// sequence for as long as it does. When the power comes back the messages carry on without a gap, waking
+// it again at once.
+TEST_F(NissanLeafU1000Tests, ShouldCarryOnWithThePowerWhenOnlyTheIgnitionIsCut) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  const unsigned long off = t;
+  run(5000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  const unsigned long on = t;
+  run(3000);
+  for (uint32_t id : {0x1D4, 0x1F2}) {
+    EXPECT_LE(longest_gap(id, on), 10u) << std::hex << id;
+  }
+  for (uint32_t id : {0x50B, 0x50C}) {
+    EXPECT_LE(longest_gap(id, on), 100u) << std::hex << id;
+  }
+  for (const Sent& s : sent_with_id(0x50B, on + 1)) {
+    EXPECT_EQ(s.frame.data.u8[3], 0xC0) << s.t;  // HCM_WakeUpSleepCommand = 11b, WakeUp
+  }
+  EXPECT_TRUE(sent_with_id(0x79B, off).empty());
+}
+
+// With its supply cut the LBC falls silent, and when the power comes back it has to boot before
+// anything acknowledges a message. The messages resume on the first one heard from it.
+TEST_F(NissanLeafU1000Tests, ShouldResumeAsSoonAsTheLbcIsHeardAfterPowerOn) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(5000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  const unsigned long on = t;
+  run(300, false);  // Booting
+  EXPECT_TRUE(sent_with_id(0x1D4, on).empty());
+  EXPECT_TRUE(sent_with_id(0x50B, on).empty());
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  const unsigned long heard = t;
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x50C}) {
+    EXPECT_EQ(sent_with_id(id, heard).size(), 1u) << std::hex << id;
+  }
+}
+
+// A ZE1's 0x3B8 and 0x5EC come back with the rest, the 500 ms one included
+TEST_F(NissanLeafU1000Tests, ShouldResumeTheZe1SetAsSoonAsTheLbcIsHeardAfterPowerOn) {
+  run(1000, true, 0x1C2);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(5000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(300, false);  // Booting
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  const unsigned long heard = t;
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x3B8, 0x5EC}) {
+    EXPECT_EQ(sent_with_id(id, heard).size(), 1u) << std::hex << id;
+  }
+}
+
+// After the reset, the polling of the static groups starts again
+TEST_F(NissanLeafU1000Tests, ShouldPollAgainOnceTheResetIsOver) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(3000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  const unsigned long idle = t;
+  run(3000);
+  EXPECT_FALSE(sent_with_id(0x79B, idle).empty());
+}
+
+// Starting sequence of the EV pack (295B0NDS03 5.1): the relays may close once the LBC reports LB_FRLYON
+// with no LB_FAIL, and 0x1D4 tells it about them, RLYP (byte 5 bit 6) 60 ms after the precharge relay and
+// BTONFN (byte 4 bit 2) 60 ms after both main relays, and no sooner than 60 ms after RLYP. These run the
+// driver on a 1 ms core loop against an LBC that sends 0x1DB every 10 ms, with the given flags.
+class NissanLeafStartingSequenceTests : public ::testing::Test {
+ protected:
+  struct Sent {
+    unsigned long t;
+    CAN_frame frame;
+  };
+  unsigned long t = 300000;
+  NissanLeafBattery* battery = nullptr;
+  std::vector<Sent> sent;  // 0x1D4 only
+  bool frlyon = false;
+  bool interlock = false;
+  uint8_t relay_cut = 0;
+
+  void SetUp() override {
+    reset_globals();
+    set_millis64(t);
+    battery = new NissanLeafBattery();
+    battery->setup();
+  }
+
+  void TearDown() override {
+    reset_globals();
+    delete battery;
+  }
+
+  // Shared with other suites, which CI runs shuffled
+  static void reset_globals() {
+    contactor_control_enabled = false;
+    contactor_control_enabled_double_battery = false;
+    user_selected_LEAF_interlock_mandatory = false;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    datalayer.system.status.battery_allows_contactor_closing = false;
+    datalayer.system.status.reported_battery2_closed = false;
+    relays(false, false, false);
+    //Close the CAN error windows earlier tests opened: the window runs from now, so from time 0
+    set_millis64(0);
+    for (int i = 0; i < NO_CAN_INTERFACE; i++) {
+      ignore_can_errors_for((CAN_Interface)i, 0);
+    }
+  }
+
+  static void relays(bool negative, bool precharge, bool positive) {
+    datalayer.system.status.reported_negative_closed = negative;
+    datalayer.system.status.reported_precharge_closed = precharge;
+    datalayer.system.status.reported_positive_closed = positive;
+  }
+
+  CAN_frame status_1DB() const {
+    CAN_frame frame = leaf_frame(
+        0x1DB, {0x00, (uint8_t)(relay_cut << 3), 0x00, (uint8_t)((frlyon ? 0x20 : 0x00) | (interlock ? 0x08 : 0x00))});
+    frame.data.u8[7] = battery->calculate_crc(frame);
+    return frame;
+  }
+
+  void run(unsigned long duration_ms, bool lbc_talking = true) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(status_1DB());
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        if (frame.ID == 0x1D4) {
+          sent.push_back({t, frame});
+        }
+      }
+    }
+  }
+
+  static bool rlyp(const Sent& s) { return (s.frame.data.u8[5] & 0x40) != 0; }
+  static bool btonfn(const Sent& s) { return (s.frame.data.u8[4] & 0x04) != 0; }
+
+  // Whether the event can be raised now, taking it back down again
+  static bool raised(EVENTS_ENUM_TYPE event) {
+    set_event(event, 0);
+    const bool active = get_event_pointer(event)->state == EVENT_STATE_ACTIVE;
+    clear_event(event);
+    return active;
+  }
+
+  // When the first 0x1D4 since `from` carrying the bit went out, 0 if none did
+  unsigned long first(bool (*bit)(const Sent&), unsigned long from) const {
+    for (const Sent& s : sent) {
+      if (s.t >= from && bit(s)) {
+        return s.t;
+      }
+    }
+    return 0;
+  }
+
+  // The LBC is talking with LB_FRLYON set by the time this returns, from about `ready`
+  unsigned long make_ready() {
+    frlyon = true;
+    run(10);  // The next 0x1DB carries it
+    return t - (t % 10);
+  }
+};
+
+// Nothing is reported while the LBC withholds LB_FRLYON, the CRC following the bits throughout. With no GPIO
+// contactor control the relays are taken as closed once it allows them: RLYP 60 ms later, BTONFN another
+// 60 ms on, and then the message is what it always was.
+TEST_F(NissanLeafStartingSequenceTests, ShouldReportTheRelaysOnlyOnceTheLbcAllowsThem) {
+  run(2000);
+  ASSERT_FALSE(sent.empty());
+  EXPECT_EQ(first(rlyp, 0), 0u);
+  EXPECT_EQ(first(btonfn, 0), 0u);
+
+  const unsigned long ready = make_ready();
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, 0);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, ready + 60);
+  EXPECT_LE(rlyp_at, ready + 70);
+  const unsigned long btonfn_at = first(btonfn, 0);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);  // 60 ms after RLYP rose, which the 10 ms message shows up to 9 ms late
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+
+  const uint8_t crc_with_both[4] = {0x12, 0xD5, 0x19, 0xDE};
+  for (Sent s : sent) {
+    EXPECT_EQ(s.frame.data.u8[7], battery->calculate_crc(s.frame)) << s.t;
+    if (s.t >= btonfn_at) {
+      const uint8_t counter = s.frame.data.u8[4] >> 6;
+      EXPECT_EQ(s.frame.data.u8[4], (uint8_t)((counter << 6) | 0x07)) << s.t;
+      EXPECT_EQ(s.frame.data.u8[5], 0x46) << s.t;
+      EXPECT_EQ(s.frame.data.u8[7], crc_with_both[counter]) << s.t;
+    }
+  }
+}
+
+// With GPIO contactor control the report follows its ladder: nothing for the negative relay alone, RLYP
+// 60 ms after the precharge relay, BTONFN 60 ms after the positive one, both kept as the precharge relay
+// opens, and both gone as soon as the contactors open.
+TEST_F(NissanLeafStartingSequenceTests, ShouldFollowTheGpioContactorControl) {
+  contactor_control_enabled = true;
+  make_ready();
+  run(1000);
+  relays(true, false, false);
+  run(500);
+  EXPECT_EQ(first(rlyp, 0), 0u);
+
+  relays(true, true, false);
+  const unsigned long precharge_at = t + 1;
+  run(100);
+  const unsigned long rlyp_at = first(rlyp, precharge_at);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, precharge_at + 60);
+  EXPECT_LE(rlyp_at, precharge_at + 70);
+  EXPECT_EQ(first(btonfn, 0), 0u);
+
+  relays(true, true, true);
+  const unsigned long positive_at = t + 1;
+  run(1000);
+  const unsigned long btonfn_at = first(btonfn, positive_at);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, positive_at + 60);
+  EXPECT_LE(btonfn_at, positive_at + 70);
+
+  relays(true, false, true);
+  const unsigned long economized = t + 1;
+  run(500);
+  for (const Sent& s : sent) {
+    if (s.t >= economized) {
+      EXPECT_TRUE(rlyp(s) && btonfn(s)) << s.t;
+    }
+  }
+
+  relays(false, false, false);
+  const unsigned long opened = t + 1;
+  run(100);
+  for (const Sent& s : sent) {
+    if (s.t >= opened) {
+      EXPECT_FALSE(rlyp(s) || btonfn(s)) << s.t;
+    }
+  }
+}
+
+// The contactors may close once the LBC reports LB_FRLYON with no LB_FAIL, and LB_INTERLOC too where the
+// interlock is set as mandatory. Only then does the driver tell the others that read it.
+TEST_F(NissanLeafStartingSequenceTests, ShouldLetTheContactorsCloseOnlyOnceTheLbcAllowsIt) {
+  EXPECT_FALSE(battery->contactors_may_close());  // Nothing heard yet
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+
+  frlyon = true;
+  relay_cut = 1;
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+
+  relay_cut = 0;
+  user_selected_LEAF_interlock_mandatory = true;
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+
+  interlock = true;
+  run(100);
+  EXPECT_TRUE(battery->contactors_may_close());
+  battery->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+
+  user_selected_LEAF_interlock_mandatory = false;
+  interlock = false;
+  run(100);
+  EXPECT_TRUE(battery->contactors_may_close());
+}
+
+// A BMS reset starts the LBC over, so the report starts over too, even with the contactors kept closed
+// throughout: nothing until the LBC allows the relays again, then RLYP, then BTONFN. What it said as its
+// power was cut does not count.
+TEST_F(NissanLeafStartingSequenceTests, ShouldStartOverAfterABmsReset) {
+  contactor_control_enabled = true;
+  relays(true, false, true);
+  make_ready();
+  run(1000);
+  ASSERT_NE(first(btonfn, 0), 0u);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1000);  // Only its ignition line cut, it is still talking
+  EXPECT_FALSE(battery->contactors_may_close());
+  battery->handle_incoming_can_frame(status_1DB());  // Its last word, just before the power comes back
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  frlyon = false;
+  const unsigned long on = t + 1;
+  run(2000);
+  EXPECT_FALSE(battery->contactors_may_close());
+  EXPECT_EQ(first(rlyp, on), 0u);
+  EXPECT_EQ(first(btonfn, on), 0u);
+
+  const unsigned long ready = make_ready();
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, on);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, ready + 60);
+  EXPECT_LE(rlyp_at, ready + 70);
+  const unsigned long btonfn_at = first(btonfn, on);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+}
+
+// When a BMS reset cuts IGN, the terminating sequence (295B0NDS03 5.2) goes out one step per 10 ms
+// message: CHG_STA_RQ = 11b, then BTONFN = 0, then RLYP = 0, and only after that HCM_WakeUpSleepCommand =
+// 00b. The messages stop 1 s after the LBC's have, and with IGN back on they wake it again.
+TEST_F(NissanLeafStartingSequenceTests, ShouldEndWithTheTerminatingSequenceWhenTheResetCutsIgn) {
+  relays(true, false, true);  // The contactors stay closed throughout
+  make_ready();
+  run(1000);
+  ASSERT_NE(first(btonfn, 0), 0u);
+  std::vector<Sent> all;  // 0x1D4, 0x1F2 and 0x50B
+  auto record = [&](unsigned long duration_ms, bool lbc_talking) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(status_1DB());
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        if (frame.ID == 0x1D4 || frame.ID == 0x1F2 || frame.ID == 0x50B) {
+          all.push_back({t, frame});
+        }
+      }
+    }
+  };
+
+  // IGN goes off just before a 0x50B is due, which must still ask the LBC to stay awake: the terminating
+  // sequence has not told it the relays are open yet
+  record(200, true);
+  unsigned long last_50B = 0;
+  for (const Sent& s : all) {
+    if (s.frame.ID == 0x50B) {
+      last_50B = s.t;
+    }
+  }
+  ASSERT_NE(last_50B, 0u);
+  record(last_50B + 96 - t, true);
+  all.clear();
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  const unsigned long off = t + 1;
+  record(2000, true);  // Only its ignition line cut, it talks on for a while
+  const unsigned long last_heard = t - (t % 10);
+  record(3000, false);
+
+  std::vector<Sent> slots_1D4, slots_1F2, slots_50B;
+  for (const Sent& s : all) {
+    (s.frame.ID == 0x1D4 ? slots_1D4 : s.frame.ID == 0x1F2 ? slots_1F2 : slots_50B).push_back(s);
+  }
+  ASSERT_GE(slots_1D4.size(), 4u);
+  const auto chg_sta_rq = [](const Sent& s) {
+    return (s.frame.data.u8[2] >> 5) & 0x03;
+  };
+  // 0x1F2 byte 7 low nibble: every other nibble of the frame summed, plus 2
+  const auto checksum_1F2 = [](const CAN_frame& frame) {
+    uint8_t sum = 2 + (frame.data.u8[7] >> 4);
+    for (uint8_t i = 0; i < 7; i++) {
+      sum += (frame.data.u8[i] >> 4) + (frame.data.u8[i] & 0x0F);
+    }
+    return sum & 0x0F;
+  };
+  // First message: the request to stop, the relays still reported as they were
+  EXPECT_EQ(chg_sta_rq(slots_1F2[0]), 3);
+  EXPECT_TRUE(rlyp(slots_1D4[0]) && btonfn(slots_1D4[0]));
+  // Second: the positive relay
+  EXPECT_TRUE(rlyp(slots_1D4[1]));
+  EXPECT_FALSE(btonfn(slots_1D4[1]));
+  // Third: the negative one
+  EXPECT_FALSE(rlyp(slots_1D4[2]) || btonfn(slots_1D4[2]));
+  for (const Sent& s : slots_1F2) {
+    EXPECT_EQ(chg_sta_rq(s), 3) << s.t;
+    EXPECT_EQ(s.frame.data.u8[7] & 0x0F, checksum_1F2(s.frame)) << s.t;
+  }
+  // Sleep, but not before the negative relay has been reported open
+  ASSERT_FALSE(slots_50B.empty());
+  EXPECT_EQ(slots_50B.front().t, last_50B + 100);
+  for (const Sent& s : slots_50B) {
+    EXPECT_EQ(s.frame.data.u8[3], s.t > slots_1D4[2].t ? 0x00 : 0xC0) << s.t;
+  }
+  EXPECT_GE(slots_1D4.back().t, last_heard + 900);
+  EXPECT_LT(slots_1D4.back().t, last_heard + 1000);
+  EXPECT_GE(slots_1D4.front().t, off);
+
+  all.clear();
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  frlyon = false;
+  record(1000, true);
+  for (const Sent& s : all) {
+    if (s.frame.ID == 0x50B) {
+      EXPECT_EQ(s.frame.data.u8[3], 0xC0) << s.t;
+    } else if (s.frame.ID == 0x1F2) {
+      EXPECT_EQ((s.frame.data.u8[2] >> 5) & 0x03, user_selected_LEAF_chg_sta_rq[0]) << s.t;
+    } else {
+      EXPECT_FALSE(rlyp(s) || btonfn(s)) << s.t;  // Nothing until the LBC allows the relays again
+    }
+  }
+}
+
+// Once the LBC has gone quiet with its power cut, what is still sent has nothing to acknowledge it. Its
+// interface's buffer-full and bus-error events are ignored from the cut until 2 s after the reset is over,
+// and only then: while the reset waits for the pause the LBC is powered and acknowledges everything.
+TEST_F(NissanLeafStartingSequenceTests, ShouldIgnoreCanErrorsWhileTheResetHasTheLbcOff) {
+  run(500);
+  EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+  run(500);
+  EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUS_ERROR));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1);
+  EXPECT_FALSE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
+  EXPECT_FALSE(raised(EVENT_CAN_NATIVE_BUS_ERROR));
+  run(3000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(3000);
+  EXPECT_FALSE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  run(1990);
+  EXPECT_FALSE(raised(EVENT_CAN_NATIVE_BUS_ERROR));
+  run(20);
+  EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUS_ERROR));
+  EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
+}
+
+// Each pack ignores the errors of its own interface only
+TEST_F(NissanLeafStartingSequenceTests, ShouldIgnoreOnlyItsOwnInterface) {
+  delete battery;
+  battery =
+      new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  battery->battery_index = 2;
+  battery->setup();
+  run(500);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1);
+  EXPECT_FALSE(raised(EVENT_CANMCP2515_BUFFER_FULL));
+  EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
+}
+
+// A second pack goes by its own contactor, which closes both its main relays at once: RLYP 60 ms after
+// it, BTONFN 60 ms after RLYP. Pack 1's ladder says nothing about it.
+TEST_F(NissanLeafStartingSequenceTests, ShouldFollowASecondPacksOwnContactor) {
+  delete battery;
+  battery =
+      new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  battery->battery_index = 2;
+  battery->setup();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  make_ready();
+  relays(true, true, true);  // Pack 1 closing
+  run(1000);
+  EXPECT_EQ(first(rlyp, 0), 0u);
+
+  datalayer.system.status.reported_battery2_closed = true;
+  const unsigned long joined = t + 1;
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, joined);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, joined + 60);
+  EXPECT_LE(rlyp_at, joined + 70);
+  const unsigned long btonfn_at = first(btonfn, joined);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+}
+
+// 0x5C0 heater bits, as the LBC firmware sets them: byte 1 bit 0 is Batt_Heater_Mail_Send_Request
+// (the pack is cold), byte 0 bit 5 the heating start request (cold, with enough charge to heat) and
+// byte 0 bit 4 the stop request (cold, with too little charge to heat). LB_HEATEXIST, byte 4 bit 0,
+// is never set by the LBC, so the events must not depend on it.
+TEST(NissanLeafHeaterTests, ShouldRaiseColdEventWithoutHeatExist) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x01, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  delete battery;
+}
+
+TEST(NissanLeafHeaterTests, ShouldTellHeatingFromTooLowToHeat) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x20, 0x01, 0x00, 0x00, 0x00}));  // start request
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x10, 0x01, 0x00, 0x00, 0x00}));  // stop request
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+  delete battery;
 }

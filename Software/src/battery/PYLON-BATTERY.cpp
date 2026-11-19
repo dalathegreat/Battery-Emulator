@@ -236,7 +236,7 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       for (uint8_t i = 0; i < 8; i++) {
         uint8_t cell_index = cell_start + i;
         if (cell_index < MAX_CELLS && (actual_cell_count == 0 || cell_index < actual_cell_count)) {
-          datalayer_battery->status.cell_balancing_status[cell_index] = (rx_frame.data.u8[i] > 0);
+          datalayer_battery->status.cell_balancing_status.set(cell_index, rx_frame.data.u8[i] > 0);
         }
       }
     } break;

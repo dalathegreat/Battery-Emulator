@@ -22,8 +22,10 @@
 #define MCP2518FD_LITE_POLL_TIMEOUT_MS 1000
 
 // Host-side ring buffer sizes in bytes, must be a power of two.
-#define MCP2518FD_LITE_TX_BUF_SIZE 2048
-#define MCP2518FD_LITE_RX_BUF_SIZE 2048
+// Transmit buffer: 14 max-length frames or 64 classic frames
+#define MCP2518FD_LITE_TX_BUF_BYTES 1024
+// Receive buffer: 28 max-length frames or 128 classic frames
+#define MCP2518FD_LITE_RX_BUF_BYTES 2048
 
 // Enable to make sendFrame safe for concurrent calls from multiple tasks.
 #ifndef MCP2518FD_LITE_TX_LOCK
@@ -109,8 +111,8 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
   static constexpr uint8_t RECORD_FD = RingRecord::FD;
   template <size_t Size>
   using RecordRing = MCP2518FD_Lite_RecordRing<Size>;
-  RecordRing<MCP2518FD_LITE_TX_BUF_SIZE> _tx;
-  RecordRing<MCP2518FD_LITE_RX_BUF_SIZE> _rx;
+  RecordRing<MCP2518FD_LITE_TX_BUF_BYTES> _tx;
+  RecordRing<MCP2518FD_LITE_RX_BUF_BYTES> _rx;
 #if MCP2518FD_LITE_TX_LOCK
   portMUX_TYPE _tx_lock = portMUX_INITIALIZER_UNLOCKED;
 #endif

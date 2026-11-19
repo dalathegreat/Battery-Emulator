@@ -118,6 +118,9 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       pid_index = (rx_frame.ID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
+      if (cmu_id < 1 || cmu_id > 12) {
+        break;  // index math below is only valid for CMU 1..12
+      }
       //
       if (rx_frame.data.u8[1] != 0) {  // Only update temperatures if value is available
         temp1 = rx_frame.data.u8[1] - 50.0f;
@@ -137,6 +140,11 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (cmu_id >= 7) {
         voltage_index -= 4;
         temp_index -= 3;
+      }
+      // CMU 6 and 12 only have 4 cells; a pid_index of 2/3 for them would index past the arrays
+      if (voltage_index + 1 >= (int)(sizeof(cell_voltages) / sizeof(cell_voltages[0])) ||
+          temp_index + 1 >= (int)(sizeof(cell_temperatures) / sizeof(cell_temperatures[0]))) {
+        break;
       }
 
       if (voltage1 > 2.2f) {  // Only update cellvoltages incase we have a value

@@ -77,7 +77,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     content += "<div class=hg>";
     content += "<h4>+12V BAT level: " +
                (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
-    content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
+    content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit / 4.0f, 2) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
@@ -94,10 +94,15 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     status_row(content, "Battery empty", nissan_dl->Empty, seen & 0x02);
     status_row(content, "Interlock", nissan_dl->Interlock, seen & 0x01);
     status_row(content, "Main relay ON", nissan_dl->MainRelayOn, seen & 0x01);
-    status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
-    status_row(content, "Heating requested", nissan_dl->HeaterSendRequest, seen & 0x04);
-    status_row(content, "Heating started", nissan_dl->HeatingStart, seen & 0x04);
-    status_row(content, "Heating stopped", nissan_dl->HeatingStop, seen & 0x04);
+    //The heater flags of 0x5C0. The ZE0 LBC sends none of them, its 0x5C0 carrying only the history
+    //fields, so for a ZE0 pack the rows are left out rather than shown as permanently clear.
+    //Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 0x5C0 (3NA0D)
+    if (nissan_dl->LEAF_gen != 0) {
+      status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
+      status_row(content, "Battery cold", nissan_dl->HeaterSendRequest, seen & 0x04);
+      status_row(content, "Heating requested", nissan_dl->HeatingStart, seen & 0x04);
+      status_row(content, "Too low to heat", nissan_dl->HeatingStop, seen & 0x04);
+    }
     //The two wider fields of 0x1DB, named as in the Leaf CAN database (dalathegreat/leaf_can_bus_messages:
     //LB_Failsafe_Status, LB_Relay_Cut_Request). Failsafe status is three request bits: bit 0 normal
     //stop, which the driver reads as a discharge stop, bit 1 charging mode stop, bit 2 caution lamp.

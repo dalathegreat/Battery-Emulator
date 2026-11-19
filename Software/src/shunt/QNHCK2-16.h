@@ -64,6 +64,10 @@ extern bool qnhck_auto_calibration;
 static constexpr int16_t QNHCK_MAX_TEMPCO_UV_PER_C = 5000;  // ±5 mV/°C
 extern int16_t qnhck_zero_tempco_uV_per_C;
 
+// The drift as entered on the settings page, in mV/°C with two decimals, as it is stored and used:
+// in uV/°C, held to the setting's limits.
+int16_t qnhck_tempco_uV_per_C(float mV_per_C);
+
 // The temperature the zero point is compensated by: midway between the coldest and the warmest
 // reading of the batteries, in deci-°C. False while no battery reports one, and for a reading
 // outside the sensor's operating range of -25 to +85 °C.

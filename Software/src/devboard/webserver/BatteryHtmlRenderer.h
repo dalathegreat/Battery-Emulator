@@ -168,7 +168,7 @@ class BatteryHtmlRenderer {
     // Identifier map (minified -> readable):
     //   u=url  k=cacheKey  S=statusEl  C=fileContainer  I=fileInput
     //   A=applyDtcs  P=showFilePicker  F=fetchFromGitHub  B=loadUncached  o=shown
-    //   a=arr b=sourceLabel m=map L=cells n=matched t=td/text e=entry d=desc-html
+    //   a=arr b=sourceLabel m=map L=cells n=matched t=td/text c=key e=entry d=desc-html
     //   g=cached f=file R=reader v=ev x=ex
     //
     // ORIGINAL (readable) JAVASCRIPT:
@@ -192,7 +192,10 @@ class BatteryHtmlRenderer {
         var cells = document.querySelectorAll('[data-dtc-code]');
         var matched = 0;
         cells.forEach(function(td){
-          var e = map[td.getAttribute('data-dtc-code')];
+          var key = td.getAttribute('data-dtc-code');
+          // Exact match first; for an SAE code (P1B1208) fall back to its base
+          // code (P1B12) so one entry covers every failure-type byte.
+          var e = map[key] || (/^[PCBU][0-9A-F]{6}$/.test(key) && map[key.slice(0, 5)]);
           if (e) {
             var html = e.l_dsc;
             if (e.s_dsc)
@@ -295,7 +298,8 @@ class BatteryHtmlRenderer {
          "function A(a,b){"
          "var m={};a.forEach(function(e){if(e.code!=null)m[e.code]=e;if(e.dtc)m[e.dtc]=e;});"
          "var L=document.querySelectorAll('[data-dtc-code]');var n=0;"
-         "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
+         "L.forEach(function(t){var c=t.getAttribute('data-dtc-code');"
+         "var e=m[c]||(/^[PCBU][0-9A-F]{6}$/.test(c)&&m[c.slice(0,5)]);"
          "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em "
          "style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
          "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+b+"

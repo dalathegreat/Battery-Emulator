@@ -119,9 +119,8 @@ void FoxessEpCanInverter::
 
   const bool foxess_ep_battery_comm_live = datalayer.battery.status.CAN_battery_still_alive > 0U;
 
-  const bool foxess_ep_battery_ready = foxess_ep_battery_comm_live && datalayer.system.status.system_status == ACTIVE &&
-                                       datalayer.system.status.battery_allows_contactor_closing &&
-                                       !foxess_ep_system_fault;
+  const bool foxess_ep_battery_ready =
+      foxess_ep_battery_comm_live && datalayer.system.status.system_status == ACTIVE && !foxess_ep_system_fault;
 
   const bool foxess_ep_power_path_active = foxess_ep_battery_ready && datalayer.system.status.contactors_engaged == 1U;
 
@@ -386,8 +385,8 @@ void FoxessEpCanInverter::
   // byte 0     = SOH in whole percent
   // byte 1     = operating state
   //              0x04 initialising
-  //              0x02 charging
-  //              0x01 discharging
+  //              0x01 charging
+  //              0x02 discharging
   //              0x00 idle
   // bytes 2-3 = reserved, zero
   // bytes 4-5 = design capacity in 0.1 Ah

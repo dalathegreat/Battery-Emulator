@@ -165,6 +165,12 @@ void init_stored_settings() {
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_use_estimated_charge_limits = settings.getBool("CHGESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
+#ifndef SMALL_FLASH_DEVICE
+  user_selected_bmw_i3_soc_havrla = settings.getUInt("BMWI3SOCHAVR", user_selected_bmw_i3_soc_havrla);
+  if (user_selected_bmw_i3_soc_havrla > 2) {
+    user_selected_bmw_i3_soc_havrla = 0;
+  }
+#endif  // SMALL_FLASH_DEVICE
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
   user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
@@ -209,6 +215,7 @@ void init_stored_settings() {
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
+  datalayer.battery_settings.parallel_headroom_tracking = settings.getBool("PARHEADROOM", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
   charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
@@ -238,9 +245,11 @@ void init_stored_settings() {
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
+#ifdef HW_LILYGO
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
   user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
   user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
+#endif
 #ifdef HW_STARK
   user_selected_gpioopt5 = (GPIOOPT5)settings.getUInt("GPIOOPT5", 0);
 #endif
@@ -287,7 +296,8 @@ void init_stored_settings() {
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
-  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
+  // Capped, so a value saved before the range was narrowed is taken into use within it.
+  mqtt_timeout_ms = mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000));
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   // Publish after a firmware update when asked to: the configs carry sw_version and can
@@ -355,6 +365,9 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+  datalayer_extended.bydAtto3.balance_timer_auto_read = settings.getBool("BYDBALAUTO", false);
+  datalayer_extended.bydAtto3_2.balance_timer_auto_read = settings.getBool("BYDBALAUTO2", false);
+  datalayer_extended.bydAtto3.full_charge_every_days = settings.getUInt("BYDFCDAYS", 0);
 }
 
 void clear_wifi_sta_settings() {
@@ -425,4 +438,7 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+  settings.saveBool("BYDBALAUTO", datalayer_extended.bydAtto3.balance_timer_auto_read);
+  settings.saveBool("BYDBALAUTO2", datalayer_extended.bydAtto3_2.balance_timer_auto_read);
+  settings.saveUInt("BYDFCDAYS", datalayer_extended.bydAtto3.full_charge_every_days);
 }

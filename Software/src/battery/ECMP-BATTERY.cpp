@@ -113,7 +113,10 @@ void EcmpBattery::update_values() {
       datalayer_battery->status.cell_min_voltage_mV = pid_low_cell_voltage;
     }
 
-    datalayer_battery->info.number_of_cells = NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY;  //50/75kWh sends valid cellcount
+    if (NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY <= MAX_AMOUNT_CELLS) {
+      datalayer_battery->info.number_of_cells =
+          NUMBER_OF_CELL_MEASUREMENTS_IN_BATTERY;  //50/75kWh sends valid cellcount
+    }
   }
 
   if (battery_InterlockOpen) {

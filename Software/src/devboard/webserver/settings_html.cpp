@@ -8,6 +8,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -118,6 +119,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
+#ifndef SMALL_FLASH_DEVICE
+static const std::map<int, String> bmw_i3_soc_havrla_modes = {{0, "Disable (use BMS SOC)"},
+                                                              {1, "Auto (use Havrla if &gt;3% difference)"},
+                                                              {2, "Enable (always use Havrla)"}};
+#endif  // SMALL_FLASH_DEVICE
+
 // Balancing strategy of a LEAF pack, sent to its LBC as CHG_STA_RQ in 0x1F2 while it starts up.
 // The key is the two-bit signal value itself, which is what gets stored: 00b (no request), 01b
 // (normal charge), 10b (quick charge). 11b (charge stop request) is deliberately not offered.
@@ -174,6 +181,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   }
 }
 #endif
+#ifdef HW_LILYGO
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -207,6 +215,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+#endif  // HW_LILYGO
 
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
@@ -363,6 +372,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "QNHVO") {
     return options_from_map(settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV), QNHCK_RATED_OUTPUTS);
   }
+
+  if (var == "BMWI3SOCHAVR") {
+    // Out-of-range values boot as Disable (see init_stored_settings()), so show them that way.
+    uint32_t mode = settings.getUInt("BMWI3SOCHAVR", 0);
+    return options_from_map(mode > 2 ? 0 : mode, bmw_i3_soc_havrla_modes);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   if (var == "EQSTOP") {
@@ -451,6 +466,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+#ifdef HW_LILYGO
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -465,6 +481,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
@@ -587,6 +604,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "TRIBTR") {
     return settings.getBool("TRIBTR") ? "checked" : "";
+  }
+
+  if (var == "PARHEADROOM") {
+    return settings.getBool("PARHEADROOM") ? "checked" : "";
   }
 
   if (var == "SOCESTIMATED") {
@@ -835,7 +856,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MQTTTIMEOUT") {
-    return String(settings.getUInt("MQTTTIMEOUT", 2000));
+    // Capped like at load: an out-of-range saved value would otherwise block the form submit.
+    return String(mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000)));
   }
 
   if (var == "MQTTPUBLISHMS") {
@@ -987,7 +1009,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "BMS_RESET_CLASS") {
     // The off time and the reset button apply to both reset methods, so they show when either
-    // "Periodic BMS reset" or "Allow remote BMS reset via MQTT" is enabled, as saved.
+    // "Periodic BMS Power reset" or "Allow remote BMS Power reset" is enabled, as saved.
     return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
@@ -1177,7 +1199,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "QNHTC") {
-    return String(settings.getInt("QNHTC", 0) / 1000.0f, 1);  // Stored in uV/°C, shown in mV/°C
+    return String(settings.getInt("QNHTC", 0) / 1000.0f, 2);  // Stored in uV/°C, shown in mV/°C
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1434,7 +1456,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
           <div class="if-qnhauto">
           <label>Zero point drift (mV/°C): </label>
-          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.1' />
+          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.01' />
           </div>
 
           <div class="if-qnhmanual">
@@ -1468,6 +1490,22 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define QNHCK_SETTINGS_HTML ""
 #define QNHCK_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_SCRIPT ""
+#endif  // SMALL_FLASH_DEVICE
+
+#ifndef SMALL_FLASH_DEVICE
+// BMW i3 SOC Havrla selector, left out on small flash devices together with the calculation
+#define BMWI3_SOCHAVR_SETTING_HTML \
+  R"rawliteral(
+        <div class="if-bmw-i3">
+          <label for='BMWI3SOCHAVR'>SOC Havrla: </label>
+          <select name='BMWI3SOCHAVR' id='BMWI3SOCHAVR'
+            title="Voltage-based SOC with internal resistance correction">
+          %BMWI3SOCHAVR%
+          </select>
+        </div>
+)rawliteral"
+#else
+#define BMWI3_SOCHAVR_SETTING_HTML ""
 #endif  // SMALL_FLASH_DEVICE
 
 #define SYSLOG_SETTING_HTML \
@@ -1554,11 +1592,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS Power reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
 
-        function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
-        xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
+        function startBMSReset(){if(confirm('Cut BMS power now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){alert(this.status==200?'BMS Power reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 )rawliteral" QNHCK_SETTINGS_SCRIPT R"rawliteral(
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -1579,7 +1617,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
 )rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
 
-          function goToMainPage() { window.location.href = '/'; }
 
           function haDisc(c) {
             var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
@@ -1610,12 +1647,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral"
 
 #define SETTINGS_STYLE \
-  R"rawliteral(
+  INDEX_HTML_NAV_LINK R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
-        cursor: pointer; border-radius: 10px; }
-    button:hover { background-color: #3A4A52; }
+    button { padding: 6px 20px; margin-bottom: 15px; }
     h4 { margin: 0.35em 0; line-height: 1.2; }
     /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
     h4 button { margin-bottom: 0; }
@@ -1703,6 +1738,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    form .if-bmw-i3 { display: none; }
+    form[data-battery="2"] .if-bmw-i3 {
+      display: contents;
+    }
+
     form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
@@ -1733,6 +1773,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
+    form[data-battery="40"] .if-socestimated,
     form[data-battery="41"] .if-socestimated,
     form[data-battery="42"] .if-socestimated {
       display: contents;
@@ -1877,10 +1918,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY \
+#define SETTINGS_HTML_BODY          \
   R"rawliteral(
-  <button onclick='goToMainPage()'>Back to main page</button>
-  <button onclick="askFactoryReset()">Factory reset</button>
+  )rawliteral" INDEX_HTML_NAV_START \
+  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {
@@ -1948,7 +1989,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       return true;
     }
     if (flag.dataset.canreset !== '1') {
-      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS Power reset" or "Allow remote BMS Power reset" if you want the emulator to be able to reset the BMS itself.');
       return true;
     }
     flag.value = window.confirm('The BMS only reads the balancing strategy while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
@@ -2115,6 +2156,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           </select>
         </div>
 
+)rawliteral" BMWI3_SOCHAVR_SETTING_HTML R"rawliteral(
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
         <input type='number' name='CHGPOWER' value="%CHGPOWER%" 
@@ -2218,6 +2260,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
 
         </div>
+
+        <label for='PARHEADROOM'>Parallel headroom tracking: </label>
+        <input type='checkbox' name='PARHEADROOM' id='PARHEADROOM' value='on' %PARHEADROOM% />
 
         </div>
 
@@ -2419,7 +2464,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
               </div>
         </div>
 
-        <label>Periodic BMS reset: </label>
+        <label>Periodic BMS Power reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
 
         <div class="if-perbmsreset">
@@ -2487,26 +2532,26 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
         <div class='if-mqtt'>
-        <label>MQTT server: </label>
+        <label>Server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
         pattern="[A-Za-z0-9.\-]+" />
-        <label>MQTT port: </label>
+        <label>Port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1" />
-        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
+        <label>Username: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
         pattern="[ -~]+" />
-        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
+        <label>Password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
         pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
-        <label>MQTT timeout ms: </label>
+        <label>Timeout (ms): </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
-        min="1" max="60000" step="1" />
-        <label>MQTT publish interval (seconds): </label>
+        min="2000" max="20000" step="1" />
+        <label>Publish interval (s): </label>
         <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
         min="1" max="300" step="1" />
-        <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Publish cellvoltages: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Publish heap metric diagnostics: </label>
         <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP% />
-        <label>Allow remote BMS reset via MQTT: </label>
+        <label>Allow remote BMS Power reset: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Home Assistant autodiscovery: </label>
         <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)' />
@@ -2609,9 +2654,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4 class='%BMS_RESET_CLASS%' data-h=bmsoff>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%' data-h=bmsoff>Periodic BMS Power reset OFF time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
 
-      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
+      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS Power reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
       <h4 style='color: red;' data-h=recovery>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 

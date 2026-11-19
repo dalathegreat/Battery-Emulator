@@ -60,6 +60,23 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 };
 
+// One bit per cell, cell 0 in bit 0 of the first byte. The old bool array stored a byte per cell.
+struct CellBalancingStatus {
+  bool get(size_t cell) const { return ((bits_[cell >> 3] >> (cell & 7)) & 0x01u) != 0; }
+
+  void set(size_t cell, bool on) {
+    const uint8_t mask = static_cast<uint8_t>(1u << (cell & 7));
+    if (on) {
+      bits_[cell >> 3] = static_cast<uint8_t>(bits_[cell >> 3] | mask);
+    } else {
+      bits_[cell >> 3] = static_cast<uint8_t>(bits_[cell >> 3] & static_cast<uint8_t>(~mask));
+    }
+  }
+
+ private:
+  uint8_t bits_[(MAX_AMOUNT_CELLS + 7) / 8] = {};
+};
+
 struct DATALAYER_BATTERY_STATUS_TYPE {
   /** uint32_t */
   /** Remaining energy capacity in Watt-hours */
@@ -179,11 +196,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * Use with battery.info.number_of_cells to get valid data.
    */
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
-  /** All balancing resistors status inside the pack, either on(1) or off(0).
+  /** Balancing resistor on(1) or off(0) for each cell.
    * Use with battery.info.number_of_cells to get valid data.
-   * Not available for all battery manufacturers.
+   * Not available for all battery manufacturers. Read and write with get() and set().
    */
-  bool cell_balancing_status[MAX_AMOUNT_CELLS];
+  CellBalancingStatus cell_balancing_status;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
@@ -247,6 +264,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Increases battery life. 
    * If true will rescale SOC between the configured min/max-percentage */
   bool soc_scaling_active = true;
+  /** Runtime only: scale up to 100% real SOC instead of max_percentage, so a full charge can finish */
+  bool soc_window_top_lifted = false;
+  /** Parallel headroom tracking, from the settings page and only with two or three batteries: the
+   * charge limit is raised above the lowest pack limit to what the packs take together. Off, the
+   * inverter gets the lowest pack limit, as before the tracking existed. Read at boot only */
+  bool parallel_headroom_tracking = false;
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -328,9 +351,12 @@ struct DATALAYER_SHUNT_TYPE {
 #endif  // SMALL_FLASH_DEVICE
 };
 
+static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
+
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ring buffer with the debug log text, for displaying on the webserver /log page */
-  char logged_can_messages[15000] = {0};
+  /** allocated in setup() only when web logging is on; size is LOGGED_CAN_MESSAGES_SIZE */
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
@@ -438,6 +464,16 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** The relays as a BMS that is told about each of them is to see them (Nissan LEAF RLYP/BTONFN): those
+   *  the GPIO contactor control drives, the main pack's negative and positive contactor and precharge
+   *  relay and the single contactor of packs 2 and 3, as it drives them, except across a BMS reset that
+   *  keeps them closed. From when it cuts the BMS power they read open, and once that is back they close
+   *  again as after a cold start, see update_reported_relays(). All false without GPIO contactor control. */
+  bool reported_negative_closed = false;
+  bool reported_precharge_closed = false;
+  bool reported_positive_closed = false;
+  bool reported_battery2_closed = false;
+  bool reported_battery3_closed = false;
   /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
    *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
    *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
@@ -470,18 +506,19 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
  * With a single battery every field is a straight copy of datalayer.battery, so the inverter
  * protocols can read this unconditionally without caring how many packs are configured. With
  * two or three packs the energy figures are summed, the cell and temperature figures are the
- * extremes across the packs that are talking, and the power limits are capped to the weakest
- * pack - the same rule update_calculated_values() used to apply on top of datalayer.battery.
- * Either way the four limit fields also carry the remote or manual current limit, in Watts as
- * well as in Amperes.
+ * extremes across the packs that are talking, and the power limits start from the weakest
+ * joined pack's, the charge limit raised to what the packs take in parallel. Either way the
+ * four limit fields also carry the remote or manual current limit, in Watts as well as in
+ * Amperes.
  *
  * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
  * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop
  * reporting pack 1 as if it were the whole system.
  *
- * Filled once per second by update_aggregate_values() in Software.cpp, except for the four
- * limit fields, which update_aggregate_limits() fills after the safety layer, the SOC taper
- * and the low pass filter have had their say.
+ * Filled once per second by update_aggregate_values() in Software.cpp, except for the limit
+ * fields. With several packs combine_pack_limits() fills those after the safety layer and
+ * before the SOC taper and the low pass filter, and update_aggregate_limits() finishes them
+ * once those have had their say.
  */
 struct DATALAYER_AGGREGATE_TYPE {
   /** uint32_t */
@@ -497,6 +534,15 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint32_t max_discharge_power_W = 0;
   /** Charge power the inverter is allowed to push into the installation, in Watts */
   uint32_t max_charge_power_W = 0;
+  /** Charge power the joined packs have been measured to take together, in Watts, before the SOC
+   * taper, the low pass filter and the caps: raised in steps while the installation charges at it,
+   * cut when a pack's limit drops or a pack goes over. 0 until the first raise of a charge session.
+   * What is sent is this, but never below the lowest pack limit nor above the sum of the limits.
+   * Carried from one pass to the next by combine_pack_limits(). Multi-battery only */
+  uint32_t parallel_charge_limit_W = 0;
+  /** The lowest charge limit each pack has reported lately, in Watts, pack 1 first: what a
+   * parallel raise may count on. Kept by combine_pack_limits() */
+  uint32_t parallel_held_limit_W[3] = {0, 0, 0};
 
   /** int32_t */
   /** Sum of every pack's instantaneous power, in Watts. Positive = charging */
@@ -540,6 +586,13 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint16_t cell_max_voltage_mV = 3700;
   /** Lowest cell voltage found in any pack, in milliVolt */
   uint16_t cell_min_voltage_mV = 3700;
+  /** Passes in a row the installation has not been charging, up to PARALLEL_STOP_PASSES: a short
+   * stop keeps parallel_charge_limit_W, a longer one starts it over. Kept by combine_pack_limits() */
+  uint16_t parallel_stopped_passes = 0;
+  /** Each pack's share of the charge power the last time the joined packs charged at the parallel
+   * limit, in integer-percent x 100, pack 1 first: what a lower pack limit is cut by. 0 until
+   * measured in a charge session. Kept by combine_pack_limits() */
+  uint16_t parallel_share_pptt[3] = {0, 0, 0};
 
   /** int16_t */
   /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A. A shunt with
@@ -549,6 +602,13 @@ struct DATALAYER_AGGREGATE_TYPE {
   int16_t temperature_max_dC = 0;
   /** Lowest temperature found in any pack, in d°C */
   int16_t temperature_min_dC = 0;
+
+  /** uint8_t */
+  /** Passes left before parallel_charge_limit_W may be raised again, so the inverter can follow
+   * its last change before the packs are measured against it. Kept by combine_pack_limits() */
+  uint8_t parallel_settle_passes = 0;
+  /** Passes left before each pack's held limit may follow its limit back up, pack 1 first */
+  uint8_t parallel_hold_passes[3] = {0, 0, 0};
 };
 
 struct DATALAYER_SYSTEM_TYPE {

@@ -18,7 +18,7 @@ class SungrowInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "Sungrow SBRXXX emulation over CAN bus";
+  static constexpr const char* Name = "Sungrow SBRXXX over CAN";
   static constexpr uint8_t MODBUS_SLAVE_ADDR = 0x01;
   static constexpr uint16_t MODBUS_REGISTER_BASE_ADDR = 0x4DE2;
   static constexpr uint16_t MODBUS_REGISTER_QTY = 0x0006;

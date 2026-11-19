@@ -254,6 +254,15 @@ bool request_byd_cell_balance_times(uint8_t index) {
   return target && target->request_cell_balance_times();
 }
 
+bool set_byd_cell_balance_automation(uint8_t index, bool enabled) {
+  BydAttoBattery* target = byd_battery_at(index);
+  if (!target) {
+    return false;
+  }
+  target->set_cell_balance_automation(enabled);
+  return true;
+}
+
 String byd_cell_balance_times_json(uint8_t index) {
   BydAttoBattery* target = byd_battery_at(index);
   return target ? target->cell_balance_times_json() : String();
@@ -395,6 +404,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::BydAtto3:
     case BatteryType::NissanLeaf:
     case BatteryType::BmwI3:
+    case BatteryType::BmwIX:
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
@@ -440,6 +450,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::BmwIX:
     case BatteryType::BmwPhev:
     case BatteryType::BoltAmpera:
+    case BatteryType::BydAtto3:
     case BatteryType::BYDBatteryBoxPremium:
     case BatteryType::Chademo:
     case BatteryType::ChargebyteCCSBattery:
@@ -548,6 +559,9 @@ void setup_battery() {
           battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                       can_config.battery_double, esp32hal->WUP_PIN2());
           break;
+        case BatteryType::BmwIX:
+          battery2 = new BmwIXBattery(&datalayer.battery2, can_config.battery_double);
+          break;
         case BatteryType::CmfaEv:
           battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
           break;
@@ -560,7 +574,7 @@ void setup_battery() {
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
         case BatteryType::Kia64FD:
-          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
+          battery2 = new Kia64FDBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
           battery2 =
@@ -585,8 +599,7 @@ void setup_battery() {
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
-          battery2 =
-              new RenaultZoeGen2Battery(&datalayer.battery2, &datalayer_extended.zoePH2_2, can_config.battery_double);
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::TestFake:
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
@@ -654,6 +667,9 @@ uint8_t user_selected_LEAF_chg_sta_rq[3] = {0, 0, 0};
 bool user_selected_LEAF_auto_current_offset = true;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
+#ifndef SMALL_FLASH_DEVICE
+uint8_t user_selected_bmw_i3_soc_havrla = 0;  // 0=disable, 1=auto, 2=enable
+#endif                                        // SMALL_FLASH_DEVICE
 uint16_t user_selected_tesla_GTW_country = 17477;
 bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
