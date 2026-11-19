@@ -243,15 +243,21 @@ TEST_F(FroniusGenericStorageTest, InactiveConnectsTheBatteryAndActiveKeepsIt) {
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_STANDBY);  // Precharging, not there yet
   EXPECT_EQ(inverter.mbPV[412], 0);                   // UDC_Bus
 
+  datalayer.aggregate.active_power_W = -1000;  // Discharging
   datalayer.system.status.dc_bus_live = true;
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_INACTIVE);
-  EXPECT_EQ(inverter.mbPV[412], 3800);
+  EXPECT_EQ(inverter.mbPV[412], 0);     // UDC_Bus, as a dead bus, connected as the battery is
+  EXPECT_EQ(inverter.u32(413), 0u);     // PDC_Bus
+  EXPECT_EQ(inverter.mbPV[415], 3800);  // UDC_internal, as ever
 
   inverter.write_op_mode(FGS::REQUEST_ACTIVE);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_ACTIVE);
+  EXPECT_EQ(inverter.mbPV[412], 3800);
+  EXPECT_EQ(inverter.u32(413), 1000u);
+  datalayer.aggregate.active_power_W = 0;
 }
 
 TEST_F(FroniusGenericStorageTest, ActiveStraightFromStandbyConnectsTheBatteryToo) {

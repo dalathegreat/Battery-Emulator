@@ -314,9 +314,10 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
 
 void FroniusGenericStorageInverter::update_monitoring() {
   const uint16_t state = reported_state();
-  // The bus values go by the contactors, not by the state: in INACTIVE, and during the hand-over to
-  // STANDBY, the inverter has the battery on its DC link all the same
-  const bool delivering = bus_connected();
+  // The bus values go by the contactors, not by the state: during the hand-over to STANDBY the
+  // inverter has the battery on its DC link all the same. Only INACTIVE shows them as a dead bus,
+  // connected as the battery is
+  const bool delivering = bus_connected() && state != STATE_INACTIVE;
 
   uint32_t flags = FLAG_LINK_OK;
   if (datalayer.aggregate.current_dA > 0) {
