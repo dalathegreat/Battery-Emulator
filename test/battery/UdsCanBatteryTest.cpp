@@ -27,6 +27,7 @@ class TestUdsBattery : public UdsCanBattery {
   using UdsCanBattery::request_uds_soft_reset;
   using UdsCanBattery::send_sequence_message;
   using UdsCanBattery::set_pid_scan_list;
+  using UdsCanBattery::set_pid_scan_mode;
   using UdsCanBattery::setup_uds;
   using UdsCanBattery::start_sequence;
   using UdsCanBattery::transmit_uds_can;
@@ -856,6 +857,54 @@ TEST_F(UdsCanBatteryTest, ReadDtcParsesMultiFrameResponse) {
   for (int i = 0; i < 4; i++) {
     EXPECT_EQ(datalayer.battery.dtc.dtc_status[i], 0x4E);
   }
+}
+
+// Regression: ECUs polled with KWP2000-style one-byte local IDs (Renault Zoe Gen1 LBC) still answer
+// 19 02 09 in standard UDS form. A real Zoe Gen1 read of P33D2 / P3090 was shown as 4F33D2 / 4F3090 when the
+// parser started one byte early, swallowing the 0x4F availability mask / previous status into the code.
+TEST_F(UdsCanBatteryTest, ReadDtcInOneByteLocalIdModeUsesStandardUdsLayout) {
+  battery->set_pid_scan_mode(TestUdsBattery::PidScanMode::OneByteLocalId);
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+
+  battery->read_DTC();
+  tick(1000);
+
+  // 11 bytes: 59 02 4F | 33 D2 16 4F | 30 90 1C 4F
+  battery->handle_incoming_uds_can_frame(make_frame(0x7BB, {0x10, 0x0B, 0x59, 0x02, 0x4F, 0x33, 0xD2, 0x16}));
+  battery->handle_incoming_uds_can_frame(make_frame(0x7BB, {0x21, 0x4F, 0x30, 0x90, 0x1C, 0x4F, 0x55, 0x55}));
+
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 2);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x33D216u);  // P33D2, temperature sensor 11 out of range
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x4F);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[1], 0x30901Cu);  // P3090, cell line failure (ASIC6)
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[1], 0x4F);
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcWithNoStoredCodesReportsZero) {
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+
+  battery->read_DTC();
+  tick(1000);
+  feed_response({0x59, 0x02, 0x4F});
+
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcWrongReportTypeMarksReadFailed) {
+  battery->set_pid_scan_mode(TestUdsBattery::PidScanMode::OneByteLocalId);
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+
+  battery->read_DTC();
+  tick(1000);
+  // Missing the echoed 02 report type: the layout is unknown, so don't guess.
+  feed_response({0x59, 0x4F, 0x33, 0xD2, 0x16, 0x4F});
+
+  EXPECT_TRUE(datalayer.battery.dtc.dtc_read_failed);
 }
 
 TEST_F(UdsCanBatteryTest, ReadDtcNegativeResponseMarksReadFailed) {
