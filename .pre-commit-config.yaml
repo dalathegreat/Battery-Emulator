@@ -29,3 +29,9 @@ repos:
     language: python
     files: ^(Software/src/devboard/webserver/help|tools/gen_help_js\.py)
     pass_filenames: false
+  - id: settings-js-generated
+    name: Check the settings page script gzips back to settings_page.js
+    entry: python tools/gen_settings_js.py --check
+    language: python
+    files: ^(Software/src/devboard/webserver/settings_page\.js|tools/gen_settings_js\.py)
+    pass_filenames: false
