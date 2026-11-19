@@ -21,6 +21,7 @@ class TestFakeBattery : public CanBattery, public BatteryHtmlRenderer {
   }
 
   static constexpr const char* Name = "Fake battery for testing purposes";
+  bool supports_charged_energy() override { return true; }
 
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);

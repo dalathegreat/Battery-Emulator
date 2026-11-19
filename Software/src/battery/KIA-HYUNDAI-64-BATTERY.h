@@ -33,6 +33,7 @@ class KiaHyundai64Battery : public UdsCanBattery {
   const char* get_dtc_json_filename() override { return "kia_hyundai64_dtc.json"; }
 
   bool supports_insulation_resistance() { return true; }
+  bool supports_directional_capacity() override { return true; }
 
  protected:
   // Called by the UDS superclass for each successful PID query response.

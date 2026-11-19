@@ -1,5 +1,7 @@
 #include "battery_aggregate.h"
 
+#include <limits>
+
 #include "../battery/BATTERIES.h"
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/value_mapping.h"
@@ -25,6 +27,18 @@ static constexpr uint32_t PARALLEL_RAISE_MIN_DRAW_PCT = 95;
    parallel charge limit, in percent, has no current reading to go by. At less, the noise of the
    readings alone can show a pack that charges as taking nothing - see parallel_charge_limit_W(). */
 static constexpr uint32_t PARALLEL_NO_READING_MIN_DRAW_PCT = 25;
+
+// Lifetime totals are nonnegative. Reject invalid native values per pack,
+// before summing, so they cannot cancel another pack's valid history.
+// Widen before adding and saturate instead of wrapping advertised totals.
+template <typename T>
+static T sum_lifetime_counter(T total, T extra) {
+  const int64_t sum = (total > 0 ? static_cast<int64_t>(total) : 0) + (extra > 0 ? static_cast<int64_t>(extra) : 0);
+  if (sum > std::numeric_limits<T>::max()) {
+    return std::numeric_limits<T>::max();
+  }
+  return static_cast<T>(sum);
+}
 
 /* The safety layer, the SOC taper and the low pass filter all rewrite a pack's power limits in
    place, so by the time the web page renders, what the BMS actually asked for is gone. Keep a
@@ -179,8 +193,11 @@ void update_aggregate_values() {
   agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   agg.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
   agg.remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  agg.total_charged_battery_Wh = datalayer.battery.status.total_charged_battery_Wh;
-  agg.total_discharged_battery_Wh = datalayer.battery.status.total_discharged_battery_Wh;
+  agg.total_charged_battery_Wh = sum_lifetime_counter<int32_t>(0, datalayer.battery.status.total_charged_battery_Wh);
+  agg.total_discharged_battery_Wh =
+      sum_lifetime_counter<int32_t>(0, datalayer.battery.status.total_discharged_battery_Wh);
+  agg.total_charged_battery_dAh = datalayer.battery.status.total_charged_battery_dAh;
+  agg.total_discharged_battery_dAh = datalayer.battery.status.total_discharged_battery_dAh;
 
   uint16_t lowest_soc = datalayer.battery.status.real_soc;
   uint16_t highest_soc = datalayer.battery.status.real_soc;
@@ -200,8 +217,14 @@ void update_aggregate_values() {
 
       agg.total_capacity_Wh += pack->info.total_capacity_Wh;
       agg.remaining_capacity_Wh += pack->status.remaining_capacity_Wh;
-      agg.total_charged_battery_Wh += pack->status.total_charged_battery_Wh;
-      agg.total_discharged_battery_Wh += pack->status.total_discharged_battery_Wh;
+      agg.total_charged_battery_Wh =
+          sum_lifetime_counter(agg.total_charged_battery_Wh, pack->status.total_charged_battery_Wh);
+      agg.total_discharged_battery_Wh =
+          sum_lifetime_counter(agg.total_discharged_battery_Wh, pack->status.total_discharged_battery_Wh);
+      agg.total_charged_battery_dAh =
+          sum_lifetime_counter(agg.total_charged_battery_dAh, pack->status.total_charged_battery_dAh);
+      agg.total_discharged_battery_dAh =
+          sum_lifetime_counter(agg.total_discharged_battery_dAh, pack->status.total_discharged_battery_dAh);
 
       if (!pack_detected[i]) {
         continue;  // Never seen on the bus, its defaults are not measurements
