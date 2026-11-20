@@ -88,7 +88,8 @@ class VolvoSpaBattery : public CanBattery {
   bool rxConsecutiveFrames = false;
   uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint8_t cellcounter = 0;
-  uint16_t cell_voltages[108];  //array with all the cellvoltages
+  uint16_t cell_voltages[108];  //working buffer, filled module by module while a cell voltage sweep is running
+  uint16_t cell_voltages_complete[108] = {0};  //last fully completed sweep, the only one mapped to the datalayer
   bool startedUp = false;
   uint8_t DTC_reset_counter = 0;
 
