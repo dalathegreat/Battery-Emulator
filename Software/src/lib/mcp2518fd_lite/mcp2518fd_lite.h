@@ -49,6 +49,16 @@ typedef struct {
   uint32_t f_osc;
 } MCP2518FD_Lite_Speed;
 
+// Error/mode diagnostics, refreshed by the periodic error check
+typedef struct {
+  uint32_t serr_count;  // SERRIF (system error) occurrences since begin()
+  uint32_t cerr_count;  // CERRIF (CAN bus error state change) occurrences since begin()
+  uint32_t trec;        // CiTREC: REC (0-7), TEC (8-15), EWARN/RXWARN/TXWARN/RXBP/TXBP/TXBO (16-21)
+  uint32_t bdiag1;      // CiBDIAG1 error flags, accumulated since the last takeDiag()
+  uint8_t opmode;       // CiCON.OPMOD: 0 normal FD, 4 config, 7 restricted, ...
+  bool tx_full;         // The controller TX FIFO is full (waiting for space)
+} MCP2518FD_Lite_Diag;
+
 class MCP2518FD_Lite : public AsyncSpiDevice {
  public:
   // Sets up `host` with these pins, unless another AsyncSpiBus device already
@@ -89,6 +99,11 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
     return ret;
   }
 
+  // Fills in the latest diagnostics, and returns true if something noteworthy
+  // (a system error, an operating mode change, an error state change or a
+  // bus-off) happened since the last call that returned true.
+  bool takeDiag(MCP2518FD_Lite_Diag& out);
+
  private:
   spi_host_device_t _host;
   int _sck, _mosi, _miso;
@@ -128,6 +143,10 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
   uint8_t _object[2 + 72];    // A command and CAN frame (in the chip SPI format)
   uint8_t _rx_rest[2 + 56];   // Rest of a long RX payload (if the first read didn't get it all)
   uint32_t _last_poll_ms = 0;
+
+  // Diagnostics (task context only, see checkErrors())
+  MCP2518FD_Lite_Diag _diag = {};
+  bool _diag_changed = false;
 
   bool joinBus();
   void requestStep() {
