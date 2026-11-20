@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 /* TODO
 - Add //NVROL Reset
@@ -106,6 +107,148 @@ void RenaultZoeGen2Battery::update_values() {
   } else {
     clear_event(EVENT_BATTERY_CAUTION, battery_index);
   }*/
+}
+
+// --- DTC read/clear across both ECUs ---------------------------------------
+
+// Response timeouts in 100ms ticks (match the UdsCanBattery defaults).
+static constexpr uint16_t ZOE_DTC_TIMEOUT_SESSION = 10;
+static constexpr uint16_t ZOE_DTC_TIMEOUT_READ = 20;
+static constexpr uint16_t ZOE_DTC_TIMEOUT_CLEAR = 25;
+static constexpr uint8_t ZOE_DTC_MAX_RETRIES = 2;
+
+void RenaultZoeGen2Battery::read_DTC() {
+  start_sequence(ZOE_DTC_READ_START);
+}
+
+void RenaultZoeGen2Battery::reset_DTC() {
+  start_sequence(ZOE_DTC_CLEAR_START);
+}
+
+void RenaultZoeGen2Battery::set_uds_target(uint32_t request_id, uint32_t response_id) {
+  uds_address = request_id;
+  uds_response_address = response_id;
+  uds_current_response_address = 0;
+}
+
+uint16_t RenaultZoeGen2Battery::next_dtc_step(uint16_t state, bool ecu_ok) {
+  switch (state) {
+    case ZOE_DTC_READ_START:
+      return ZOE_DTC_READ_LBC;
+    case ZOE_DTC_READ_LBC:
+      return ZOE_DTC_READ_LBC2;
+    case ZOE_DTC_CLEAR_START:
+      return ZOE_DTC_CLEAR_LBC_DIAG;
+    case ZOE_DTC_CLEAR_LBC_DIAG:
+      // LBC silent: skip its clear, move on to the second ECU.
+      return ecu_ok ? ZOE_DTC_CLEAR_LBC : ZOE_DTC_CLEAR_LBC2_DIAG;
+    case ZOE_DTC_CLEAR_LBC:
+      return ZOE_DTC_CLEAR_LBC2_DIAG;
+    case ZOE_DTC_CLEAR_LBC2_DIAG:
+      return ecu_ok ? ZOE_DTC_CLEAR_LBC2 : 0;
+    default:  // ZOE_DTC_READ_LBC2, ZOE_DTC_CLEAR_LBC2
+      return 0;
+  }
+}
+
+void RenaultZoeGen2Battery::send_dtc_step(uint16_t state) {
+  bool lbc2 = false;
+  bool sent = false;
+  switch (state) {
+    case ZOE_DTC_READ_LBC:
+    case ZOE_DTC_READ_LBC2:
+      lbc2 = (state == ZOE_DTC_READ_LBC2);
+      set_uds_target(lbc2 ? LBC2_UDS_REQUEST_ID : LBC_UDS_REQUEST_ID,
+                     lbc2 ? LBC2_UDS_RESPONSE_ID : LBC_UDS_RESPONSE_ID);
+      sent = send_sequence_message(state, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2, ZOE_DTC_TIMEOUT_READ,
+                                   ZOE_DTC_MAX_RETRIES);
+      break;
+    case ZOE_DTC_CLEAR_LBC_DIAG:
+    case ZOE_DTC_CLEAR_LBC2_DIAG:
+      lbc2 = (state == ZOE_DTC_CLEAR_LBC2_DIAG);
+      set_uds_target(lbc2 ? LBC2_UDS_REQUEST_ID : LBC_UDS_REQUEST_ID,
+                     lbc2 ? LBC2_UDS_RESPONSE_ID : LBC_UDS_RESPONSE_ID);
+      sent = send_sequence_message(state, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                                   ZOE_DTC_TIMEOUT_SESSION, ZOE_DTC_MAX_RETRIES);
+      break;
+    case ZOE_DTC_CLEAR_LBC:
+    case ZOE_DTC_CLEAR_LBC2:
+      // Same ECU as the preceding session step, no target change.
+      sent = send_sequence_message(state, SID::ClearDiagnosticInformation, (const uint8_t*)"\xFF\xFF\xFF", 3,
+                                   ZOE_DTC_TIMEOUT_CLEAR, ZOE_DTC_MAX_RETRIES);
+      break;
+    default:
+      break;
+  }
+  if (!sent) {
+    // Sequence over (or the send was refused): the PID scan talks to the LBC.
+    set_uds_target(LBC_UDS_REQUEST_ID, LBC_UDS_RESPONSE_ID);
+  }
+}
+
+void RenaultZoeGen2Battery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
+  const bool positive = (sid != kNegativeResponseSid);
+  switch (state) {
+    case ZOE_DTC_READ_LBC:
+    case ZOE_DTC_READ_LBC2: {
+      DATALAYER_BATTERY_DTC_TYPE* target = (state == ZOE_DTC_READ_LBC) ? dtc : &dtc_lbc2;
+      if (positive) {
+        handle_dtc_response(data, len, target);
+      } else if (target != nullptr) {
+        target->dtc_read_failed = true;
+        target->dtc_last_read_millis = millis();
+      }
+      break;
+    }
+    case ZOE_DTC_CLEAR_LBC:
+    case ZOE_DTC_CLEAR_LBC2:
+      if (!positive) {
+        logging.printf("Zoe2: DTC clear on %s rejected (NRC 0x%02X)\n", state == ZOE_DTC_CLEAR_LBC ? "LBC" : "LBC2",
+                       len >= 3 ? data[2] : 0);
+      }
+      break;
+    default:
+      break;
+  }
+
+  // Any reply (even a rejected session request) shows the ECU is there, so
+  // its clear is still attempted; only a silent ECU skips its remaining steps.
+  advance_dtc_sequence(state, true);
+}
+
+void RenaultZoeGen2Battery::on_uds_sequence_timeout(uint16_t state) {
+  if (state == ZOE_DTC_READ_LBC || state == ZOE_DTC_READ_LBC2) {
+    DATALAYER_BATTERY_DTC_TYPE* target = (state == ZOE_DTC_READ_LBC) ? dtc : &dtc_lbc2;
+    if (target != nullptr) {
+      target->dtc_read_failed = true;
+      target->dtc_last_read_millis = millis();
+    }
+  }
+  // A silent ECU doesn't stop the other one being handled.
+  advance_dtc_sequence(state, false);
+}
+
+void RenaultZoeGen2Battery::advance_dtc_sequence(uint16_t state, bool ecu_ok) {
+  const uint16_t next = next_dtc_step(state, ecu_ok);
+  send_dtc_step(next);
+  if (next == 0 && state >= ZOE_DTC_CLEAR_START) {
+    // A clear just finished: read back so the page shows what's left.
+    start_sequence(ZOE_DTC_READ_START);
+  }
+}
+
+String RenaultZoeGen2Battery::get_uds_dtc_html() {
+  String ret;
+  if (dtc == nullptr) {
+    return ret;
+  }
+  // The JSON loader goes with the first section that draws a table.
+  const bool lbc_has_table = BatteryHtmlRenderer::dtc_section_has_table(*dtc);
+  ret += BatteryHtmlRenderer::render_dtc_section_html(*dtc, get_dtc_json_filename(), get_dtc_standard_code_string(),
+                                                      "LBC Diagnostic Trouble Codes", true);
+  ret += BatteryHtmlRenderer::render_dtc_section_html(dtc_lbc2, get_dtc_json_filename(), get_dtc_standard_code_string(),
+                                                      "LBC2 Diagnostic Trouble Codes", !lbc_has_table);
+  return ret;
 }
 
 template <typename T>
@@ -245,10 +388,14 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x612:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x18DAF1DB:  // LBC Reply from active polling
+    case LBC_UDS_RESPONSE_ID:  // LBC Reply from active polling
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // Hand the reply to the UDS superclass: ISO-TP reassembly, then handle_pid()
       // for PID scan responses and the DTC handlers for the rest.
+      handle_incoming_uds_can_frame(rx_frame);
+      break;
+    case LBC2_UDS_RESPONSE_ID:  // Second controller, only queried for DTCs
+      // Dropped by the UDS response filter unless a DTC step targets it.
       handle_incoming_uds_can_frame(rx_frame);
       break;
     default:
@@ -503,7 +650,7 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
 
   // UDS: send requests to 0x18DADBF1, accept replies from the BMS on 0x18DAF1DB.
-  setup_uds(0x18DADBF1, 0x18DAF1DB);
+  setup_uds(LBC_UDS_REQUEST_ID, LBC_UDS_RESPONSE_ID);
   static const uint16_t pid_scan_list[] = {
       POLL_SOC,
       POLL_USABLE_SOC,
