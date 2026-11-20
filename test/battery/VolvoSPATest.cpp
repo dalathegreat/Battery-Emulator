@@ -39,7 +39,100 @@ VolvoSpaBattery* battery_awaiting_dtc_reply() {
   return battery;
 }
 
+// The datalayer is a global shared by every test, so clear what the cell voltage sweep writes.
+VolvoSpaBattery* battery_with_no_cell_data() {
+  datalayer.battery.info.number_of_cells = 0;
+  for (auto& mV : datalayer.battery.status.cell_voltages_mV) {
+    mV = 0;
+  }
+  auto battery = new VolvoSpaBattery();
+  battery->setup();
+  return battery;
+}
+
+// Answers modules first..last of a running cell voltage sweep. Each module is a two-frame UDS reply carrying 4
+// cells; cell n (0-based) reads base_mV + n, and cells at or beyond pack_cells read 0, like an absent module.
+void answer_cell_modules(VolvoSpaBattery* battery, uint8_t first, uint8_t last, uint16_t base_mV, uint16_t pack_cells) {
+  for (uint16_t module = first; module <= last; module++) {
+    uint16_t mV[4];
+    for (uint16_t i = 0; i < 4; i++) {
+      uint16_t cell = (module - 0x10) * 4 + i;
+      mV[i] = (cell < pack_cells) ? base_mV + cell : 0;
+    }
+    battery->handle_incoming_can_frame(volvo_635_frame(
+        {0x10, 0x0B, 0x62, 0x4B, (uint8_t)module, (uint8_t)(mV[0] >> 8), (uint8_t)mV[0], (uint8_t)(mV[1] >> 8)}));
+    battery->handle_incoming_can_frame(volvo_635_frame({0x21, (uint8_t)mV[1], (uint8_t)(mV[2] >> 8), (uint8_t)mV[2],
+                                                        (uint8_t)(mV[3] >> 8), (uint8_t)mV[3], 0x00, 0x00}));
+  }
+}
+
+// transmit_can() starts a sweep on each 60s tick (or abandons one still running), polling modules 0x10..0x2A.
+const uint8_t FIRST_MODULE = 0x10;
+const uint8_t LAST_MODULE = 0x2A;
+
 }  // namespace
+
+TEST(VolvoSPACellVoltageTests, ShouldOnlyPublishCompletedSweeps) {
+  auto battery = battery_with_no_cell_data();
+
+  battery->transmit_can(60000);
+  answer_cell_modules(battery, FIRST_MODULE, LAST_MODULE, 3700, 96);
+  battery->update_values();
+  ASSERT_EQ(datalayer.battery.info.number_of_cells, 96);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 3700);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[95], 3795);
+
+  // Halfway through the next sweep the datalayer still holds the previous one, not a mix of both
+  battery->transmit_can(120000);
+  answer_cell_modules(battery, FIRST_MODULE, 0x1B, 3600, 96);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 3700);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[95], 3795);
+
+  answer_cell_modules(battery, 0x1C, LAST_MODULE, 3600, 96);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 3600);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[95], 3695);
+}
+
+TEST(VolvoSPACellVoltageTests, ShouldDiscardAbandonedSweep) {
+  auto battery = battery_with_no_cell_data();
+
+  battery->transmit_can(60000);
+  answer_cell_modules(battery, FIRST_MODULE, LAST_MODULE, 3700, 96);
+  battery->update_values();
+
+  // The BMS stops answering partway; the next 60s tick abandons the sweep
+  battery->transmit_can(120000);
+  answer_cell_modules(battery, FIRST_MODULE, 0x1B, 3600, 96);
+  battery->transmit_can(180000);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 3700);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[95], 3795);
+
+  // The sweep after that completes and is published
+  battery->transmit_can(240000);
+  answer_cell_modules(battery, FIRST_MODULE, LAST_MODULE, 3650, 96);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 3650);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[95], 3745);
+}
+
+TEST(VolvoSPACellVoltageTests, ShouldNotDetect96SMidwayThroughA108SSweep) {
+  auto battery = battery_with_no_cell_data();
+
+  // Cells 0..95 are in but 96..107 are not yet: a 108S pack must not be taken for 96S here
+  battery->transmit_can(60000);
+  answer_cell_modules(battery, FIRST_MODULE, 0x27, 3700, 108);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 0);
+
+  answer_cell_modules(battery, 0x28, LAST_MODULE, 3700, 108);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 78200u);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[107], 3807);
+}
 
 TEST(VolvoSPADtcTests, ShouldParseSingleFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
