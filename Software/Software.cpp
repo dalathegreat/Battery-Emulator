@@ -30,6 +30,7 @@
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/ota_confirm_gate.h"
 #include "src/devboard/utils/ota_rollback.h"
+#include "src/devboard/utils/system_clock.h"
 #include "src/devboard/utils/time_meas.h"
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
@@ -701,6 +702,9 @@ void setup() {
      which is what the placement was for: reading settings is the one step that
      has to come first. */
   report_ota_rollback();
+
+  // Before the web server and the inverter can read the clock, and after the log sinks are on
+  clock_restore();
 
   // AP-button recovery must always run
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,

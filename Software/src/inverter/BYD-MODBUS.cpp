@@ -7,6 +7,7 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "../devboard/utils/system_clock.h"
 #include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
@@ -218,11 +219,16 @@ void BydModbusInverter::handle_inverter_control_data() {
     inverter_modbus_watchdog_changed = true;
   }
 
-  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. Kept for display only.
+  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. The inverter writes its clock here
+  // once an hour. Each new time sets the ESP32's clock, which keeps it running in between.
   const uint64_t inverter_utc =
       ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
-  if (inverter_utc > 0) {
+  if (inverter_utc > 0 && inverter_utc != inverter_modbus_utc_epoch_s) {
     inverter_modbus_utc_epoch_s = inverter_utc;
+    const bool first = !clock_valid;
+    if (clock_set_utc(inverter_utc) && first) {
+      logging.println("Clock set from the inverter's time");
+    }
   }
 
   // RebootCommand (407). The inverter writes 0 here as part of every ControlData block write, so only

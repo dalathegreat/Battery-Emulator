@@ -2307,7 +2307,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
         <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
-        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
+        <label>Inverter time (UTC): </label><span class='settings-value' data-h=invutc><span id='invutc'>%INVUTC%</span></span>
         </div>
 
         <div class="if-pylonish">
