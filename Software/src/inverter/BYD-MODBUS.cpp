@@ -14,30 +14,31 @@
 
 /* Emulator events and the fault type each one is reported as. The types are those of the BYD2 table
    the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its event log shows a text instead
-   of a bare number: a GEN24 shows an equipment stop as "BYD2-45 Battery Break". Only events at error
-   level are reported: the inverter drops everything milder anyway. Several here are below that level
-   today, and only show up if that ever changes. */
+   of a bare number: a GEN24 shows an equipment stop as "BYD2-45 Battery Break".
+   An event at error level stops the emulator, and goes in as a Fault2. Below that level only those
+   marked ANY_LEVEL are reported, as a Fault1, the mildest the inverter keeps in its event log.
+   Several ERROR_ONLY ones are below error level today, and only show up if that ever changes. */
 const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
-    {EVENT_CAN_BATTERY_MISSING, 3, 1},           // The BCU cannot communicate with all the battery modules
-    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
-    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Cell Under Voltage 3
-    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Cell Under Voltage 3
-    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Charge Over Current
-    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charge Over Temperature 3
-    {EVENT_BATTERY_FROZEN, 3, 29},               // Charge Under Temperature 3
-    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Battery Imbalance
-    {EVENT_THERMAL_RUNAWAY, 3, 38},              // Cell Failure
-    {EVENT_CONTACTOR_WELDED, 3, 44},             // BCU_Main Circuit Failure
-    {EVENT_CONTACTOR_OPEN, 3, 44},               // BCU_Main Circuit Failure
-    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
-    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
-    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery Break
-    {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
-    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Pre-charge Fault
-    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault
-    {EVENT_BATTERY_ISOLATION, 3, 49},            // DCBusFault
+    {EVENT_CAN_BATTERY_MISSING, 3, 1, ERROR_ONLY},           // The BCU cannot communicate with all the battery modules
+    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7, ANY_LEVEL},       // Over current during discharge detected
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13, ERROR_ONLY},  // Cell Under Voltage 3
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13, ANY_LEVEL},          // Cell Under Voltage 3
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18, ANY_LEVEL},         // Charge Over Current
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24, ERROR_ONLY},   // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24, ANY_LEVEL},           // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERHEAT, 3, 27, ERROR_ONLY},             // Charge Over Temperature 3
+    {EVENT_BATTERY_FROZEN, 3, 29, ERROR_ONLY},               // Charge Under Temperature 3
+    {EVENT_CELL_DEVIATION_HIGH, 3, 32, ERROR_ONLY},          // Battery Imbalance
+    {EVENT_THERMAL_RUNAWAY, 3, 38, ERROR_ONLY},              // Cell Failure
+    {EVENT_CONTACTOR_WELDED, 3, 44, ERROR_ONLY},             // BCU_Main Circuit Failure
+    {EVENT_CONTACTOR_OPEN, 3, 45, ANY_LEVEL},                // Battery Break
+    {EVENT_BATTERY_FUSE, 3, 45, ANY_LEVEL},                  // Battery Break
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 45, ERROR_ONLY},          // Battery Break
+    {EVENT_EQUIPMENT_STOP, 1, 45, ERROR_ONLY},               // Battery Break
+    {EVENT_HVIL_FAILURE, 3, 47, ERROR_ONLY},                 // Hardware fault at the battery control unit (BCU)
+    {EVENT_PRECHARGE_FAILURE, 1, 48, ANY_LEVEL},             // Pre-charge Fault
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48, ERROR_ONLY},  // Pre-charge Fault
+    {EVENT_BATTERY_ISOLATION, 3, 49, ERROR_ONLY},            // DCBusFault
 };
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
@@ -192,7 +193,7 @@ void BydModbusInverter::put_u64(uint16_t reg, uint64_t value) {
   }
 }
 
-void BydModbusInverter::push_fault(uint16_t type, uint8_t battery, int16_t data, uint32_t now_ms) {
+void BydModbusInverter::push_fault(uint16_t type, uint16_t severity, uint8_t battery, int16_t data, uint32_t now_ms) {
   const uint8_t slot = fault_count % FAULT_ENTRIES;
   const uint16_t entry = REG_FAULTS + slot * FAULT_ENTRY_SIZE;
   fault_count++;
@@ -200,7 +201,7 @@ void BydModbusInverter::push_fault(uint16_t type, uint8_t battery, int16_t data,
   put_u64(entry, 0);
   mbPV[entry + 4] = fault_count;              // Number, counts up with every fault
   mbPV[entry + 5] = type;                     // Type
-  mbPV[entry + 6] = 0;                        // Severity. 0 = Fault2, the battery has stopped
+  mbPV[entry + 6] = severity;                 // Severity
   mbPV[entry + 7] = (uint16_t)data;           // Info_0, the data of the emulator event
   mbPV[entry + 8] = 0;                        // Info_1
   mbPV[entry + 9] = (battery << 8) | 0x00FF;  // Info_2, which pack. Low byte FF = the pack as a whole
@@ -233,14 +234,15 @@ void BydModbusInverter::update_fault_buffers() {
   for (uint8_t i = 0; i < FAULT_MAP_SIZE; i++) {
     for (uint8_t variant = 0; variant < FAULT_MAP[i].variants; variant++) {
       const EVENTS_STRUCT_TYPE* event = get_event_pointer((EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + variant));
-      const bool active = event->level == EVENT_LEVEL_ERROR &&
+      const bool error = event->level == EVENT_LEVEL_ERROR;
+      const bool active = (error || FAULT_MAP[i].report == ANY_LEVEL) &&
                           (event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED);
       const uint8_t bit = 1 << variant;
       if (!active) {
         fault_reported[i] &= ~bit;
       } else if (!(fault_reported[i] & bit)) {
         fault_reported[i] |= bit;
-        push_fault(FAULT_MAP[i].code, variant + 1, event->data, now);
+        push_fault(FAULT_MAP[i].code, error ? SEVERITY_FAULT2 : SEVERITY_FAULT1, variant + 1, event->data, now);
       }
     }
   }

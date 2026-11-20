@@ -7,9 +7,10 @@
 #include "../Software/src/inverter/BYD-MODBUS.h"
 #include "../Software/src/inverter/INVERTERS.h"
 
-/* Emulator errors become FaultBuffers entries (1000-1099), which a Fronius inverter reads every 20 s
-   and lists in its event log with the texts of its BYD2 table. Each entry is dated by the ESP32's
-   clock, so one raised before the inverter has sent its time is back-dated once it has. */
+/* Emulator errors, and a few warnings, become FaultBuffers entries (1000-1099), which a Fronius
+   inverter reads every 20 s and lists in its event log with the texts of its BYD2 table. Each entry
+   is dated by the ESP32's clock, so one raised before the inverter has sent its time is back-dated
+   once it has. */
 namespace {
 
 class BydModbusFaultProbe : public BydModbusInverter {
@@ -140,6 +141,7 @@ TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsBatteryBreak) {
 
   EXPECT_EQ(inverter.u32(1002), 1794299900u);
   EXPECT_EQ(inverter.mbPV[1005], 45);
+  EXPECT_EQ(inverter.mbPV[1006], 0);  // An error, so a Fault2
   EXPECT_EQ(inverter.mbPV[1009], 0x01FF);
 }
 
@@ -169,13 +171,38 @@ TEST_F(BydModbusFaultTest, TheEleventhFaultTakesTheOldestEntry) {
   EXPECT_EQ(inverter.mbPV[1094], 10);
 }
 
-// Warnings stay out of the inverter's event log
-TEST_F(BydModbusFaultTest, WarningsAreNotReported) {
+// Below error level only the events marked ANY_LEVEL are reported, and as a Fault1: the emulator
+// carries on through them
+TEST_F(BydModbusFaultTest, MarkedWarningsAndInfosGoInAsFault1) {
   ASSERT_TRUE(clock_set_utc(1794299900));
-  set_event(EVENT_BATTERY_ISOLATION, 120, 1);
+  set_event(EVENT_BATTERY_ISOLATION, 120, 1);  // Not marked
   ASSERT_EQ(get_event_pointer(EVENT_BATTERY_ISOLATION)->level, EVENT_LEVEL_WARNING);
   inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1004], 0);  // No entry
 
-  EXPECT_EQ(inverter.u32(1002), 0u);
-  EXPECT_EQ(inverter.mbPV[1004], 0);
+  set_event(EVENT_BATTERY_OVERVOLTAGE, 4100, 1);
+  ASSERT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->level, EVENT_LEVEL_WARNING);
+  set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0, 2);
+  ASSERT_EQ(get_event_pointer(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2)->level, EVENT_LEVEL_INFO);
+  inverter.update_values();
+
+  // In the order of the map
+  EXPECT_EQ(inverter.u32(1002), 1794299900u);
+  EXPECT_EQ(inverter.mbPV[1005], 18);  // BYD2-18 "Charge Over Current"
+  EXPECT_EQ(inverter.mbPV[1006], 1);   // Severity, Fault1
+  EXPECT_EQ(inverter.mbPV[1009], 0x02FF);
+  EXPECT_EQ(inverter.mbPV[1015], 24);  // BYD2-24 "Cell Over Voltage 3"
+  EXPECT_EQ(inverter.mbPV[1016], 1);
+  EXPECT_EQ(inverter.mbPV[1017], 4100);
+  EXPECT_EQ(inverter.mbPV[1024], 0);  // Still nothing for the isolation warning
+}
+
+// An open contactor drops the battery off the inverter's DC link, as a broken battery would
+TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsBatteryBreak) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_CONTACTOR_OPEN, 0, 1);
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.mbPV[1005], 45);  // BYD2-45 "Battery Break"
+  EXPECT_EQ(inverter.mbPV[1006], 1);   // A warning, so a Fault1
 }

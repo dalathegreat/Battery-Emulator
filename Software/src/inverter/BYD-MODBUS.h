@@ -35,9 +35,9 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void handle_update_data_modbusp201_byd();
   void handle_update_data_modbusp301_byd();
   int16_t byd_power_W();
-  // Turns emulator error events into FaultBuffers entries, which the inverter shows in its event log
+  // Turns emulator events into FaultBuffers entries, which the inverter shows in its event log
   void update_fault_buffers();
-  void push_fault(uint16_t type, uint8_t battery, int16_t data, uint32_t now_ms);
+  void push_fault(uint16_t type, uint16_t severity, uint8_t battery, int16_t data, uint32_t now_ms);
   // Gives the entries written while the clock was not yet valid the time they were raised
   void stamp_faults(uint32_t now_ms);
   // A uint64 over four registers, high word first
@@ -76,10 +76,17 @@ class BydModbusInverter : public ModbusInverterProtocol {
   uint32_t fault_entry_ms[FAULT_ENTRIES] = {0};
   bool fault_entry_unstamped[FAULT_ENTRIES] = {false};
 
+  // FaultBuffers.Severity. The inverter leaves anything milder than a Fault1 out of its event log
+  static constexpr uint16_t SEVERITY_FAULT2 = 0;  // The battery has stopped
+  static constexpr uint16_t SEVERITY_FAULT1 = 1;  // A milder fault, the battery carries on
+
+  // Whether an event is reported only at error level, which stops the emulator, or at any level
+  enum FaultReport : uint8_t { ERROR_ONLY, ANY_LEVEL };
   struct FaultMapping {
     EVENTS_ENUM_TYPE event;  // The pack 1 variant
     uint8_t variants;        // 3 when the event exists per pack, in 1, 2, 3 order
     uint8_t code;            // Fault type, looked up by the inverter in its BYD2 table
+    FaultReport report;
   };
   static const FaultMapping FAULT_MAP[];
   static const uint8_t FAULT_MAP_SIZE;
