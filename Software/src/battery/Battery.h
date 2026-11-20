@@ -64,6 +64,7 @@ enum class BatteryType {
   GrowattLv = 57,
   StellantisProOne = 58,
   BYDBatteryBoxPremium = 59,
+  AiwaysU5 = 60,
   Highest
 };
 

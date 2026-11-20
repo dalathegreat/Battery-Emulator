@@ -6,6 +6,7 @@
 #include "RS485Battery.h"
 
 #include "../shunt/BMW-SBOX.h"
+#include "AIWAYS-U5-BATTERY.h"
 #include "AKASOL-BATTERY.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
@@ -103,6 +104,8 @@ const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
+    case BatteryType::AiwaysU5:
+      return AiwaysU5Battery::Name;
     case BatteryType::Akasol:
       return AkasolBattery::Name;
     case BatteryType::BmwI3:
@@ -272,6 +275,8 @@ Battery* create_battery(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return nullptr;
+    case BatteryType::AiwaysU5:
+      return new AiwaysU5Battery();
     case BatteryType::Akasol:
       return new AkasolBattery();
     case BatteryType::BmwI3:
@@ -445,6 +450,7 @@ bool battery_supports_triple(BatteryType type) {
 // so the settings page stops offering a capacity the driver will overwrite.
 bool battery_detects_capacity(BatteryType type) {
   switch (type) {
+    case BatteryType::AiwaysU5:
     case BatteryType::Akasol:
     case BatteryType::BmwI3:
     case BatteryType::BmwIX:
