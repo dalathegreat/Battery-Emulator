@@ -5,7 +5,6 @@
 #include "../Software/src/devboard/utils/events.h"
 #include "../Software/src/devboard/utils/system_clock.h"
 #include "../Software/src/inverter/BYD-MODBUS.h"
-#include "../Software/src/inverter/INVERTERS.h"
 
 /* Emulator errors, and a few warnings, become FaultBuffers entries (1000-1099), which a Fronius
    inverter reads every 20 s and lists in its event log with the texts of its BYD2 table. Each entry
@@ -34,12 +33,10 @@ class BydModbusFaultTest : public ::testing::Test {
   void SetUp() override {
     set_millis64(1000);
     init_events();  // Event levels are only assigned here, and only error events become faults
-    inverter_modbus_utc_epoch_s = 0;
     clock_valid = false;
   }
 
   void TearDown() override {
-    inverter_modbus_utc_epoch_s = 0;
     clock_valid = false;
     set_millis64(0);
   }

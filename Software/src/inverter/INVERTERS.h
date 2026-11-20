@@ -49,6 +49,4 @@ extern uint32_t inverter_modbus_watchdog_timeout_s;
 extern bool inverter_modbus_watchdog_changed;
 // Should a non-zero RebootCommand in register 407 restart the emulator?
 extern bool user_selected_accept_inverter_reboot;
-// Inverter wall clock from registers 403-406, Unix epoch seconds. 0 = nothing received since boot.
-extern uint64_t inverter_modbus_utc_epoch_s;
 #endif

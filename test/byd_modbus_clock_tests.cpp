@@ -4,7 +4,6 @@
 
 #include "../Software/src/devboard/utils/system_clock.h"
 #include "../Software/src/inverter/BYD-MODBUS.h"
-#include "../Software/src/inverter/INVERTERS.h"
 
 /* The inverter writes its clock into ControlData (UTC, 403-406) once an hour. Each new time sets the
    ESP32's clock, which runs on by itself in between. */
@@ -27,12 +26,10 @@ class BydModbusClockTest : public ::testing::Test {
  protected:
   void SetUp() override {
     set_millis64(1000);
-    inverter_modbus_utc_epoch_s = 0;
     clock_valid = false;
   }
 
   void TearDown() override {
-    inverter_modbus_utc_epoch_s = 0;
     clock_valid = false;
     set_millis64(0);
   }
@@ -49,7 +46,6 @@ TEST_F(BydModbusClockTest, TheInvertersTimeSetsTheClock) {
 
   inverter.write_utc(1794299900);
   inverter.update_values();
-  EXPECT_EQ(inverter_modbus_utc_epoch_s, 1794299900u);  // Still shown on the settings page
   EXPECT_TRUE(clock_valid);
   EXPECT_EQ(clock_utc_s(), 1794299900u);
 
@@ -64,12 +60,11 @@ TEST_F(BydModbusClockTest, TheInvertersTimeSetsTheClock) {
   EXPECT_EQ(clock_utc_s(), 1794303502u);
 }
 
-// An inverter clock that was never set does not make ours valid. The settings page still shows it
+// An inverter clock that was never set does not make ours valid
 TEST_F(BydModbusClockTest, ATimeBefore2025DoesNotSetTheClock) {
   inverter.write_utc(86400);  // 1970-01-02
   inverter.update_values();
 
-  EXPECT_EQ(inverter_modbus_utc_epoch_s, 86400u);
   EXPECT_FALSE(clock_valid);
   EXPECT_EQ(clock_utc_s(), 0u);
 }

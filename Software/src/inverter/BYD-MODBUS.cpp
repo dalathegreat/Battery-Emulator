@@ -321,8 +321,8 @@ void BydModbusInverter::handle_inverter_control_data() {
   // once an hour. Each new time sets the ESP32's clock, which keeps it running in between.
   const uint64_t inverter_utc =
       ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
-  if (inverter_utc > 0 && inverter_utc != inverter_modbus_utc_epoch_s) {
-    inverter_modbus_utc_epoch_s = inverter_utc;
+  if (inverter_utc > 0 && inverter_utc != last_inverter_utc_s) {
+    last_inverter_utc_s = inverter_utc;
     const bool first = !clock_valid;
     if (clock_set_utc(inverter_utc) && first) {
       logging.println("Clock set from the inverter's time");
