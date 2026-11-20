@@ -1,4 +1,4 @@
-#include "BYD-MODBUS.h"
+#include "FRONIUS-MODBUS-V1.h"
 #include "../battery/BATTERIES.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../communication/rs485/comm_rs485.h"
@@ -7,6 +7,7 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "../devboard/utils/system_clock.h"
 #include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
@@ -174,10 +175,12 @@ int16_t BydModbusInverter::clamp_cold_temperature(int16_t temperature_dC) {
 }
 
 void BydModbusInverter::verify_inverter_modbus() {
-  // Once per watchdog period, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We sample the register at the same period. In case the value has not changed for HISTORY_LENGTH
-  // periods, we raise an event. The period defaults to 60s and follows register 402 from the moment
-  // the inverter declares a different one.
+  // Once per watchdog period, the Gen24 writes to the WatchDog register (401, or 501 from
+  // GenericStorage v2 on), alternating between 00FF and FF00. We sample the register at the same
+  // period. In case the value has not changed for HISTORY_LENGTH periods, we raise an event. The
+  // period defaults to 60s and follows the WatchDogTimeout register from the moment the inverter
+  // declares a different one.
+  const uint16_t watchdog = mbPV[control_block + 1];
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis60s >= (inverter_modbus_watchdog_timeout_s * 1000UL)) {
@@ -185,7 +188,7 @@ void BydModbusInverter::verify_inverter_modbus() {
 
     all_401_values_equal = true;
     for (int i = 0; i < HISTORY_LENGTH; ++i) {
-      if (register_401_history[i] != mbPV[401]) {
+      if (register_401_history[i] != watchdog) {
         all_401_values_equal = false;
         break;
       }
@@ -198,42 +201,48 @@ void BydModbusInverter::verify_inverter_modbus() {
     }
 
     // Update history
-    register_401_history[history_index] = mbPV[401];
+    register_401_history[history_index] = watchdog;
     history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
 
 void BydModbusInverter::handle_inverter_control_data() {
+  // The register numbers in the comments below are those of GenericStorage v1 (control_block 400).
   // WatchDogTimeout (402). The inverter declares the period it kicks register 401 with. Follow it, so
   // inverter-missing detection tracks the inverter instead of a hardcoded assumption. Only flagged
   // when it actually changes, so a boot with the value we already hold never writes NVM. The write
   // itself belongs to the core loop, keeping this driver free of any storage dependency.
-  const uint32_t declared_timeout_s = mbPV[402];
+  const uint32_t declared_timeout_s = mbPV[control_block + 2];
   if (declared_timeout_s >= WATCHDOG_TIMEOUT_MIN_S && declared_timeout_s <= WATCHDOG_TIMEOUT_MAX_S &&
       declared_timeout_s != inverter_modbus_watchdog_timeout_s) {
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
-                   declared_timeout_s);
+    logging.printf("%sInverter changed the WatchDog Timeout from %u s to %u s\n", log_prefix,
+                   inverter_modbus_watchdog_timeout_s, declared_timeout_s);
     inverter_modbus_watchdog_timeout_s = declared_timeout_s;
     inverter_modbus_watchdog_changed = true;
   }
 
-  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. Kept for display only.
-  const uint64_t inverter_utc =
-      ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
-  if (inverter_utc > 0) {
+  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. The inverter writes its clock here
+  // once an hour. Each new time sets the ESP32's clock, which keeps it running in between.
+  const uint64_t inverter_utc = ((uint64_t)mbPV[control_block + 3] << 48) | ((uint64_t)mbPV[control_block + 4] << 32) |
+                                ((uint64_t)mbPV[control_block + 5] << 16) | (uint64_t)mbPV[control_block + 6];
+  if (inverter_utc > 0 && inverter_utc != inverter_modbus_utc_epoch_s) {
     inverter_modbus_utc_epoch_s = inverter_utc;
+    const bool first = !clock_valid;
+    if (clock_set_utc(inverter_utc) && first) {
+      logging.printf("%sClock set from the inverter's time\n", log_prefix);
+    }
   }
 
   // RebootCommand (407). The inverter writes 0 here as part of every ControlData block write, so only
   // a change to a non-zero value is a command.
-  const uint16_t reboot_command = mbPV[407];
+  const uint16_t reboot_command = mbPV[control_block + 7];
   if (reboot_command != last_register_407) {
     last_register_407 = reboot_command;
     if (reboot_command != 0) {
       if (user_selected_accept_inverter_reboot) {
         LOG_SET_NEXT_SEVERITY(5);  // notice
-        logging.println("The emulator is restarting as requested by the inverter");
+        logging.printf("%sThe emulator is restarting as requested by the inverter\n", log_prefix);
         hold_pins_across_reset();
         graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
       } else {
@@ -250,11 +259,11 @@ void BydModbusInverter::handle_inverter_control_data() {
   // logged; a value of 0 here is a real setting rather than an absent command, so an inverter that
   // writes 0 from the start is indistinguishable from one that never writes the register at all.
   // BYD Battery-Box Premium HVS&HVM have a button, for black start it needs to be pressed for 3 seconds
-  const uint16_t darkstart_enable = mbPV[408];
+  const uint16_t darkstart_enable = mbPV[control_block + 8];
   if (darkstart_enable != last_register_408) {
     last_register_408 = darkstart_enable;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter set DarkstartEnable to %u\n", darkstart_enable);
+    logging.printf("%sInverter set DarkstartEnable to %u\n", log_prefix, darkstart_enable);
   }
 }
 
@@ -265,7 +274,7 @@ bool BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
 
-  if (!rs485_begin(Name, Serial2, 9600, SERIAL_8N1)) {
+  if (!rs485_begin(name(), Serial2, 9600, SERIAL_8N1)) {
     return false;
   }
 

@@ -95,6 +95,7 @@ add_executable(tests
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
+    ../Software/src/devboard/utils/system_clock.cpp
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/ota_confirm_gate.cpp
@@ -179,10 +180,11 @@ add_executable(tests
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
     ../Software/src/inverter/BYD-CAN.cpp
-    ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
     ../Software/src/inverter/FOXESS-EP-CAN.cpp
+    ../Software/src/inverter/FRONIUS-MODBUS-V1.cpp
+    ../Software/src/inverter/FRONIUS-MODBUS-V2.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp
