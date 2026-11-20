@@ -8,7 +8,7 @@
 #include "../Software/src/inverter/INVERTERS.h"
 
 /* Emulator errors become FaultBuffers entries (1000-1099), which a Fronius inverter reads every 20 s
-   and lists in its event log with the texts of its BYD1 table. Each entry is dated by the ESP32's
+   and lists in its event log with the texts of its BYD2 table. Each entry is dated by the ESP32's
    clock, so one raised before the inverter has sent its time is back-dated once it has. */
 namespace {
 
@@ -71,7 +71,7 @@ TEST_F(BydModbusFaultTest, ErrorEventBecomesAFaultBufferEntryOnceTheClockIsKnown
   EXPECT_EQ(inverter.u32(1000), 0u);           // Fault_0_Timestamp, high half
   EXPECT_EQ(inverter.u32(1002), 1794299900u);  // Fault_0_Timestamp, low half
   EXPECT_EQ(inverter.mbPV[1004], 1);           // Number
-  EXPECT_EQ(inverter.mbPV[1005], 27);          // Type, BYD1-27 "Charging overtemperature 3"
+  EXPECT_EQ(inverter.mbPV[1005], 27);          // Type, BYD2-27 "Charge Over Temperature 3"
   EXPECT_EQ(inverter.mbPV[1006], 0);           // Severity, Fault2
   EXPECT_EQ(inverter.mbPV[1007], 512);
   EXPECT_EQ(inverter.mbPV[1009], 0x02FF);  // Pack 2
@@ -110,14 +110,14 @@ TEST_F(BydModbusFaultTest, FaultsBeforeTheClockAreBackDatedOnceItIsKnown) {
   EXPECT_EQ(inverter.u32(1002), 1794299900u - 50);  // Fault_0: the overheat, 50 s ago
   EXPECT_EQ(inverter.mbPV[1005], 27);
   EXPECT_EQ(inverter.u32(1012), 1794299900u - 30);  // Fault_1: the cell overvoltage, 30 s ago
-  EXPECT_EQ(inverter.mbPV[1015], 24);               // BYD1-24 "Cell overvoltage 3"
+  EXPECT_EQ(inverter.mbPV[1015], 24);               // BYD2-24 "Cell Over Voltage 3"
 
   // From here on a new fault gets the time at once
   set_millis64(1000 + 60000);
   set_event(EVENT_HVIL_FAILURE, 0, 1);
   inverter.update_values();
   EXPECT_EQ(inverter.u32(1022), 1794299900u + 10);
-  EXPECT_EQ(inverter.mbPV[1025], 47);  // BYD1-47 "Hardware fault at the battery control unit (BCU)"
+  EXPECT_EQ(inverter.mbPV[1025], 47);  // BYD2-47 "Hardware fault at the battery control unit (BCU)"
 }
 
 // The fault entries take their time from the ESP32's clock, not from the UTC registers
@@ -131,17 +131,25 @@ TEST_F(BydModbusFaultTest, FaultsAreStampedFromTheClock) {
   EXPECT_EQ(inverter.mbPV[1005], 47);
 }
 
-// The two that read differently in BYD1 than in the table of the newer BYD batteries
-TEST_F(BydModbusFaultTest, ThermalRunawayIsSystemOvertemperatureAndEquipmentStopTheMainSwitch) {
+// An equipment stop drops the battery off the inverter's DC link, as a broken battery would. A GEN24
+// shows it as "BYD2-45 Battery Break"
+TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsBatteryBreak) {
   ASSERT_TRUE(clock_set_utc(1794299900));
-  set_event(EVENT_THERMAL_RUNAWAY, 0, 3);
   set_event(EVENT_EQUIPMENT_STOP, 1);
   inverter.update_values();
 
-  EXPECT_EQ(inverter.mbPV[1005], 53);      // BYD1-53 "System overtemperature"
+  EXPECT_EQ(inverter.u32(1002), 1794299900u);
+  EXPECT_EQ(inverter.mbPV[1005], 45);
+  EXPECT_EQ(inverter.mbPV[1009], 0x01FF);
+}
+
+TEST_F(BydModbusFaultTest, ThermalRunawayOfPack3IsACellFailure) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_THERMAL_RUNAWAY, 0, 3);
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.mbPV[1005], 38);      // BYD2-38 "Cell Failure"
   EXPECT_EQ(inverter.mbPV[1009], 0x03FF);  // Pack 3
-  EXPECT_EQ(inverter.mbPV[1015], 45);      // BYD1-45 "Battery main switch"
-  EXPECT_EQ(inverter.mbPV[1019], 0x01FF);
 }
 
 // Ten entries, so the eleventh fault takes the place of the first

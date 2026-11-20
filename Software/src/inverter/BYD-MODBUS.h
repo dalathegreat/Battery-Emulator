@@ -79,7 +79,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   struct FaultMapping {
     EVENTS_ENUM_TYPE event;  // The pack 1 variant
     uint8_t variants;        // 3 when the event exists per pack, in 1, 2, 3 order
-    uint8_t code;            // Fault type, looked up by the inverter in its BYD1 table
+    uint8_t code;            // Fault type, looked up by the inverter in its BYD2 table
   };
   static const FaultMapping FAULT_MAP[];
   static const uint8_t FAULT_MAP_SIZE;

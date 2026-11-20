@@ -12,31 +12,32 @@
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
-/* Emulator events and the fault type each one is reported as. The types are those of the BYD1 table
+/* Emulator events and the fault type each one is reported as. The types are those of the BYD2 table
    the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its event log shows a text instead
-   of a bare number. Only events at error level are reported: the inverter drops everything milder
-   anyway. Several here are below that level today, and only show up if that ever changes. */
+   of a bare number: a GEN24 shows an equipment stop as "BYD2-45 Battery Break". Only events at error
+   level are reported: the inverter drops everything milder anyway. Several here are below that level
+   today, and only show up if that ever changes. */
 const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
     {EVENT_CAN_BATTERY_MISSING, 3, 1},           // The BCU cannot communicate with all the battery modules
     {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
-    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Undervoltage of the cells (3)
-    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Undervoltage of the cells (3)
-    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Overcurrent charging 1
-    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell overvoltage 3
-    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell overvoltage 3
-    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charging overtemperature 3
-    {EVENT_BATTERY_FROZEN, 3, 29},               // Charging undertemperature 2
-    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Battery module voltage difference
-    {EVENT_THERMAL_RUNAWAY, 3, 53},              // System overtemperature
-    {EVENT_CONTACTOR_WELDED, 3, 45},             // Battery main switch
-    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery main switch
-    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery main switch
-    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery main switch
-    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery main switch
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Cell Under Voltage 3
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Cell Under Voltage 3
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Charge Over Current
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charge Over Temperature 3
+    {EVENT_BATTERY_FROZEN, 3, 29},               // Charge Under Temperature 3
+    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Battery Imbalance
+    {EVENT_THERMAL_RUNAWAY, 3, 38},              // Cell Failure
+    {EVENT_CONTACTOR_WELDED, 3, 44},             // BCU_Main Circuit Failure
+    {EVENT_CONTACTOR_OPEN, 3, 44},               // BCU_Main Circuit Failure
+    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery Break
     {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
-    {EVENT_BATTERY_ISOLATION, 3, 47},            // Hardware fault at the battery control unit (BCU)
-    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Precharge fault
-    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Precharge fault
+    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Pre-charge Fault
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault
+    {EVENT_BATTERY_ISOLATION, 3, 49},            // DCBusFault
 };
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
