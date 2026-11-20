@@ -877,15 +877,25 @@ TEST_F(UdsCanBatteryTest, ClearDtcSequenceCompletesOnAcknowledgment) {
   battery->reset_DTC();
   tick(1000);
 
-  // 14 FF FF FF (clearDiagnosticInformation) went out.
+  // 10 03 (DiagnosticSessionControl, extended session) goes out first; the
+  // actual clear is only sent once the session has been acknowledged.
   ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x10);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[2], 0x03);
+  EXPECT_TRUE(battery->uds_is_busy());
+
+  // Positive DiagnosticSessionControl response (50 03) -> the 14 FF FF FF
+  // (clearDiagnosticInformation) request follows.
+  feed_response({0x50, 0x03});
+  tick(1100);
+  ASSERT_EQ(get_transmitted_frames().size(), 2u);
   EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x14);
   EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[2], 0xFF);
   EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[3], 0xFF);
   EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[4], 0xFF);
   EXPECT_TRUE(battery->uds_is_busy());
 
-  feed_response({0x54, 0xFF});
+  feed_response({0x54});
   EXPECT_FALSE(battery->uds_is_busy());  // Sequence ended.
 }
 

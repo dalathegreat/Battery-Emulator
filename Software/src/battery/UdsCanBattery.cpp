@@ -5,6 +5,7 @@
 #include "../devboard/utils/logging.h"
 
 // Timeouts (to wait for a UDS response) in 100ms ticks
+constexpr uint16_t UDS_TIMEOUT_SESSION_CONTROL = 10;
 constexpr uint16_t UDS_TIMEOUT_CLEAR_DTC = 25;
 constexpr uint16_t UDS_TIMEOUT_READ_DTC = 20;
 constexpr uint16_t UDS_TIMEOUT_READ_DID = 2;
@@ -427,6 +428,12 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
 
     case UDS_STATE_CLEAR_DTC_START:
       // Start a DTC clear sequence
+      // First enter a diagnostic session (might not be necessary but can't hurt)
+      send_sequence_message(UDS_STATE_CLEAR_DTC_DIAG, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            UDS_TIMEOUT_SESSION_CONTROL, 2);
+      break;
+    case UDS_STATE_CLEAR_DTC_DIAG:
+      // Now clear the DTCs
       send_sequence_message(UDS_STATE_CLEAR_DTC, SID::ClearDiagnosticInformation, (const uint8_t*)"\xFF\xFF\xFF", 3,
                             UDS_TIMEOUT_CLEAR_DTC, 2);
       break;
