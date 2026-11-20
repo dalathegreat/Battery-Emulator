@@ -12,12 +12,41 @@
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
+/* Emulator events and the fault type each one is reported as. The types are those of the BYD1 table
+   the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its event log shows a text instead
+   of a bare number. Only events at error level are reported: the inverter drops everything milder
+   anyway. Several here are below that level today, and only show up if that ever changes. */
+const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
+    {EVENT_CAN_BATTERY_MISSING, 3, 1},           // The BCU cannot communicate with all the battery modules
+    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Undervoltage of the cells (3)
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Undervoltage of the cells (3)
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Overcurrent charging 1
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell overvoltage 3
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell overvoltage 3
+    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charging overtemperature 3
+    {EVENT_BATTERY_FROZEN, 3, 29},               // Charging undertemperature 2
+    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Battery module voltage difference
+    {EVENT_THERMAL_RUNAWAY, 3, 53},              // System overtemperature
+    {EVENT_CONTACTOR_WELDED, 3, 45},             // Battery main switch
+    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery main switch
+    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery main switch
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery main switch
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery main switch
+    {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
+    {EVENT_BATTERY_ISOLATION, 3, 47},            // Hardware fault at the battery control unit (BCU)
+    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Precharge fault
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Precharge fault
+};
+const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
+
 void BydModbusInverter::update_values() {
   verify_temperature();
   handle_inverter_control_data();
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
+  update_fault_buffers();
 }
 
 void BydModbusInverter::handle_static_data() {
@@ -49,6 +78,12 @@ void BydModbusInverter::handle_static_data() {
                                    75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
   for (int i = 0; i < sizeof(init_p301) / sizeof(uint16_t); i++) {
     mbPV[300 + i] = init_p301[i];
+  }
+  // FaultBuffers, filled in by update_fault_buffers(). Created here, before the Modbus task starts:
+  // a read of a register the map does not hold yet would insert it, from that task, while this one
+  // writes to the same map.
+  for (uint16_t reg = REG_FAULTS; reg < REG_FAULTS + FAULT_ENTRIES * FAULT_ENTRY_SIZE; reg++) {
+    mbPV[reg] = 0;
   }
 }
 
@@ -148,6 +183,66 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[321] = datalayer.aggregate.total_discharged_battery_Wh & 0xFFFF;
   mbPV[322] = reported_temperature_max_dC;   //Ambient temperature, max temp used since we don't have ambient
   mbPV[323] = datalayer.aggregate.soh_pptt;  //SOH
+}
+
+void BydModbusInverter::put_u64(uint16_t reg, uint64_t value) {
+  for (uint8_t i = 0; i < 4; i++) {
+    mbPV[reg + i] = (value >> (48 - 16 * i)) & 0xFFFF;
+  }
+}
+
+void BydModbusInverter::push_fault(uint16_t type, uint8_t battery, int16_t data, uint32_t now_ms) {
+  const uint8_t slot = fault_count % FAULT_ENTRIES;
+  const uint16_t entry = REG_FAULTS + slot * FAULT_ENTRY_SIZE;
+  fault_count++;
+  // The inverter takes an entry as valid when its timestamp is set, so that goes in last
+  put_u64(entry, 0);
+  mbPV[entry + 4] = fault_count;              // Number, counts up with every fault
+  mbPV[entry + 5] = type;                     // Type
+  mbPV[entry + 6] = 0;                        // Severity. 0 = Fault2, the battery has stopped
+  mbPV[entry + 7] = (uint16_t)data;           // Info_0, the data of the emulator event
+  mbPV[entry + 8] = 0;                        // Info_1
+  mbPV[entry + 9] = (battery << 8) | 0x00FF;  // Info_2, which pack. Low byte FF = the pack as a whole
+  const uint64_t time_s = clock_utc_s();
+  fault_entry_ms[slot] = now_ms;
+  fault_entry_unstamped[slot] = (time_s == 0);
+  put_u64(entry, time_s);  // Timestamp. 0 while the clock is not valid, see stamp_faults()
+}
+
+void BydModbusInverter::stamp_faults(uint32_t now_ms) {
+  const uint64_t time_s = clock_utc_s();
+  if (time_s == 0) {
+    return;
+  }
+  for (uint8_t slot = 0; slot < FAULT_ENTRIES; slot++) {
+    if (fault_entry_unstamped[slot]) {
+      const uint32_t ago_s = (uint32_t)(now_ms - fault_entry_ms[slot]) / 1000;
+      put_u64(REG_FAULTS + slot * FAULT_ENTRY_SIZE, ago_s < time_s ? time_s - ago_s : 1);
+      fault_entry_unstamped[slot] = false;
+    }
+  }
+}
+
+void BydModbusInverter::update_fault_buffers() {
+  static_assert(sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]) <= sizeof(fault_reported),
+                "fault_reported is too small for FAULT_MAP");
+  const uint32_t now = millis();
+  stamp_faults(now);
+
+  for (uint8_t i = 0; i < FAULT_MAP_SIZE; i++) {
+    for (uint8_t variant = 0; variant < FAULT_MAP[i].variants; variant++) {
+      const EVENTS_STRUCT_TYPE* event = get_event_pointer((EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + variant));
+      const bool active = event->level == EVENT_LEVEL_ERROR &&
+                          (event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED);
+      const uint8_t bit = 1 << variant;
+      if (!active) {
+        fault_reported[i] &= ~bit;
+      } else if (!(fault_reported[i] & bit)) {
+        fault_reported[i] |= bit;
+        push_fault(FAULT_MAP[i].code, variant + 1, event->data, now);
+      }
+    }
+  }
 }
 
 void BydModbusInverter::verify_temperature() {
