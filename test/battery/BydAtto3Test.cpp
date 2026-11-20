@@ -80,7 +80,7 @@ CAN_frame iso_measurement_frame(bool active) {
 
 // 0x344 carries contactor feedback; receiving it is what marks the BMS alive.
 CAN_frame contactor_feedback_frame(uint8_t mode) {
-  return byd_frame(0x344, {mode, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  return byd_checksummed_frame(0x344, {mode, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
 }
 
 }  // namespace
@@ -573,7 +573,7 @@ const CAN_frame* last_transmitted_frame(uint32_t id) {
 
 // 0x344 b0 = contactor feedback, b1 = BMS precharge state: 0x00 open, 0x40 moving, 0x41 running.
 CAN_frame contactor_state_frame(uint8_t b0, uint8_t b1) {
-  return byd_frame(0x344, {b0, b1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  return byd_checksummed_frame(0x344, {b0, b1, 0x00, 0x00, 0x00, 0x00, 0x00});
 }
 
 // 0x444 sets battery_voltage and BMS_voltage_available; without it 0x441 only ever reports the low link.
@@ -767,7 +767,7 @@ CAN_frame charging_current_frame(uint8_t soc = 98) {
 
 // 0x446: lowest cell 15 at 3494mV, highest cell 155 at max_mV.
 CAN_frame cell_extrema_frame(uint16_t max_mV) {
-  return byd_frame(0x446, {15, 0xA6, 0x0D, 0x00, 155, (uint8_t)(max_mV & 0xFF), (uint8_t)(max_mV >> 8), 0x00});
+  return byd_checksummed_frame(0x446, {15, 0xA6, 0x0D, 0x00, 155, (uint8_t)(max_mV & 0xFF), (uint8_t)(max_mV >> 8)});
 }
 
 CAN_frame grant_frame(uint8_t grant) {
