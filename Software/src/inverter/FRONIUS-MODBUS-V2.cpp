@@ -324,6 +324,11 @@ void FroniusGenericStorageInverter::update_monitoring() {
     bus_hidden = false;
   }
   const bool delivering = bus_connected() && !bus_hidden;
+  // Off the DC link, or shown as such, the bus reads DEAD_BUS_VOLTAGE_PCT of the battery voltage.
+  // No power flows there all the same
+  const uint16_t bus_voltage_dV =
+      delivering ? datalayer.aggregate.voltage_dV
+                 : static_cast<uint16_t>(datalayer.aggregate.voltage_dV * DEAD_BUS_VOLTAGE_PCT / 100);
 
   uint32_t flags = FLAG_LINK_OK;
   if (datalayer.aggregate.current_dA > 0) {
@@ -357,7 +362,7 @@ void FroniusGenericStorageInverter::update_monitoring() {
   // update_aggregate_limits() for every protocol
   put_u32(REG_MONITORING + 8, datalayer.aggregate.max_discharge_power_W);         // CurrMaxDischargePwr
   put_u32(REG_MONITORING + 10, datalayer.aggregate.max_charge_power_W);           // CurrMaxChargePwr
-  mbPV[REG_MONITORING + 12] = delivering ? datalayer.aggregate.voltage_dV : 0;    // UDC_Bus, after contactors
+  mbPV[REG_MONITORING + 12] = bus_voltage_dV;                                     // UDC_Bus, after contactors
   put_u32(REG_MONITORING + 13, delivering ? static_cast<uint32_t>(power_W) : 0);  // PDC_Bus
   mbPV[REG_MONITORING + 15] = datalayer.aggregate.voltage_dV;                     // UDC_internal
   put_u32(REG_MONITORING + 16, static_cast<uint32_t>(power_W));                   // PDC_internal
