@@ -49,27 +49,6 @@ void BydModbusInverter::update_values() {
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
   update_fault_buffers();
-#ifndef UNIT_TEST
-  test_severities();  // TEST
-#endif
-}
-
-// TEST: 30 s after boot, four BYD2-29 "Charge Under Temperature 3" entries 6 s apart, with Severity
-// 0, 1, 2 and 3 in turn, to see which of them the inverter lists. Info_0 holds the severity too.
-void BydModbusInverter::test_severities() {
-  static const char* const NAMES[] = {"Fault2", "Fault1", "warning/alarm", "info"};
-  if (test_step >= 4) {
-    return;
-  }
-  const uint32_t now = millis();
-  if (now < 30000 + test_step * 6000) {
-    return;
-  }
-  push_fault(29, test_step, 1, test_step, now);
-  logging.printf("TEST %u/4: fault entry BYD2-29, Severity %u (%s), Number %u, time %llu%s\n", test_step + 1, test_step,
-                 NAMES[test_step], fault_count, (unsigned long long)clock_utc_s(),
-                 clock_valid ? "" : ", no time yet: dated once the inverter sends its time");
-  test_step++;
 }
 
 void BydModbusInverter::handle_static_data() {

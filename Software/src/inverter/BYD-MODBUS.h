@@ -42,9 +42,6 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void stamp_faults(uint32_t now_ms);
   // A uint64 over four registers, high word first
   void put_u64(uint16_t reg, uint64_t value);
-  // TEST: four BYD2-29 entries after boot, 6 s apart, with Severity 0, 1, 2 and 3 in turn
-  void test_severities();
-  uint8_t test_step = 0;
 
   // Register 303 status bits sent back to the inverter: bit 7 = normal operation,
   // bit 0 = charging, bit 1 = discharging
