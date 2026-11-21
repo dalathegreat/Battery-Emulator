@@ -430,7 +430,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
   static const uint8_t BMS_CHARGE_STATE_ABORTED = 0x04;
 
-  // Car ramps the link to pack over ~900ms: ~62% at 100ms, ~95% at 400ms
+  // Fallback ramp when 0x35E is stale, the car's shape over ~900ms: ~62% at 100ms, ~95% at 400ms
   static const uint32_t PRECHARGE_RAMP_MS = 900;
   static const uint8_t PRECHARGE_WAIT = 0;                 // closed, BMS hasn't started precharging
   static const uint8_t PRECHARGE_RAMP = 1;                 // BMS moved, walking the link up to pack
