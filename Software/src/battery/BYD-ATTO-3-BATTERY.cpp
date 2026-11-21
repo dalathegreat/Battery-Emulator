@@ -307,7 +307,7 @@ void BydAttoBattery::
     datalayer_bydatto->SOC_dashboard = BMS_SOC;
     //Resolved voltage, not raw 0x438, so the page matches the main view when 0x438 is rejected
     datalayer_bydatto->pack_voltage_dV = datalayer_battery->status.voltage_dV;
-    const bool fresh_35E = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
+    const bool fresh_35E = (last_35E_ms != 0) && (static_cast<uint32_t>(millis() - last_35E_ms) < 3000);
     datalayer_bydatto->hv_bus_voltage_dV = battery_hv_bus_voltage_dV;
     datalayer_bydatto->hv_bus_voltage_valid = fresh_35E;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
