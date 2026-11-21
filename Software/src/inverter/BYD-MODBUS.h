@@ -1,6 +1,8 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
 
+#include <bitset>
+
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/types.h"
 #include "ModbusInverterProtocol.h"
@@ -84,14 +86,14 @@ class BydModbusInverter : public ModbusInverterProtocol {
   static constexpr uint16_t SEVERITY_FAULT1 = 1;  // For a warning or info event
 
   struct FaultMapping {
-    EVENTS_ENUM_TYPE event;  // The pack 1 variant
-    uint8_t variants;        // 3 when the event exists per pack, in 1, 2, 3 order
+    EVENTS_ENUM_TYPE event;  // The first event of the line
+    uint8_t count;           // Events in a row from it: 3 for the packs of a per-pack event
     uint8_t code;            // Fault type, looked up by the inverter in its BYD2 table
   };
   static const FaultMapping FAULT_MAP[];
   static const uint8_t FAULT_MAP_SIZE;
-  // One bit per pack variant, set once the fault has been handed to the inverter
-  uint8_t fault_reported[24] = {0};
+  // One bit per event, set once its fault has been handed to the inverter
+  std::bitset<EVENT_NOF_EVENTS> fault_reported;
 };
 
 #endif

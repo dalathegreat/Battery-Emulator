@@ -32,8 +32,10 @@ class BydModbusFaultTest : public ::testing::Test {
  protected:
   void SetUp() override {
     set_millis64(1000);
-    init_events();  // Event levels are only assigned here, and only error events become faults
+    init_events();  // Event levels are only assigned here
     clock_valid = false;
+    // The watchdog value of a talking inverter, so that one minute in it does not go missing
+    inverter.mbPV[401] = 0x00FF;
   }
 
   void TearDown() override {
@@ -115,7 +117,7 @@ TEST_F(BydModbusFaultTest, FaultsBeforeTheClockAreBackDatedOnceItIsKnown) {
   set_event(EVENT_HVIL_FAILURE, 0, 1);
   inverter.update_values();
   EXPECT_EQ(inverter.u32(1022), 1794299900u + 10);
-  EXPECT_EQ(inverter.mbPV[1025], 47);  // BYD2-47 "Hardware fault at the battery control unit (BCU)"
+  EXPECT_EQ(inverter.mbPV[1025], 49);  // BYD2-49 "Faulty wiring of the battery supply line"
 }
 
 // The fault entries take their time from the ESP32's clock, not from the UTC registers
@@ -126,26 +128,26 @@ TEST_F(BydModbusFaultTest, FaultsAreStampedFromTheClock) {
   inverter.update_values();
 
   EXPECT_EQ(inverter.u32(1002), 1794299905u);
-  EXPECT_EQ(inverter.mbPV[1005], 47);
+  EXPECT_EQ(inverter.mbPV[1005], 49);
 }
 
-TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsDCBusFault) {
+TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsTheMainSwitchTripped) {
   ASSERT_TRUE(clock_set_utc(1794299900));
   set_event(EVENT_EQUIPMENT_STOP, 1);
   inverter.update_values();
 
   EXPECT_EQ(inverter.u32(1002), 1794299900u);
-  EXPECT_EQ(inverter.mbPV[1005], 49);  // BYD2-49 "DCBusFault"
+  EXPECT_EQ(inverter.mbPV[1005], 45);  // BYD2-45 "Battery main switch has tripped"
   EXPECT_EQ(inverter.mbPV[1006], 0);   // An error, so a Fault2
   EXPECT_EQ(inverter.mbPV[1009], 0x01FF);
 }
 
-TEST_F(BydModbusFaultTest, ThermalRunawayOfPack3IsACellFailure) {
+TEST_F(BydModbusFaultTest, ThermalRunawayOfPack3IsReportedAsOverTemperature) {
   ASSERT_TRUE(clock_set_utc(1794299900));
   set_event(EVENT_THERMAL_RUNAWAY, 0, 3);
   inverter.update_values();
 
-  EXPECT_EQ(inverter.mbPV[1005], 38);      // BYD2-38 "Cell Failure"
+  EXPECT_EQ(inverter.mbPV[1005], 27);      // BYD2-27 "The maximum cell temperature is more than 70..."
   EXPECT_EQ(inverter.mbPV[1009], 0x03FF);  // Pack 3
 }
 
@@ -169,8 +171,8 @@ TEST_F(BydModbusFaultTest, TheEleventhFaultTakesTheOldestEntry) {
 // A warning or info event in the map goes in as a Fault1, one not in the map not at all
 TEST_F(BydModbusFaultTest, WarningsAndInfosGoInAsFault1) {
   ASSERT_TRUE(clock_set_utc(1794299900));
-  set_event(EVENT_BATTERY_ISOLATION, 120, 1);  // Not in the map
-  ASSERT_EQ(get_event_pointer(EVENT_BATTERY_ISOLATION)->level, EVENT_LEVEL_WARNING);
+  set_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, 120, 1);  // Not in the map
+  ASSERT_EQ(get_event_pointer(EVENT_BATTERY_TEMP_DEVIATION_HIGH)->level, EVENT_LEVEL_WARNING);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[1004], 0);  // No entry
 
@@ -188,15 +190,15 @@ TEST_F(BydModbusFaultTest, WarningsAndInfosGoInAsFault1) {
   EXPECT_EQ(inverter.mbPV[1015], 24);  // BYD2-24 "Cell Over Voltage 3"
   EXPECT_EQ(inverter.mbPV[1016], 1);
   EXPECT_EQ(inverter.mbPV[1017], 4100);
-  EXPECT_EQ(inverter.mbPV[1024], 0);  // Still nothing for the isolation warning
+  EXPECT_EQ(inverter.mbPV[1024], 0);  // Still nothing for the temperature deviation
 }
 
-TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsDCBusFault) {
+TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsTheMainSwitchTripped) {
   ASSERT_TRUE(clock_set_utc(1794299900));
   set_event(EVENT_CONTACTOR_OPEN, 0, 1);
   inverter.update_values();
 
-  EXPECT_EQ(inverter.mbPV[1005], 49);  // BYD2-49 "DCBusFault"
+  EXPECT_EQ(inverter.mbPV[1005], 45);  // BYD2-45 "Battery main switch has tripped"
   EXPECT_EQ(inverter.mbPV[1006], 1);   // A warning, so a Fault1
 }
 
@@ -210,21 +212,53 @@ TEST_F(BydModbusFaultTest, ColdPackAndWeldedContactorAreReported) {
   EXPECT_EQ(inverter.mbPV[1005], 29);  // BYD2-29 "Charge Under Temperature 3"
   EXPECT_EQ(inverter.mbPV[1006], 1);   // An info event, so a Fault1
   EXPECT_EQ(inverter.mbPV[1009], 0x02FF);
-  EXPECT_EQ(inverter.mbPV[1015], 45);  // BYD2-45 "Battery Break"
+  EXPECT_EQ(inverter.mbPV[1015], 47);  // BYD2-47 "Internal hardware failure at the battery control unit (BCU)"
   EXPECT_EQ(inverter.mbPV[1016], 1);
 }
 
-// Losing a secondary pack is not reported, only losing the main one
-TEST_F(BydModbusFaultTest, OnlyTheMainPackGoneMissingIsReported) {
+// The main pack gone missing is a communication error of the BCU, a secondary one that of one of
+// its modules
+TEST_F(BydModbusFaultTest, AMissingPackIsReportedByWhichOneItIs) {
   ASSERT_TRUE(clock_set_utc(1794299900));
-  set_event(EVENT_CAN_BATTERY2_MISSING, 0);
   set_event(EVENT_CAN_BATTERY3_MISSING, 0);
   inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[1004], 0);  // No entry
+  EXPECT_EQ(inverter.mbPV[1004], 1);
+  EXPECT_EQ(inverter.mbPV[1005], 0);       // BYD2-0 "The BCU cannot communicate with one of the battery modules"
+  EXPECT_EQ(inverter.mbPV[1006], 1);       // A warning, so a Fault1
+  EXPECT_EQ(inverter.mbPV[1009], 0x03FF);  // Pack 3
 
   set_event(EVENT_CAN_BATTERY_MISSING, 0);
   inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[1005], 1);  // BYD2-1 "The BCU cannot communicate with all the battery modules"
-  EXPECT_EQ(inverter.mbPV[1006], 0);  // An error, so a Fault2
-  EXPECT_EQ(inverter.mbPV[1014], 0);  // And only that one
+  EXPECT_EQ(inverter.mbPV[1015], 1);  // BYD2-1 "BCU communication error"
+  EXPECT_EQ(inverter.mbPV[1016], 0);  // An error, so a Fault2
+  EXPECT_EQ(inverter.mbPV[1019], 0x01FF);
+}
+
+TEST_F(BydModbusFaultTest, TheInverterGoneQuietIsACommunicationError) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_MODBUS_INVERTER_MISSING, 0);
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.mbPV[1005], 46);  // BYD2-46 "Communication error between inverter and battery"
+  EXPECT_EQ(inverter.mbPV[1006], 0);   // An error, so a Fault2
+}
+
+// The cause of each boot is raised as an event. An unexpected one is reported, as a restart
+TEST_F(BydModbusFaultTest, AnUnexpectedRestartIsReported) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_RESET_TASK_WDT, 6);  // ESP_RST_TASK_WDT
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1004], 1);
+  EXPECT_EQ(inverter.mbPV[1005], 46);  // BYD2-46 "A restart process has been initiated"
+  EXPECT_EQ(inverter.mbPV[1006], 1);   // A warning, so a Fault1
+  EXPECT_EQ(inverter.mbPV[1007], 6);
+
+  set_event(EVENT_RESET_CPU_LOCKUP, 15);  // The last of the runs in the map
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1015], 46);
+
+  // A restart that was asked for is not reported
+  set_event(EVENT_RESET_SW, 3);
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1024], 0);
 }

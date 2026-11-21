@@ -13,30 +13,51 @@
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
 /* The emulator events reported to the inverter, and the fault type each one is reported as. The
-   types are those of the BYD2 table the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its
-   event log shows the code with a text, such as "BYD2-45 Battery Break". An event at error level
-   goes in as a Fault2, any other as a Fault1. CAN_BATTERY_MISSING is reported for the main pack only. */
+   types are those of the BYD2 table the inverter holds for the BYD Battery-Box Premium HVS/HVM. Its
+   event log shows the code with a short text, such as "BYD2-45 Battery Break", and Solar.web shows a
+   cause and a solution for it. Each event goes to the code whose cause fits it, given after the line:
+   the cause in Solar.web, or for MODBUS_INVERTER_MISSING the inverter's text. An event at error level
+   goes in as a Fault2, any other as a Fault1. */
 const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
-    {EVENT_CAN_BATTERY_MISSING, 1, 1},           // The BCU cannot communicate with all the battery modules
-    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
-    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Cell Under Voltage 3
-    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Cell Under Voltage 3
-    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Charge Over Current
-    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charge Over Temperature 3
-    {EVENT_BATTERY_FROZEN, 3, 29},               // Charge Under Temperature 3
-    {EVENT_BATTERY_COLD, 3, 29},                 // Charge Under Temperature 3
-    {EVENT_THERMAL_RUNAWAY, 3, 38},              // Cell Failure
-    {EVENT_CONTACTOR_WELDED, 3, 45},             // Battery Break
-    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
-    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
-    {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
-    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Pre-charge Fault - Fault2
-    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault - Fault2
-    {EVENT_CONTACTOR_OPEN, 3, 49},               // DCBusFault
-    {EVENT_EQUIPMENT_STOP, 1, 49},               // DCBusFault
+    {EVENT_CAN_BATTERY2_MISSING, 2, 0},          // The BCU cannot communicate with one of the battery modules
+    {EVENT_CAN_BATTERY_MISSING, 1, 1},           // BCU communication error
+    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // The discharge current is too high
+    {EVENT_CELL_UNDER_VOLTAGE, 3, 13},           // Undervoltage of the cells, voltage below 2.0 V
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Undervoltage of the cells, voltage below 2.0 V
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // The charging current is too high
+    {EVENT_CELL_OVER_VOLTAGE, 3, 24},            // Cell-Overvoltage
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell-Overvoltage
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell-Overvoltage
+    {EVENT_BATTERY_OVERHEAT, 3, 27},             // The maximum cell temperature is more than 70 degrees centigrade
+    {EVENT_THERMAL_RUNAWAY, 3, 27},              // The maximum cell temperature is more than 70 degrees centigrade
+    {EVENT_BATTERY_FROZEN, 3, 29},               // The minimum cell temperature is lower than -10 degrees centigrade
+    {EVENT_BATTERY_COLD, 3, 29},                 // The minimum cell temperature is lower than -10 degrees centigrade
+    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Voltage differences between the cells
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 38},  // The minimum cell voltage is lower than 1.5 V
+    {EVENT_BATTERY_DISCHG_STOP_REQ, 3, 44},      // The battery can't be discharged
+    {EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 3, 44},  // The battery can't be discharged
+    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery main switch has tripped
+    {EVENT_BYD_CONTACTOR_FORCE_OPEN, 3, 45},     // Battery main switch has tripped
+    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery main switch has tripped
+    {EVENT_ERROR_OPEN_CONTACTOR, 1, 45},         // Battery main switch has tripped
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery main switch has tripped
+    {EVENT_MODBUS_INVERTER_MISSING, 1, 46},      // Communication error between inverter and battery
+    {EVENT_RESET_UNKNOWN, 1, 46},                // A restart process has been initiated: unknown cause
+    {EVENT_RESET_PANIC, 4, 46},                  // A restart process has been initiated: panic or a watchdog
+    {EVENT_RESET_BROWNOUT, 1, 46},               // A restart process has been initiated: low supply voltage
+    {EVENT_RESET_EFUSE, 3, 46},                  // A restart process has been initiated: efuse, glitch, lockup
+    {EVENT_CONTACTOR_WELDED, 3, 47},             // Internal hardware failure at the battery control unit (BCU)
+    {EVENT_WATER_INGRESS, 3, 47},                // Internal hardware failure at the battery control unit (BCU)
+    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Precharging takes too long
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Precharging takes too long
+    {EVENT_CONTACTOR_WATCHDOG_FAILED, 3, 48},    // Precharging takes too long
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 49},          // Faulty wiring of the battery supply line
+    {EVENT_HVIL_FAILURE, 3, 49},                 // Faulty wiring of the battery supply line
+    {EVENT_BATTERY_ISOLATION, 3, 49},            // Faulty wiring of the battery supply line
 };
+// The unexpected reset causes, taken above as runs of the enum: PANIC to WDT, EFUSE to CPU_LOCKUP
+static_assert(EVENT_RESET_WDT == EVENT_RESET_PANIC + 3 && EVENT_RESET_CPU_LOCKUP == EVENT_RESET_EFUSE + 2,
+              "FAULT_MAP takes the reset causes as runs of the enum");
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
 void BydModbusInverter::update_values() {
@@ -223,22 +244,21 @@ void BydModbusInverter::stamp_faults(uint32_t now_ms) {
 }
 
 void BydModbusInverter::update_fault_buffers() {
-  static_assert(sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]) <= sizeof(fault_reported),
-                "fault_reported is too small for FAULT_MAP");
   const uint32_t now = millis();
   stamp_faults(now);
 
   for (uint8_t i = 0; i < FAULT_MAP_SIZE; i++) {
-    for (uint8_t variant = 0; variant < FAULT_MAP[i].variants; variant++) {
-      const EVENTS_STRUCT_TYPE* event = get_event_pointer((EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + variant));
-      const bool error = event->level == EVENT_LEVEL_ERROR;
+    for (uint8_t n = 0; n < FAULT_MAP[i].count; n++) {
+      const EVENTS_ENUM_TYPE id = (EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + n);
+      const EVENTS_STRUCT_TYPE* event = get_event_pointer(id);
       const bool active = event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED;
-      const uint8_t bit = 1 << variant;
       if (!active) {
-        fault_reported[i] &= ~bit;
-      } else if (!(fault_reported[i] & bit)) {
-        fault_reported[i] |= bit;
-        push_fault(FAULT_MAP[i].code, error ? SEVERITY_FAULT2 : SEVERITY_FAULT1, variant + 1, event->data, now);
+        fault_reported.reset(id);
+      } else if (!fault_reported.test(id)) {
+        fault_reported.set(id);
+        const uint8_t pack = event_battery_number(id);
+        push_fault(FAULT_MAP[i].code, event->level == EVENT_LEVEL_ERROR ? SEVERITY_FAULT2 : SEVERITY_FAULT1,
+                   pack > 0 ? pack : 1, event->data, now);
       }
     }
   }
