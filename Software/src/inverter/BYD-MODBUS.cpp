@@ -14,9 +14,8 @@
 
 /* The emulator events reported to the inverter, and the fault type each one is reported as. The
    types are those of the BYD2 table the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its
-   event log shows a text instead of a bare number: a GEN24 shows an equipment stop as
-   "BYD2-45 Battery Break". An event at error level goes in as a Fault2, any other as a Fault1.
-   CAN_BATTERY_MISSING is reported for the main pack only. */
+   event log shows the code with a text, such as "BYD2-45 Battery Break". An event at error level
+   goes in as a Fault2, any other as a Fault1. CAN_BATTERY_MISSING is reported for the main pack only. */
 const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
     {EVENT_CAN_BATTERY_MISSING, 1, 1},           // The BCU cannot communicate with all the battery modules
     {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
@@ -26,13 +25,17 @@ const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
     {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell Over Voltage 3
     {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell Over Voltage 3
     {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charge Over Temperature 3
+    {EVENT_BATTERY_FROZEN, 3, 29},               // Charge Under Temperature 3
+    {EVENT_BATTERY_COLD, 3, 29},                 // Charge Under Temperature 3
     {EVENT_THERMAL_RUNAWAY, 3, 38},              // Cell Failure
-    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery Break
+    {EVENT_CONTACTOR_WELDED, 3, 45},             // Battery Break
     {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
     {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
-    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery Break
     {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
-    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault
+    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Pre-charge Fault - Fault2
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault - Fault2
+    {EVENT_CONTACTOR_OPEN, 3, 49},               // DCBusFault
+    {EVENT_EQUIPMENT_STOP, 1, 49},               // DCBusFault
 };
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 

@@ -129,16 +129,14 @@ TEST_F(BydModbusFaultTest, FaultsAreStampedFromTheClock) {
   EXPECT_EQ(inverter.mbPV[1005], 47);
 }
 
-// An equipment stop drops the battery off the inverter's DC link, as a broken battery would. A GEN24
-// shows it as "BYD2-45 Battery Break"
-TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsBatteryBreak) {
+TEST_F(BydModbusFaultTest, EquipmentStopIsReportedAsDCBusFault) {
   ASSERT_TRUE(clock_set_utc(1794299900));
   set_event(EVENT_EQUIPMENT_STOP, 1);
   inverter.update_values();
 
   EXPECT_EQ(inverter.u32(1002), 1794299900u);
-  EXPECT_EQ(inverter.mbPV[1005], 45);
-  EXPECT_EQ(inverter.mbPV[1006], 0);  // An error, so a Fault2
+  EXPECT_EQ(inverter.mbPV[1005], 49);  // BYD2-49 "DCBusFault"
+  EXPECT_EQ(inverter.mbPV[1006], 0);   // An error, so a Fault2
   EXPECT_EQ(inverter.mbPV[1009], 0x01FF);
 }
 
@@ -193,14 +191,27 @@ TEST_F(BydModbusFaultTest, WarningsAndInfosGoInAsFault1) {
   EXPECT_EQ(inverter.mbPV[1024], 0);  // Still nothing for the isolation warning
 }
 
-// An open contactor drops the battery off the inverter's DC link, as a broken battery would
-TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsBatteryBreak) {
+TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsDCBusFault) {
   ASSERT_TRUE(clock_set_utc(1794299900));
   set_event(EVENT_CONTACTOR_OPEN, 0, 1);
   inverter.update_values();
 
-  EXPECT_EQ(inverter.mbPV[1005], 45);  // BYD2-45 "Battery Break"
+  EXPECT_EQ(inverter.mbPV[1005], 49);  // BYD2-49 "DCBusFault"
   EXPECT_EQ(inverter.mbPV[1006], 1);   // A warning, so a Fault1
+}
+
+TEST_F(BydModbusFaultTest, ColdPackAndWeldedContactorAreReported) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_BATTERY_COLD, 0, 2);
+  set_event(EVENT_CONTACTOR_WELDED, 0, 1);
+  inverter.update_values();
+
+  // In the order of the map
+  EXPECT_EQ(inverter.mbPV[1005], 29);  // BYD2-29 "Charge Under Temperature 3"
+  EXPECT_EQ(inverter.mbPV[1006], 1);   // An info event, so a Fault1
+  EXPECT_EQ(inverter.mbPV[1009], 0x02FF);
+  EXPECT_EQ(inverter.mbPV[1015], 45);  // BYD2-45 "Battery Break"
+  EXPECT_EQ(inverter.mbPV[1016], 1);
 }
 
 // Losing a secondary pack is not reported, only losing the main one
