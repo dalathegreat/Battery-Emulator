@@ -355,6 +355,8 @@ void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
+// The pack a battery specific event belongs to (1, 2 or 3), or 0 when the event is not battery specific
+uint8_t event_battery_number(EVENTS_ENUM_TYPE event);
 
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);

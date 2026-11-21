@@ -1,6 +1,9 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
 
+#include <bitset>
+
+#include "../devboard/utils/events.h"
 #include "../devboard/utils/types.h"
 #include "ModbusInverterProtocol.h"
 
@@ -17,8 +20,11 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void update_values();
   static constexpr const char* Name = "BYD HVS/HVM over Modbus";
 
- private:
+ protected:
+  // Fills the registers that never change, and creates the FaultBuffers. Called once from setup()
   void handle_static_data();
+
+ private:
   void verify_temperature();
   // What this inverter reports, after the cold-weather cap. Kept here rather than written back
   // into the datalayer, which every other consumer reads.
@@ -31,6 +37,13 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void handle_update_data_modbusp201_byd();
   void handle_update_data_modbusp301_byd();
   int16_t byd_power_W();
+  // Turns emulator events into FaultBuffers entries, which the inverter shows in its event log
+  void update_fault_buffers();
+  void push_fault(uint16_t type, uint16_t severity, uint8_t battery, int16_t data, uint32_t now_ms);
+  // Gives the entries written while the clock was not yet valid the time they were raised
+  void stamp_faults(uint32_t now_ms);
+  // A uint64 over four registers, high word first
+  void put_u64(uint16_t reg, uint64_t value);
 
   // Register 303 status bits sent back to the inverter: bit 7 = normal operation,
   // bit 0 = charging, bit 1 = discharging
@@ -45,12 +58,42 @@ class BydModbusInverter : public ModbusInverterProtocol {
   uint8_t history_index = 0;
   uint16_t last_register_407 = 0;  // Last RebootCommand seen, so only changes are acted on
   uint16_t last_register_408 = 0;  // Last DarkstartEnable seen, so only changes are logged
+  // Last UTC seen (403-406). The registers keep it until the next write, an hour later, and only a
+  // new time may set the clock: the same one again would set it back by the time that has passed
+  uint64_t last_inverter_utc_s = 0;
   // Bounds for a WatchDogTimeout accepted from register 402. 0 means the inverter is not using the
   // field, and an implausibly large value would push inverter-missing detection out of usefulness.
   static const uint32_t WATCHDOG_TIMEOUT_MIN_S = 5;
   static const uint32_t WATCHDOG_TIMEOUT_MAX_S = 3600;
   uint16_t bms_char_dis_status = BYD_MODE_IDLE;
   bool all_401_values_equal = false;
+
+  // FaultBuffers, 10 entries of 10 registers from 1000 on, which the inverter reads every 20 s
+  static constexpr uint16_t REG_FAULTS = 1000;
+  static constexpr uint8_t FAULT_ENTRIES = 10;
+  static constexpr uint8_t FAULT_ENTRY_SIZE = 10;
+  uint16_t fault_count = 0;
+  /* Fault entries are stamped from the ESP32's clock, which the inverter's own clock sets (see
+     system_clock.h). A fault raised before that clock is valid goes into the buffers with no
+     timestamp, which the inverter takes as an empty entry. Once it is valid, the entry gets the time
+     the fault was raised, worked back from the uptime noted here. Fronius' own Reserva battery
+     re-stamps its stored faults the same way when the inverter writes UTC. */
+  uint32_t fault_entry_ms[FAULT_ENTRIES] = {0};
+  bool fault_entry_unstamped[FAULT_ENTRIES] = {false};
+
+  // FaultBuffers.Severity. The inverter leaves anything above 1 out of its event log
+  static constexpr uint16_t SEVERITY_FAULT2 = 0;  // For an event at error level
+  static constexpr uint16_t SEVERITY_FAULT1 = 1;  // For a warning or info event
+
+  struct FaultMapping {
+    EVENTS_ENUM_TYPE event;  // The first event of the line
+    uint8_t count;           // Events in a row from it: 3 for the packs of a per-pack event
+    uint8_t code;            // Fault type, looked up by the inverter in its BYD2 table
+  };
+  static const FaultMapping FAULT_MAP[];
+  static const uint8_t FAULT_MAP_SIZE;
+  // One bit per event, set once its fault has been handed to the inverter
+  std::bitset<EVENT_NOF_EVENTS> fault_reported;
 };
 
 #endif

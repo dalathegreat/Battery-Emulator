@@ -332,7 +332,7 @@ static_assert(EVENT_CAN_BATTERY2_MISSING == EVENT_CAN_BATTERY_MISSING + 1 &&
 
 /* Returns the pack a battery specific event belongs to (1/2/3), or 0 when the event is not
    battery specific. Derived from the enum, so it cannot disagree with the event that was set. */
-static uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
+uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
   if (event < EVENT_BATTERY_FUSE || event > EVENT_CAN_BATTERY3_MISSING) {
     return 0;
   }
