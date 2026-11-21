@@ -12,33 +12,27 @@
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
-/* Emulator events and the fault type each one is reported as. The types are those of the BYD2 table
-   the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its event log shows a text instead
-   of a bare number: a GEN24 shows an equipment stop as "BYD2-45 Battery Break".
-   An event at error level stops the emulator, and goes in as a Fault2. Below that level only those
-   marked ANY_LEVEL are reported, as a Fault1, the mildest the inverter keeps in its event log.
-   Several ERROR_ONLY ones are below error level today, and only show up if that ever changes. */
+/* The emulator events reported to the inverter, and the fault type each one is reported as. The
+   types are those of the BYD2 table the inverter holds for the BYD Battery-Box Premium HVS/HVM, so its
+   event log shows a text instead of a bare number: a GEN24 shows an equipment stop as
+   "BYD2-45 Battery Break". An event at error level goes in as a Fault2, any other as a Fault1.
+   CAN_BATTERY_MISSING is reported for the main pack only. */
 const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
-    {EVENT_CAN_BATTERY_MISSING, 3, 1, ERROR_ONLY},           // The BCU cannot communicate with all the battery modules
-    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7, ANY_LEVEL},       // Over current during discharge detected
-    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13, ERROR_ONLY},  // Cell Under Voltage 3
-    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13, ANY_LEVEL},          // Cell Under Voltage 3
-    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18, ANY_LEVEL},         // Charge Over Current
-    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24, ERROR_ONLY},   // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERVOLTAGE, 3, 24, ANY_LEVEL},           // Cell Over Voltage 3
-    {EVENT_BATTERY_OVERHEAT, 3, 27, ERROR_ONLY},             // Charge Over Temperature 3
-    {EVENT_BATTERY_FROZEN, 3, 29, ERROR_ONLY},               // Charge Under Temperature 3
-    {EVENT_CELL_DEVIATION_HIGH, 3, 32, ERROR_ONLY},          // Battery Imbalance
-    {EVENT_THERMAL_RUNAWAY, 3, 38, ERROR_ONLY},              // Cell Failure
-    {EVENT_CONTACTOR_WELDED, 3, 44, ERROR_ONLY},             // BCU_Main Circuit Failure
-    {EVENT_CONTACTOR_OPEN, 3, 45, ANY_LEVEL},                // Battery Break
-    {EVENT_BATTERY_FUSE, 3, 45, ANY_LEVEL},                  // Battery Break
-    {EVENT_INTERNAL_OPEN_FAULT, 3, 45, ERROR_ONLY},          // Battery Break
-    {EVENT_EQUIPMENT_STOP, 1, 45, ERROR_ONLY},               // Battery Break
-    {EVENT_HVIL_FAILURE, 3, 47, ERROR_ONLY},                 // Hardware fault at the battery control unit (BCU)
-    {EVENT_PRECHARGE_FAILURE, 1, 48, ANY_LEVEL},             // Pre-charge Fault
-    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48, ERROR_ONLY},  // Pre-charge Fault
-    {EVENT_BATTERY_ISOLATION, 3, 49, ERROR_ONLY},            // DCBusFault
+    {EVENT_CAN_BATTERY_MISSING, 1, 1},           // The BCU cannot communicate with all the battery modules
+    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // Over current during discharge detected
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 13},  // Cell Under Voltage 3
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Cell Under Voltage 3
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // Charge Over Current
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell Over Voltage 3
+    {EVENT_BATTERY_OVERHEAT, 3, 27},             // Charge Over Temperature 3
+    {EVENT_THERMAL_RUNAWAY, 3, 38},              // Cell Failure
+    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery Break
+    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery Break
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 45},          // Battery Break
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery Break
+    {EVENT_HVIL_FAILURE, 3, 47},                 // Hardware fault at the battery control unit (BCU)
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Pre-charge Fault
 };
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
@@ -235,8 +229,7 @@ void BydModbusInverter::update_fault_buffers() {
     for (uint8_t variant = 0; variant < FAULT_MAP[i].variants; variant++) {
       const EVENTS_STRUCT_TYPE* event = get_event_pointer((EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + variant));
       const bool error = event->level == EVENT_LEVEL_ERROR;
-      const bool active = (error || FAULT_MAP[i].report == ANY_LEVEL) &&
-                          (event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED);
+      const bool active = event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED;
       const uint8_t bit = 1 << variant;
       if (!active) {
         fault_reported[i] &= ~bit;

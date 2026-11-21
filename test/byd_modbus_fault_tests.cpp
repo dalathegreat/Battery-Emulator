@@ -168,11 +168,10 @@ TEST_F(BydModbusFaultTest, TheEleventhFaultTakesTheOldestEntry) {
   EXPECT_EQ(inverter.mbPV[1094], 10);
 }
 
-// Below error level only the events marked ANY_LEVEL are reported, and as a Fault1: the emulator
-// carries on through them
-TEST_F(BydModbusFaultTest, MarkedWarningsAndInfosGoInAsFault1) {
+// A warning or info event in the map goes in as a Fault1, one not in the map not at all
+TEST_F(BydModbusFaultTest, WarningsAndInfosGoInAsFault1) {
   ASSERT_TRUE(clock_set_utc(1794299900));
-  set_event(EVENT_BATTERY_ISOLATION, 120, 1);  // Not marked
+  set_event(EVENT_BATTERY_ISOLATION, 120, 1);  // Not in the map
   ASSERT_EQ(get_event_pointer(EVENT_BATTERY_ISOLATION)->level, EVENT_LEVEL_WARNING);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[1004], 0);  // No entry
@@ -202,4 +201,19 @@ TEST_F(BydModbusFaultTest, OpenContactorIsReportedAsBatteryBreak) {
 
   EXPECT_EQ(inverter.mbPV[1005], 45);  // BYD2-45 "Battery Break"
   EXPECT_EQ(inverter.mbPV[1006], 1);   // A warning, so a Fault1
+}
+
+// Losing a secondary pack is not reported, only losing the main one
+TEST_F(BydModbusFaultTest, OnlyTheMainPackGoneMissingIsReported) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_event(EVENT_CAN_BATTERY2_MISSING, 0);
+  set_event(EVENT_CAN_BATTERY3_MISSING, 0);
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1004], 0);  // No entry
+
+  set_event(EVENT_CAN_BATTERY_MISSING, 0);
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[1005], 1);  // BYD2-1 "The BCU cannot communicate with all the battery modules"
+  EXPECT_EQ(inverter.mbPV[1006], 0);  // An error, so a Fault2
+  EXPECT_EQ(inverter.mbPV[1014], 0);  // And only that one
 }
