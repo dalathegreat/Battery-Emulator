@@ -60,7 +60,7 @@ void VolvoSpaHybridBattery::
 
   datalayer.battery.status.max_discharge_power_W = 6600;  //default power on charge connector
   datalayer.battery.status.max_charge_power_W = 6600;     //default power on charge connector
-  if (user_selected_volvo_inspection_mode) {  //Contactors are held open, so there is no power to offer
+  if (user_selected_volvo_inspection_mode) {              //Contactors are held open, so there is no power to offer
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
   }
