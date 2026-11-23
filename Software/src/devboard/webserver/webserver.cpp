@@ -290,8 +290,9 @@ static bool parse_soc_percentage(const String& text, int32_t lowest, int32_t hig
 }
 
 /* An edit of one end of the SOC window from the settings page. Refused unless it parses and
-   leaves a usable window with the other end. Applied only with apply set, so that the same check
-   serves as the route's validator. */
+   leaves a usable window with the other end, both the one in use and the saved one, which differ
+   while MQTT SET_SCALESOC has moved the window. Applied to both only with apply set, so that the
+   same check serves as the route's validator. */
 static bool edit_soc_window_end(const String& text, bool max_end, bool apply) {
   DATALAYER_BATTERY_SETTINGS_TYPE& battery_settings = datalayer.battery_settings;
   int32_t percentage = 0;
@@ -299,14 +300,17 @@ static bool edit_soc_window_end(const String& text, bool max_end, bool apply) {
                             max_end ? SOC_MAX_PERCENTAGE_HIGHEST : SOC_MIN_PERCENTAGE_HIGHEST, percentage)) {
     return false;
   }
-  if (!(max_end ? soc_window_valid(battery_settings.min_percentage, percentage)
-                : soc_window_valid(percentage, battery_settings.max_percentage))) {
+  const int32_t min_in_use = max_end ? battery_settings.min_percentage : percentage;
+  const int32_t max_in_use = max_end ? percentage : battery_settings.max_percentage;
+  const int32_t min_saved = max_end ? battery_settings.user_set_min_percentage : percentage;
+  const int32_t max_saved = max_end ? percentage : battery_settings.user_set_max_percentage;
+  if (!soc_window_valid(min_in_use, max_in_use) || !soc_window_valid(min_saved, max_saved)) {
     return false;
   }
   if (apply && max_end) {
-    battery_settings.max_percentage = (uint16_t)percentage;
+    battery_settings.max_percentage = battery_settings.user_set_max_percentage = (uint16_t)percentage;
   } else if (apply) {
-    battery_settings.min_percentage = (int16_t)percentage;
+    battery_settings.min_percentage = battery_settings.user_set_min_percentage = (int16_t)percentage;
   }
   return true;
 }

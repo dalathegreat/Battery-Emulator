@@ -86,6 +86,9 @@ void init_stored_settings() {
   if (temp2 <= 500 && temp2 >= -100) {
     datalayer.battery_settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
+  // The window in use starts out as the saved one. MQTT SET_SCALESOC moves only the one in use
+  datalayer.battery_settings.user_set_max_percentage = datalayer.battery_settings.max_percentage;
+  datalayer.battery_settings.user_set_min_percentage = datalayer.battery_settings.min_percentage;
   datalayer.battery_settings.max_user_set_charge_dA =
       settings.getUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
   datalayer.battery_settings.max_user_set_discharge_dA =
@@ -422,8 +425,10 @@ void store_settings() {
 
   settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.saveBool("USE_SCALED_SOC", datalayer.battery_settings.soc_scaling_active);
-  settings.saveUInt("MAXPERCENTAGE", datalayer.battery_settings.max_percentage / 10);
-  settings.saveInt("MINPERCENTAGE", datalayer.battery_settings.min_percentage / 10);
+  // The saved window, not the one in use: that may hold an MQTT SET_SCALESOC value, which must
+  // not outlive a reboot just because some other setting was saved meanwhile
+  settings.saveUInt("MAXPERCENTAGE", datalayer.battery_settings.user_set_max_percentage / 10);
+  settings.saveInt("MINPERCENTAGE", datalayer.battery_settings.user_set_min_percentage / 10);
   settings.saveUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
   settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery_settings.max_user_set_discharge_dA);
   settings.saveBool("USEVOLTLIMITS", datalayer.battery_settings.user_set_voltage_limits_active);
