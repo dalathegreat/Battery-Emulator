@@ -210,6 +210,19 @@ TEST_F(BatteryAggregateTest, SingleBatteryKeepsItsScaledFields) {
   EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 24000u);
 }
 
+// What the settings page, MQTT and the saved settings accept as a window. The two ranges meet at
+// 50 %, and both ends set there would leave a window with no width.
+TEST_F(BatteryAggregateTest, SocWindowNeedsTheMinimumBelowTheMaximum) {
+  EXPECT_TRUE(soc_window_valid(2000, 8000));
+  EXPECT_TRUE(soc_window_valid(-1000, 10000));  // The widest there is
+  EXPECT_TRUE(soc_window_valid(5000, 5010));
+  EXPECT_FALSE(soc_window_valid(5000, 5000));   // No width
+  EXPECT_FALSE(soc_window_valid(-1010, 8000));  // Minimum below -10 %
+  EXPECT_FALSE(soc_window_valid(5010, 8000));   // Minimum above 50 %
+  EXPECT_FALSE(soc_window_valid(2000, 4990));   // Maximum below 50 %
+  EXPECT_FALSE(soc_window_valid(2000, 10010));  // Maximum above 100 %
+}
+
 // SOC follows the emptiest pack: that is what protects the weakest one on discharge.
 TEST_F(BatteryAggregateTest, SocFollowsTheEmptiestPack) {
   add_second_pack();
