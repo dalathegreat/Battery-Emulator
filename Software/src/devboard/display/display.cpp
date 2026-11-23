@@ -12,8 +12,8 @@
 #include "../network/network_status.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "fonts.h"
 #include "display_modes.h"
+#include "fonts.h"
 #include "ssd130x_init.h"
 
 #include "Arduino.h"
@@ -461,8 +461,7 @@ static HealthInputs collect_health(bool live) {
       in.soh_current_x10 = tesla.nominal_full_held_x10;
       in.soh_new_x10 = tesla.battery_beginning_of_life;
     }
-    if (live && tesla.cac_valid &&
-        tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
+    if (live && tesla.cac_valid && tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
       in.cac = true;
       in.cac_min_x10 = tesla.cac_min_x10;
       in.cac_max_x10 = tesla.cac_max_x10;
@@ -513,6 +512,64 @@ static HealthInputs collect_health(bool live) {
   return in;
 }
 
+static void framebuffer_text(uint8_t* frame, int x, const char* str) {
+  while (*str && x < 128) {
+    char c = *str++;
+    if (c < ' ' || c > '~') {
+      c = '!';
+    }
+    const uint8_t* glyph = font6x8_basic[c - ' '];
+    for (int col = 0; col < 6 && x < 128; col++, x++) {
+      frame[x] = glyph[col];
+    }
+  }
+}
+
+static void framebuffer_column(uint8_t* frame, int x, uint8_t height) {
+  for (uint8_t i = 0; i < height; i++) {
+    const int y = 63 - i;
+    frame[(y / 8) * 128 + x] |= (uint8_t)(1u << (y % 8));
+  }
+}
+
+static void write_framebuffer(const uint8_t* frame) {
+  for (int page = 0; page < 8; page++) {
+    set_ram_pointer(0, page);
+    i2c_data(frame + page * 128, 128);
+  }
+}
+
+static void print_cell_bars() {
+  static CellHold hold{};
+  const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
+  uint16_t count = datalayer.battery.info.number_of_cells;
+  if (count > MAX_AMOUNT_CELLS) {
+    count = MAX_AMOUNT_CELLS;
+  }
+  const bool draw = cell_hold_step(hold, live, datalayer.battery.status.cell_voltages_mV, count, millis());
+
+  // Static: the connectivity task stack is 4 KB, and a full frame is 1 KB.
+  static uint8_t frame[1024];
+  memset(frame, 0, sizeof frame);
+  uint8_t column[128];
+  const CellScale scale = cell_voltage_scale(hold.mv, hold.count);
+  char header[22];
+  if (!draw || !layout_cell_bars(hold.mv, hold.count, column) ||
+      !format_cell_header(header, scale.min_mV, scale.max_mV)) {
+    framebuffer_text(frame, 0, "no cell data");
+    write_framebuffer(frame);
+    return;
+  }
+
+  framebuffer_text(frame, 0, header);
+  for (int x = 0; x < 128; x++) {
+    if (column[x] != 0) {
+      framebuffer_column(frame, x, column[x]);
+    }
+  }
+  write_framebuffer(frame);
+}
+
 static void print_battery_health() {
   static HealthHold hold{};
   const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
@@ -539,34 +596,7 @@ static void print_network_status(int row) {
   write_text(0, row, buf, false);
 }
 
-void update_display() {
-  if (!display_initialized) {
-    return;
-  }
-
-  // Status stays on its existing 500 ms cadence. The health page refreshes at 1 Hz.
-  const DisplayMode mode = user_selected_display_mode;
-  const uint32_t period_ms = mode == DisplayMode::Health ? 1000 : 500;
-  auto currentMillis = millis();
-  if (currentMillis - lastUpdateMillis < period_ms) {
-    return;
-  }
-
-  // A mode change has to wipe the previous page. Status itself is not cleared between frames.
-  static DisplayMode painted = DisplayMode::Status;
-  static bool have_painted = false;
-  if (have_painted && painted != mode) {
-    clear();
-  }
-  painted = mode;
-  have_painted = true;
-
-  if (mode == DisplayMode::Health) {
-    print_battery_health();
-    lastUpdateMillis = currentMillis;
-    return;
-  }
-
+static void print_status_pages() {
   // We cycle through several pages of battery data
   const int NUM_PAGES = 4;
   const int PAGE_TIME = 3;
@@ -601,6 +631,53 @@ void update_display() {
   phase++;
   if (phase >= total_phases) {
     phase = 0;
+  }
+}
+
+void update_display() {
+  if (!display_initialized) {
+    return;
+  }
+
+  // Status stays on its existing 500 ms cadence. Health and cell bars refresh at 1 Hz.
+  // Cycle picks one of those three with a millis difference, so a page change does not wait
+  // out the previous page's period and does not block the task.
+  auto currentMillis = millis();
+  const DisplayMode selected = user_selected_display_mode;
+  static uint32_t cycle_origin_ms = 0;
+  static bool cycle_running = false;
+  if (selected == DisplayMode::Cycle) {
+    if (!cycle_running) {
+      cycle_origin_ms = currentMillis;
+      cycle_running = true;
+    }
+  } else {
+    cycle_running = false;
+  }
+  const DisplayMode mode =
+      selected == DisplayMode::Cycle ? display_cycle_page((uint32_t)(currentMillis - cycle_origin_ms)) : selected;
+
+  static DisplayMode painted = DisplayMode::Status;
+  static bool have_painted = false;
+  const bool page_changed = have_painted && painted != mode;
+  const uint32_t period_ms = mode == DisplayMode::Status ? 500 : 1000;
+  if (!page_changed && (uint32_t)(currentMillis - lastUpdateMillis) < period_ms) {
+    return;
+  }
+
+  // A mode change has to wipe the previous page. Status itself is not cleared between frames.
+  if (page_changed) {
+    clear();
+  }
+  painted = mode;
+  have_painted = true;
+
+  if (mode == DisplayMode::Health) {
+    print_battery_health();
+  } else if (mode == DisplayMode::CellBars) {
+    print_cell_bars();
+  } else {
+    print_status_pages();
   }
   lastUpdateMillis = currentMillis;
 }

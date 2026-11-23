@@ -117,8 +117,11 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
-// OLED page. 0 is Status, and that is also what a missing or unknown DISPMODE shows.
-static const std::map<int, String> display_modes = {{0, "Status"}, {1, "Health"}, {2, "Cell bars"}};
+// OLED page. 0 is Status. 3 rotates the three pages. Anything else is also Status.
+static const std::map<int, String> display_modes = {{0, "Status"},
+                                                    {1, "Health"},
+                                                    {2, "Cell bars"},
+                                                    {3, "Cycle (every 4 s)"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
@@ -1269,9 +1272,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define DISPMODE_SETTING \
   R"rawliteral(
     <label for="DISPMODE">Display mode:</label>
-    <select id="DISPMODE" name="DISPMODE">
-      %DISPMODE%
-    </select>
+    <div>
+      <select id="DISPMODE" name="DISPMODE">
+        %DISPMODE%
+      </select>
+      <div style="font-size:0.85em;margin-top:4px;">Cycle shows Status, Health and Cell bars in turn, 4 seconds each. Status is the default.</div>
+    </div>
   )rawliteral"
 #else
 #define DISPMODE_SETTING ""
@@ -2514,13 +2520,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %LEDMODE%
         </select>
 
-        )rawliteral" DISPMODE_SETTING R"rawliteral(
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
         )rawliteral" GPIOOPT5_SETTING R"rawliteral(
         )rawliteral" GPIOOPT6_SETTING R"rawliteral(
+        )rawliteral" DISPMODE_SETTING R"rawliteral(
 
         </div>
         </div>

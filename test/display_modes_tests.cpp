@@ -18,7 +18,7 @@ void expect_row(const char* row, const char* text) {
 
 TEST(DisplayModeTests, MissingAndUnknownValuesAreStatus) {
   EXPECT_EQ(display_mode_from_raw(0), DisplayMode::Status);
-  EXPECT_EQ(display_mode_from_raw(3), DisplayMode::Status);
+  EXPECT_EQ(display_mode_from_raw(4), DisplayMode::Status);
   EXPECT_EQ(display_mode_from_raw(99), DisplayMode::Status);
   EXPECT_EQ(display_mode_from_raw(0xFFFFFFFFu), DisplayMode::Status);
 }
@@ -26,9 +26,27 @@ TEST(DisplayModeTests, MissingAndUnknownValuesAreStatus) {
 TEST(DisplayModeTests, KnownValuesRoundTrip) {
   EXPECT_EQ(display_mode_from_raw(1), DisplayMode::Health);
   EXPECT_EQ(display_mode_from_raw(2), DisplayMode::CellBars);
+  EXPECT_EQ(display_mode_from_raw(3), DisplayMode::Cycle);
   EXPECT_STREQ(display_mode_name(DisplayMode::Status), "status-pages");
   EXPECT_STREQ(display_mode_name(DisplayMode::Health), "health");
   EXPECT_STREQ(display_mode_name(DisplayMode::CellBars), "cell-bars");
+  EXPECT_STREQ(display_mode_name(DisplayMode::Cycle), "cycle");
+}
+
+TEST(DisplayCycleTests, PagesAdvanceEveryFourSeconds) {
+  EXPECT_EQ(DISPLAY_CYCLE_PAGE_MS, 4000u);
+  EXPECT_EQ(display_cycle_page(0), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS - 1), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS), DisplayMode::Health);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 2 - 1), DisplayMode::Health);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 2), DisplayMode::CellBars);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 3 - 1), DisplayMode::CellBars);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 3), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 4), DisplayMode::Health);
+
+  // A large elapsed value stays on the same three-page ring.
+  const uint32_t near_wrap = 0xFFFFF000u;
+  EXPECT_EQ(display_cycle_page(near_wrap), display_cycle_page(near_wrap % (DISPLAY_CYCLE_PAGE_MS * 3)));
 }
 
 TEST(HealthFormatTests, HalfUpBoundaries) {
@@ -60,12 +78,12 @@ TEST(HealthFormatTests, MockFrameAndFullPrecisionCac) {
   HealthRows rows{};
   format_health(in, rows);
   expect_row(rows.line[0], "SOC 72%");
-  expect_row(rows.line[1], "Capacity 82.1kWh");
+  expect_row(rows.line[1], "CAPACITY 82.1kWh");
   expect_row(rows.line[2], "SOH 82% (82.1/100kWh)");
-  expect_row(rows.line[3], "Imbalance 18mV");
+  expect_row(rows.line[3], "CELL IMBAL 18mV");
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 3Ah  2%");
-  expect_row(rows.line[6], "SOCimb 1%");
+  expect_row(rows.line[5], "CAC IMBAL 3Ah  2%");
+  expect_row(rows.line[6], "SOC IMBAL 1%");
   expect_row(rows.line[7], "");
 }
 
@@ -83,8 +101,8 @@ TEST(HealthFormatTests, CacPercentUsesUnroundedDeltaAndAverage) {
   HealthRows rows{};
   format_health(in, rows);
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 3Ah  1%");
-  expect_row(rows.line[6], "SOCimb 1%");
+  expect_row(rows.line[5], "CAC IMBAL 3Ah  1%");
+  expect_row(rows.line[6], "SOC IMBAL 1%");
 }
 
 TEST(HealthFormatTests, ValidZeroAndUnavailable) {
@@ -100,18 +118,30 @@ TEST(HealthFormatTests, ValidZeroAndUnavailable) {
   HealthRows rows{};
   format_health(zeros, rows);
   expect_row(rows.line[0], "SOC 0%");
-  expect_row(rows.line[1], "Capacity --");
+  expect_row(rows.line[1], "CAPACITY --");
   expect_row(rows.line[2], "SOH --");
-  expect_row(rows.line[3], "Imbalance 0mV");
+  expect_row(rows.line[3], "CELL IMBAL 0mV");
   expect_row(rows.line[4], "CAC --");
-  expect_row(rows.line[5], "CACimb --");
-  expect_row(rows.line[6], "SOCimb 0%");
+  expect_row(rows.line[5], "CAC IMBAL --");
+  expect_row(rows.line[6], "SOC IMBAL 0%");
 
   HealthInputs none{};
   format_health(none, rows);
   expect_row(rows.line[0], "SOC --");
-  expect_row(rows.line[3], "Imbalance --");
-  expect_row(rows.line[6], "SOCimb --");
+  expect_row(rows.line[3], "CELL IMBAL --");
+  expect_row(rows.line[6], "SOC IMBAL --");
+}
+
+TEST(HealthFormatTests, SohDropsParensWhenFullLineDoesNotFit) {
+  HealthInputs in{};
+  in.soh = true;
+  // "SOH 100% (82.1/82.5kWh)" is 23 chars. 82.1/82.5 is 99.5% -> 100.
+  in.soh_current_x10 = 821;
+  in.soh_new_x10 = 825;
+
+  HealthRows rows{};
+  format_health(in, rows);
+  expect_row(rows.line[2], "SOH 100% 82.1/82.5");
 }
 
 TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
@@ -121,14 +151,14 @@ TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
   in.cac_max_x10 = 1784;
   in.cac_avg_x10 = 1800;
   in.soh = true;
-  in.soh_current_x10 = 381;  // 38.1 / 999.9 kWh does not fit in 21 characters
+  in.soh_current_x10 = 381;  // "SOH 4% (38.1/999.9kWh)" is 22 chars; drop parens+unit.
   in.soh_new_x10 = 9999;
 
   HealthRows rows{};
   format_health(in, rows);
-  expect_row(rows.line[2], "SOH --");
+  expect_row(rows.line[2], "SOH 4% 38.1/999.9");
   expect_row(rows.line[4], "CAC --");
-  expect_row(rows.line[5], "CACimb --");
+  expect_row(rows.line[5], "CAC IMBAL --");
 }
 
 TEST(HealthFormatTests, CacPercentUnavailableWhenAverageMissing) {
@@ -141,7 +171,20 @@ TEST(HealthFormatTests, CacPercentUnavailableWhenAverageMissing) {
   HealthRows rows{};
   format_health(in, rows);
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 4Ah --%");
+  expect_row(rows.line[5], "CAC IMBAL 4Ah --%");
+}
+
+TEST(HealthFormatTests, CacImbalanceTwoDigitValuesFit) {
+  HealthInputs in{};
+  in.cac = true;
+  // "CAC IMBAL 12Ah  7%" is 17 characters, so no shortened label is needed.
+  in.cac_min_x10 = 1780;
+  in.cac_max_x10 = 1900;
+  in.cac_avg_x10 = 1800;
+
+  HealthRows rows{};
+  format_health(in, rows);
+  expect_row(rows.line[5], "CAC IMBAL 12Ah  7%");
 }
 
 TEST(HealthFormatTests, SocRoundsHalfUp) {
@@ -185,6 +228,88 @@ TEST(HealthFormatTests, HoldKeepsEachFieldForThirtyMinutes) {
   EXPECT_FALSE(shown.soc);
   EXPECT_FALSE(shown.imbalance);
   EXPECT_FALSE(shown.capacity);
+}
+
+TEST(CellBarTests, HeaderMatchesMock) {
+  char line[22];
+  ASSERT_TRUE(format_cell_header(line, 3912, 3930));
+  EXPECT_STREQ(line, "3.912-3.930V  18mV");
+  ASSERT_TRUE(format_cell_header(line, 3912, 3912));
+  EXPECT_STREQ(line, "3.912-3.912V  0mV");
+}
+
+TEST(CellBarTests, MinimumSpanDoesNotStretchNoise) {
+  const uint16_t mv[] = {3912, 3920, 0, 3912};
+  const CellScale scale = cell_voltage_scale(mv, 4);
+  EXPECT_TRUE(scale.have);
+  EXPECT_EQ(scale.min_mV, 3912);
+  EXPECT_EQ(scale.max_mV, 3920);
+  EXPECT_EQ(scale.span_mV, CELL_BAR_MIN_SPAN_MV);
+  const uint8_t low = cell_bar_height(3912, scale);
+  const uint8_t high = cell_bar_height(3920, scale);
+  EXPECT_GT(high, low);
+  EXPECT_GE(low, CELL_BAR_MIN_PX);
+  EXPECT_LT(high, CELL_BAR_PX);
+  EXPECT_EQ(cell_bar_height(0, scale), CELL_BAR_DOT_PX);
+  EXPECT_LT(CELL_BAR_DOT_PX, low);
+}
+
+TEST(CellBarTests, ExactMinimumSpanUsesTheFullColumn) {
+  const uint16_t mv[] = {3912, 3932};
+  const CellScale scale = cell_voltage_scale(mv, 2);
+  EXPECT_EQ(scale.span_mV, 20);
+  EXPECT_EQ(cell_bar_height(3912, scale), CELL_BAR_MIN_PX);
+  EXPECT_EQ(cell_bar_height(3932, scale), CELL_BAR_PX);
+}
+
+TEST(CellBarTests, ColumnsAreCenteredWithNoGaps) {
+  uint16_t mv[128];
+  for (int i = 0; i < 128; i++) {
+    mv[i] = 4000;
+  }
+  uint8_t column[128];
+
+  auto expect_centered = [&](uint16_t count, uint16_t origin) {
+    ASSERT_TRUE(layout_cell_bars(mv, count, column));
+    if (origin > 0) {
+      EXPECT_EQ(column[origin - 1], 0);
+    }
+    for (uint16_t x = origin; x < origin + count; x++) {
+      EXPECT_GT(column[x], CELL_BAR_DOT_PX) << x;
+    }
+    if (origin + count < 128) {
+      EXPECT_EQ(column[origin + count], 0);
+    }
+  };
+
+  expect_centered(96, 16);
+  expect_centered(84, 22);
+  expect_centered(83, 22);
+  expect_centered(108, 10);
+  expect_centered(110, 9);
+
+  mv[3] = 0;
+  ASSERT_TRUE(layout_cell_bars(mv, 96, column));
+  EXPECT_EQ(column[16 + 3], CELL_BAR_DOT_PX);
+  EXPECT_GT(column[16], CELL_BAR_DOT_PX);
+}
+
+TEST(CellBarTests, MissingPackAndThirtyMinuteHold) {
+  uint8_t column[128] = {};
+  const uint16_t zeros[8] = {};
+  EXPECT_FALSE(layout_cell_bars(zeros, 8, column));
+  EXPECT_FALSE(layout_cell_bars(nullptr, 0, column));
+
+  CellHold hold{};
+  const uint16_t cells[] = {3912, 3930, 0, 3920};
+  EXPECT_TRUE(cell_hold_step(hold, true, cells, 4, 50));
+  EXPECT_EQ(hold.count, 4u);
+  EXPECT_TRUE(cell_hold_step(hold, false, nullptr, 0, 50 + DISPLAY_VALUE_HOLD_MS));
+  EXPECT_TRUE(hold.known);
+  EXPECT_EQ(hold.mv[1], 3930);
+  EXPECT_FALSE(cell_hold_step(hold, false, nullptr, 0, 50 + DISPLAY_VALUE_HOLD_MS + 1));
+  EXPECT_FALSE(hold.known);
+  EXPECT_EQ(hold.count, 0u);
 }
 
 TEST(HealthFormatTests, HoldSurvivesMillisWrap) {

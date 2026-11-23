@@ -6,9 +6,9 @@
 #include <string.h>
 
 // OLED page selected in Settings. Stored as NVM uint8 DISPMODE.
-// 0 Status (today's tall SOC and rotating pages), 1 Health, 2 Cell bars.
+// 0 Status (today's tall SOC and rotating pages), 1 Health, 2 Cell bars, 3 Cycle.
 // A missing key or any other value is Status.
-enum class DisplayMode : uint8_t { Status = 0, Health = 1, CellBars = 2 };
+enum class DisplayMode : uint8_t { Status = 0, Health = 1, CellBars = 2, Cycle = 3 };
 
 inline DisplayMode display_mode_from_raw(uint32_t raw) {
   if (raw == static_cast<uint32_t>(DisplayMode::Health)) {
@@ -17,7 +17,21 @@ inline DisplayMode display_mode_from_raw(uint32_t raw) {
   if (raw == static_cast<uint32_t>(DisplayMode::CellBars)) {
     return DisplayMode::CellBars;
   }
+  if (raw == static_cast<uint32_t>(DisplayMode::Cycle)) {
+    return DisplayMode::Cycle;
+  }
   return DisplayMode::Status;
+}
+
+// How long Cycle leaves each page up: Status, then Health, then Cell bars.
+static constexpr uint32_t DISPLAY_CYCLE_PAGE_MS = 4000;
+
+// Page for a Cycle run that has been going for elapsed_ms. Unsigned elapsed wraps safely.
+// 0 Status, 4000 Health, 8000 Cell bars, 12000 Status again.
+inline DisplayMode display_cycle_page(uint32_t elapsed_ms) {
+  static constexpr DisplayMode pages[] = {DisplayMode::Status, DisplayMode::Health, DisplayMode::CellBars};
+  const uint32_t index = (elapsed_ms / DISPLAY_CYCLE_PAGE_MS) % (sizeof(pages) / sizeof(pages[0]));
+  return pages[index];
 }
 
 // Boot-log token. Status keeps the name the startup diagnostics already used.
@@ -27,6 +41,8 @@ inline const char* display_mode_name(DisplayMode mode) {
       return "health";
     case DisplayMode::CellBars:
       return "cell-bars";
+    case DisplayMode::Cycle:
+      return "cycle";
     default:
       return "status-pages";
   }
@@ -171,11 +187,11 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
   }
 
   if (!in.capacity) {
-    health_pad(rows.line[1], "Capacity --");
+    health_pad(rows.line[1], "CAPACITY --");
   } else {
-    snprintf(tmp, sizeof tmp, "Capacity %u.%ukWh", (unsigned)(in.capacity_x10 / 10u),
+    snprintf(tmp, sizeof tmp, "CAPACITY %u.%ukWh", (unsigned)(in.capacity_x10 / 10u),
              (unsigned)(in.capacity_x10 % 10u));
-    health_pad(rows.line[1], strlen(tmp) <= 21 ? tmp : "Capacity --");
+    health_pad(rows.line[1], strlen(tmp) <= 21 ? tmp : "CAPACITY --");
   }
 
   if (!in.soh || in.soh_current_x10 == 0 || in.soh_new_x10 == 0) {
@@ -185,22 +201,28 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
     char new_kwh[8];
     format_kwh_token(current_kwh, sizeof current_kwh, in.soh_current_x10);
     format_kwh_token(new_kwh, sizeof new_kwh, in.soh_new_x10);
-    const unsigned pct =
-        (unsigned)round_half_up((uint32_t)in.soh_current_x10 * 100u, in.soh_new_x10);
+    const unsigned pct = (unsigned)round_half_up((uint32_t)in.soh_current_x10 * 100u, in.soh_new_x10);
     snprintf(tmp, sizeof tmp, "SOH %u%% (%s/%skWh)", pct, current_kwh, new_kwh);
+    if (strlen(tmp) > 21) {
+      snprintf(tmp, sizeof tmp, "SOH %u%% %s/%s", pct, current_kwh, new_kwh);
+    }
+    if (strlen(tmp) > 21) {
+      snprintf(tmp, sizeof tmp, "SOH %u%% %u/%u", pct, (unsigned)round_half_up(in.soh_current_x10, 10),
+               (unsigned)round_half_up(in.soh_new_x10, 10));
+    }
     health_pad(rows.line[2], strlen(tmp) <= 21 ? tmp : "SOH --");
   }
 
   if (!in.imbalance) {
-    health_pad(rows.line[3], "Imbalance --");
+    health_pad(rows.line[3], "CELL IMBAL --");
   } else {
-    snprintf(tmp, sizeof tmp, "Imbalance %umV", (unsigned)in.imbalance_mV);
-    health_pad(rows.line[3], strlen(tmp) <= 21 ? tmp : "Imbalance --");
+    snprintf(tmp, sizeof tmp, "CELL IMBAL %umV", (unsigned)in.imbalance_mV);
+    health_pad(rows.line[3], strlen(tmp) <= 21 ? tmp : "CELL IMBAL --");
   }
 
   if (!in.cac || in.cac_max_x10 < in.cac_min_x10) {
     health_pad(rows.line[4], "CAC --");
-    health_pad(rows.line[5], "CACimb --");
+    health_pad(rows.line[5], "CAC IMBAL --");
   } else {
     const unsigned lo = (unsigned)round_half_up(in.cac_min_x10, 10);
     const unsigned hi = (unsigned)round_half_up(in.cac_max_x10, 10);
@@ -210,23 +232,156 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
     const uint32_t delta_x10 = (uint32_t)in.cac_max_x10 - in.cac_min_x10;
     const unsigned delta_ah = (unsigned)round_half_up(delta_x10, 10);
     if (in.cac_avg_x10 == 0) {
-      snprintf(tmp, sizeof tmp, "CACimb %uAh --%%", delta_ah);
+      snprintf(tmp, sizeof tmp, "CAC IMBAL %uAh --%%", delta_ah);
     } else {
       const unsigned pct = (unsigned)round_half_up(delta_x10 * 100u, in.cac_avg_x10);
-      snprintf(tmp, sizeof tmp, "CACimb %uAh  %u%%", delta_ah, pct);
+      snprintf(tmp, sizeof tmp, "CAC IMBAL %uAh  %u%%", delta_ah, pct);
     }
-    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CACimb --");
+    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CAC IMBAL --");
   }
 
   if (!in.socimb || in.soc_max_x10 < in.soc_min_x10 || in.soc_max_x10 > 1000) {
-    health_pad(rows.line[6], "SOCimb --");
+    health_pad(rows.line[6], "SOC IMBAL --");
   } else {
     const unsigned pct = (unsigned)round_half_up((uint32_t)in.soc_max_x10 - in.soc_min_x10, 10);
-    snprintf(tmp, sizeof tmp, "SOCimb %u%%", pct);
-    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOCimb --");
+    snprintf(tmp, sizeof tmp, "SOC IMBAL %u%%", pct);
+    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOC IMBAL --");
   }
 
   health_pad(rows.line[7], "");
+}
+
+// Cell bars. One column per cell on the 56px under the text row, centered in 128.
+// A valid bar is at least 2px. A missing cell (0 mV) is a 1px dot, never a bar.
+static constexpr uint16_t CELL_BAR_MIN_SPAN_MV = 20;
+static constexpr uint8_t CELL_BAR_PX = 56;
+static constexpr uint8_t CELL_BAR_DOT_PX = 1;
+static constexpr uint8_t CELL_BAR_MIN_PX = 2;
+static constexpr uint16_t CELL_BAR_MAX_CELLS = 128;
+
+struct CellScale {
+  bool have = false;
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  uint16_t lo_mV = 0;
+  uint16_t span_mV = CELL_BAR_MIN_SPAN_MV;
+};
+
+inline CellScale cell_voltage_scale(const uint16_t* mv, uint16_t count) {
+  CellScale scale;
+  if (mv == nullptr || count == 0) {
+    return scale;
+  }
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  bool any = false;
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  for (uint16_t i = 0; i < n; i++) {
+    if (mv[i] == 0) {
+      continue;
+    }
+    if (!any || mv[i] < min_mV) {
+      min_mV = mv[i];
+    }
+    if (!any || mv[i] > max_mV) {
+      max_mV = mv[i];
+    }
+    any = true;
+  }
+  if (!any) {
+    return scale;
+  }
+  scale.have = true;
+  scale.min_mV = min_mV;
+  scale.max_mV = max_mV;
+  const uint16_t delta = (uint16_t)(max_mV - min_mV);
+  scale.span_mV = delta < CELL_BAR_MIN_SPAN_MV ? CELL_BAR_MIN_SPAN_MV : delta;
+  const uint16_t pad = (uint16_t)((scale.span_mV - delta) / 2u);
+  scale.lo_mV = pad > min_mV ? 0 : (uint16_t)(min_mV - pad);
+  return scale;
+}
+
+inline uint8_t cell_bar_height(uint16_t mv, const CellScale& scale) {
+  if (!scale.have || mv == 0) {
+    return CELL_BAR_DOT_PX;
+  }
+  const uint16_t above = mv > scale.lo_mV ? (uint16_t)(mv - scale.lo_mV) : 0;
+  uint32_t height = (uint32_t)above * (CELL_BAR_PX - CELL_BAR_MIN_PX) / scale.span_mV + CELL_BAR_MIN_PX;
+  if (height < CELL_BAR_MIN_PX) {
+    height = CELL_BAR_MIN_PX;
+  }
+  if (height > CELL_BAR_PX) {
+    height = CELL_BAR_PX;
+  }
+  return (uint8_t)height;
+}
+
+// column[x] is 0 (empty padding), 1 (missing cell) or 2..56 (bar).
+// False when there is no valid cell to scale against.
+inline bool layout_cell_bars(const uint16_t* mv, uint16_t count, uint8_t column[128]) {
+  memset(column, 0, 128);
+  if (mv == nullptr || count == 0) {
+    return false;
+  }
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  const CellScale scale = cell_voltage_scale(mv, n);
+  if (!scale.have) {
+    return false;
+  }
+
+  uint16_t x = (uint16_t)((128u - n) / 2u);
+  for (uint16_t i = 0; i < n; i++, x++) {
+    column[x] = mv[i] == 0 ? CELL_BAR_DOT_PX : cell_bar_height(mv[i], scale);
+  }
+  return true;
+}
+
+inline bool format_cell_header(char dest[22], uint16_t min_mV, uint16_t max_mV) {
+  if (max_mV < min_mV) {
+    return false;
+  }
+  const unsigned delta = (unsigned)(max_mV - min_mV);
+  int n = snprintf(dest, 22, "%u.%03u-%u.%03uV  %umV", (unsigned)(min_mV / 1000u), (unsigned)(min_mV % 1000u),
+                   (unsigned)(max_mV / 1000u), (unsigned)(max_mV % 1000u), delta);
+  if (n < 0 || n > 21) {
+    n = snprintf(dest, 22, "%u.%03u-%u.%03uV %umV", (unsigned)(min_mV / 1000u), (unsigned)(min_mV % 1000u),
+                 (unsigned)(max_mV / 1000u), (unsigned)(max_mV % 1000u), delta);
+  }
+  return n >= 0 && n <= 21;
+}
+
+struct CellHold {
+  bool known = false;
+  uint32_t ms = 0;
+  uint16_t count = 0;
+  uint16_t mv[CELL_BAR_MAX_CELLS]{};
+};
+
+// A live sample needs one non-zero cell. After that the same columns stay up for 30 minutes.
+inline bool cell_hold_step(CellHold& hold, bool live, const uint16_t* mv, uint16_t count, uint32_t now_ms) {
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  bool sample = false;
+  if (live && mv != nullptr && n > 0) {
+    for (uint16_t i = 0; i < n; i++) {
+      if (mv[i] != 0) {
+        sample = true;
+        break;
+      }
+    }
+  }
+  if (sample) {
+    hold.known = true;
+    hold.ms = now_ms;
+    hold.count = n;
+    memcpy(hold.mv, mv, n * sizeof(uint16_t));
+    return true;
+  }
+  if (hold.known && (uint32_t)(now_ms - hold.ms) <= DISPLAY_VALUE_HOLD_MS) {
+    return true;
+  }
+  hold.known = false;
+  hold.count = 0;
+  return false;
 }
 
 #endif  // DISPLAY_MODES_H
