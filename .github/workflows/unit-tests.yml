@@ -24,6 +24,12 @@ jobs:
     - name: Check battery capacity detection list
       run: python3 tools/check_capacity_detection.py
 
+    # settings_page.js is served gzipped from flash. This checks the blob decompresses
+    # back to that file, including the small-flash variant with the charger and QNHCK
+    # scripts removed.
+    - name: Check settings page script gzip
+      run: python3 tools/gen_settings_js.py --check
+
     - name: Configure and build with CMake
       run: |
         cd test
