@@ -1158,6 +1158,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
 
+  if (var == "VOLVOINSPECT") {
+    return settings.getBool("VOLVOINSPECT") ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1739,6 +1743,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    form .if-volvo-spa { display: none; }
+    form[data-battery="35"] .if-volvo-spa, form[data-battery="36"] .if-volvo-spa {
+      display: contents;
+    }
+
     form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
@@ -2109,6 +2118,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+        </div>
+
+        <div class="if-volvo-spa">
+            <label for='VOLVOINSPECT'>Inspection mode (never close contactors, keep DTCs): </label>
+            <input type='checkbox' name='VOLVOINSPECT' id='VOLVOINSPECT' value='on' %VOLVOINSPECT% />
         </div>
 
         <div class="if-daly">

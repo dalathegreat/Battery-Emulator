@@ -667,6 +667,8 @@ uint8_t user_selected_LEAF_chg_sta_rq[3] = {0, 0, 0};
 bool user_selected_LEAF_auto_current_offset = true;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
+/* User-selected Volvo SPA settings: inspection mode never closes the contactors and keeps the stored DTCs */
+bool user_selected_volvo_inspection_mode = false;
 #ifndef SMALL_FLASH_DEVICE
 uint8_t user_selected_bmw_i3_soc_havrla = 0;  // 0=disable, 1=auto, 2=enable
 #endif                                        // SMALL_FLASH_DEVICE

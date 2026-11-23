@@ -5,10 +5,15 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+extern bool user_selected_volvo_inspection_mode;
+
 class VolvoSpaHybridHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
+    if (user_selected_volvo_inspection_mode) {
+      content += "<h4>Inspection mode: contactors kept open, DTCs not erased</h4>";
+    }
 
     content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoHybrid.soc_bms) + "</h4>";
     content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoHybrid.soc_calc) + "</h4>";

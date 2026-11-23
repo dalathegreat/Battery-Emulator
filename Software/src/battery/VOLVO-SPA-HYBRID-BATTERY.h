@@ -3,6 +3,8 @@
 #include "CanBattery.h"
 #include "VOLVO-SPA-HYBRID-HTML.h"
 
+extern bool user_selected_volvo_inspection_mode;
+
 class VolvoSpaHybridBattery : public CanBattery {
  public:
   virtual void setup(void);
