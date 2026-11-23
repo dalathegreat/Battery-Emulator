@@ -554,7 +554,16 @@ void TeslaBattery::
   soc_hold.update(datalayer_battery->status.CAN_battery_still_alive > 0, battery_index);
   datalayer_battery->status.real_soc = soc_hold.real_soc();  //SOC range 0-100.0 -> 100.00
 
-  datalayer_battery->status.voltage_dV = battery_volts;
+  // 0x132 (battery_volts) is the DC link. With the contactors OPEN it falls to a few volts while
+  // the cells stay at pack voltage, so publish the stack instead and keep the 0.5-5.0 V fuse
+  // window below off the open link. Every other contactor state keeps 0x132.
+  const bool hvp_fresh = hvp_pack_voltage_seen && hvp_pack_voltage_age_s < HvpPackVoltageFresh_s;
+  datalayer_battery->status.voltage_dV =
+      tesla_reported_voltage_dV(battery_contactor == ContactorOpen, battery_volts, HVP_packVoltage, hvp_fresh,
+                                datalayer_battery->status.cell_voltages_mV, datalayer_battery->info.number_of_cells);
+  if (hvp_fresh) {
+    hvp_pack_voltage_age_s++;
+  }
 
   datalayer_battery->status.current_dA = battery_amps;  //13.0A
 
@@ -1858,6 +1867,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                           (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
         HVP_fcLinkVoltage = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
                             (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+        hvp_pack_voltage_seen = true;
+        hvp_pack_voltage_age_s = 0;
       }
       if (mux == 2) {
         HVP_packContVoltage = ((rx_frame.data.u8[1] & (0xFFU)) << 4) |
