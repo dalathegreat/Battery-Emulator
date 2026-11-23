@@ -527,7 +527,7 @@ String TeslaHtmlRenderer::get_status_html() {
     struct AlertGroup {
       const char* label;
       int base;  // integer "code" base for this ECU (BMS 1xx, PCS 2xx, CP 3xx)
-      const bool* active;
+      const uint8_t* active;
       int count;
     };
     const AlertGroup groups[] = {
@@ -539,7 +539,7 @@ String TeslaHtmlRenderer::get_status_html() {
     int total_active = 0;
     for (auto& g : groups) {
       for (int i = 0; i < g.count; i++) {
-        if (g.active[i]) {
+        if (teslaAlertGet(g.active, i)) {
           total_active++;
         }
       }
@@ -555,7 +555,7 @@ String TeslaHtmlRenderer::get_status_html() {
           "<th style='text-align:left;padding:2px 0'>Description</th></tr>";
       for (auto& g : groups) {
         for (int i = 0; i < g.count; i++) {
-          if (!g.active[i]) {
+          if (!teslaAlertGet(g.active, i)) {
             continue;
           }
           String code = String(g.base + i);  // integer match key; JSON maps it to code + description

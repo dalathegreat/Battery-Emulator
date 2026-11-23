@@ -76,6 +76,353 @@ inline const char* getContactorState(int index) {
   }
 }
 
+namespace {
+
+// One row per datalayer slot, in index order. A frame updates only the rows whose mux matches.
+struct TeslaAlertBit {
+  uint8_t mux;
+  uint8_t byte_index;
+  uint8_t bit;
+};
+
+template <size_t N, size_t Bytes>
+void applyAlertMatrix(uint8_t (&active)[Bytes], const TeslaAlertBit (&bits)[N], const uint8_t* data) {
+  static_assert(Bytes == (N + 7) / 8, "alert pack size");
+  const uint8_t frame_mux = data[0] & 0x0F;
+  for (size_t i = 0; i < N; i++) {
+    if (bits[i].mux == frame_mux) {
+      teslaAlertSet(active, static_cast<int>(i), (data[bits[i].byte_index] >> bits[i].bit) & 0x01);
+    }
+  }
+}
+
+// Every row is one bit of the 8-byte frame, and none of them sit on the mux nibble.
+constexpr bool alertBitsFitInFrame(const TeslaAlertBit* bits, size_t count) {
+  for (size_t i = 0; i < count; i++) {
+    if (bits[i].byte_index > 7 || bits[i].bit > 7 || (bits[i].byte_index == 0 && bits[i].bit < 4)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static constexpr TeslaAlertBit kBmsAlertBits[] = {
+    {0, 0, 4},  // BMS_a001_Pack_Config_Mismatch
+    {0, 2, 4},  // BMS_a017_SW_Brick_OV
+    {0, 2, 5},  // BMS_a018_SW_Brick_UV
+    {0, 2, 6},  // BMS_a019_SW_Module_OT
+    {0, 3, 0},  // BMS_a021_SW_Dr_Limits_Regulation
+    {0, 3, 1},  // BMS_a022_SW_Over_Current
+    {0, 3, 2},  // BMS_a023_SW_Stack_OV
+    {0, 3, 3},  // BMS_a024_SW_Islanded_Brick
+    {0, 3, 4},  // BMS_a025_SW_PwrBalance_Anomaly
+    {0, 3, 5},  // BMS_a026_SW_HFCurrent_Anomaly
+    {0, 4, 5},  // BMS_a034_SW_Passive_Isolation
+    {0, 4, 6},  // BMS_a035_SW_Isolation
+    {0, 4, 7},  // BMS_a036_SW_HvpHvilFault
+    {0, 5, 0},  // BMS_a037_SW_Flood_Port_Open
+    {0, 5, 2},  // BMS_a039_SW_DC_Link_Over_Voltage
+    {0, 5, 4},  // BMS_a041_SW_Power_On_Reset
+    {0, 5, 5},  // BMS_a042_SW_MPU_Error
+    {0, 5, 6},  // BMS_a043_SW_Watch_Dog_Reset
+    {0, 5, 7},  // BMS_a044_SW_Assertion
+    {0, 6, 0},  // BMS_a045_SW_Exception
+    {0, 6, 1},  // BMS_a046_SW_Task_Stack_Usage
+    {0, 6, 2},  // BMS_a047_SW_Task_Stack_Overflow
+    {0, 6, 3},  // BMS_a048_SW_Log_Upload_Request
+    {0, 6, 5},  // BMS_a050_SW_Brick_Voltage_MIA
+    {0, 6, 6},  // BMS_a051_SW_HVC_Vref_Bad
+    {0, 6, 7},  // BMS_a052_SW_PCS_MIA
+    {0, 7, 0},  // BMS_a053_SW_ThermalModel_Sanity
+    {0, 7, 1},  // BMS_a054_SW_Ver_Supply_Fault
+    {0, 7, 2},  // BMS_a055_SW_HvChain_Model_Fault
+    {0, 7, 6},  // BMS_a059_SW_Pack_Voltage_Sensing
+    {0, 7, 7},  // BMS_a060_SW_Leakage_Test_Failure
+    {1, 0, 4},  // BMS_a061_robinBrickOverVoltage
+    {1, 0, 5},  // BMS_a062_SW_BrickV_Imbalance
+    {1, 0, 6},  // BMS_a063_SW_ChargePort_Fault
+    {1, 0, 7},  // BMS_a064_SW_SOC_Imbalance
+    {1, 1, 4},  // BMS_a069_SW_Low_Power
+    {1, 1, 6},  // BMS_a071_SW_SM_TransCon_Not_Met
+    {1, 2, 2},  // BMS_a075_SW_Chg_Disable_Failure
+    {1, 2, 3},  // BMS_a076_SW_Dch_While_Charging
+    {1, 2, 4},  // BMS_a077_SW_Charger_Regulation
+    {1, 3, 0},  // BMS_a081_SW_Ctr_Close_Blocked
+    {1, 3, 1},  // BMS_a082_SW_Ctr_Force_Open
+    {1, 3, 2},  // BMS_a083_SW_Ctr_Close_Failure
+    {1, 3, 3},  // BMS_a084_SW_Sleep_Wake_Aborted
+    {1, 3, 6},  // BMS_a087_SW_Feim_Test_Blocked
+    {1, 3, 7},  // BMS_a088_SW_VcFront_MIA_InDrive
+    {1, 4, 0},  // BMS_a089_SW_VcFront_MIA
+    {1, 4, 1},  // BMS_a090_SW_Gateway_MIA
+    {1, 4, 2},  // BMS_a091_SW_ChargePort_MIA
+    {1, 4, 3},  // BMS_a092_SW_ChargePort_Mia_On_Hv
+    {1, 4, 5},  // BMS_a094_SW_Drive_Inverter_MIA
+    {1, 5, 2},  // BMS_a099_SW_BMB_Communication
+    {1, 6, 0},  // BMS_a105_SW_One_Module_Tsense
+    {1, 6, 1},  // BMS_a106_SW_All_Module_Tsense
+    {1, 6, 2},  // BMS_a107_SW_Stack_Voltage_MIA
+    {2, 0, 4},  // BMS_a121_SW_NVRAM_Config_Error
+    {2, 0, 5},  // BMS_a122_SW_BMS_Therm_Irrational
+    {2, 0, 6},  // BMS_a123_SW_Internal_Isolation
+    {2, 1, 1},  // BMS_a126_SW_Thermistor_Failure
+    {2, 1, 2},  // BMS_a127_SW_shunt_SNA
+    {2, 1, 3},  // BMS_a128_SW_shunt_MIA
+    {2, 1, 4},  // BMS_a129_SW_VSH_Failure
+    {2, 1, 5},  // BMS_a130_IO_CAN_Error
+    {2, 1, 6},  // BMS_a131_Bleed_FET_Failure
+    {2, 1, 7},  // BMS_a132_HW_BMB_OTP_Uncorrctbl
+    {2, 2, 1},  // BMS_a134_SW_Delayed_Ctr_Off
+    {2, 2, 2},  // BMS_a135_HW_BMB_Diagnostics_Failure
+    {2, 2, 3},  // BMS_a136_SW_Module_OT_Warning
+    {2, 2, 4},  // BMS_a137_SW_Brick_UV_Warning
+    {2, 2, 5},  // BMS_a138_SW_Brick_OV_Warning
+    {2, 2, 6},  // BMS_a139_SW_DC_Link_V_Irrational
+    {2, 3, 0},  // BMS_a141_SW_BMB_Status_Warning
+    {2, 3, 2},  // BMS_a143_SW_CAC_Change
+    {2, 3, 3},  // BMS_a144_Hvp_Config_Mismatch
+    {2, 3, 4},  // BMS_a145_SW_SOC_Change
+    {2, 3, 5},  // BMS_a146_SW_Brick_Overdischarged
+    {2, 4, 0},  // BMS_a149_SW_Missing_Config_Block
+    {2, 4, 2},  // BMS_a151_SW_external_isolation
+    {2, 4, 6},  // BMS_a155_SW_Weak_short_impedence
+    {2, 4, 7},  // BMS_a156_SW_BMB_Vref_bad
+    {2, 5, 0},  // BMS_a157_SW_HVP_HVS_Comms
+    {2, 5, 1},  // BMS_a158_SW_HVP_HVI_Comms
+    {2, 5, 2},  // BMS_a159_SW_HVP_ECU_Error
+    {2, 5, 4},  // BMS_a161_SW_DI_Open_Request
+    {2, 5, 5},  // BMS_a162_SW_No_Power_For_Support
+    {2, 5, 6},  // BMS_a163_SW_Contactor_Mismatch
+    {2, 5, 7},  // BMS_a164_SW_Uncontrolled_Regen
+    {2, 6, 0},  // BMS_a165_SW_Pack_Partial_Weld
+    {2, 6, 1},  // BMS_a166_SW_Pack_Full_Weld
+    {2, 6, 2},  // BMS_a167_SW_FC_Partial_Weld
+    {2, 6, 3},  // BMS_a168_SW_FC_Full_Weld
+    {2, 6, 4},  // BMS_a169_SW_FC_Pack_Weld
+    {2, 6, 5},  // BMS_a170_SW_Limp_Mode
+    {2, 6, 6},  // BMS_a171_SW_Stack_Voltage_Sense
+    {2, 7, 0},  // BMS_a173_SW_Charge_Component_Fault
+    {2, 7, 1},  // BMS_a174_SW_Charge_Failure
+    {2, 7, 3},  // BMS_a176_SW_GracefulPowerOff
+    {2, 7, 5},  // BMS_a178_SW_Uncontrolled_Regen_PwrB
+    {2, 7, 6},  // BMS_a179_SW_Hvp_12V_Fault
+    {2, 7, 7},  // BMS_a180_SW_ECU_reset_blocked
+};
+
+static_assert(sizeof(kBmsAlertBits) / sizeof(TeslaAlertBit) == 100, "BMS alert count");
+static_assert(alertBitsFitInFrame(kBmsAlertBits, 100), "BMS alert bit out of range");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertSocChange].mux == 2, "SOC change mux");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertSocChange].byte_index == 3, "SOC change byte");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertSocChange].bit == 4, "SOC change bit");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertEcuResetBlocked].mux == 2, "reset blocked mux");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertEcuResetBlocked].byte_index == 7, "reset blocked byte");
+static_assert(kBmsAlertBits[TeslaBattery::kBmsAlertEcuResetBlocked].bit == 7, "reset blocked bit");
+
+static constexpr TeslaAlertBit kPcsAlertBits[] = {
+    {0, 0, 4},  // PCS_a001_chgHwInputOc
+    {0, 0, 5},  // PCS_a002_chgHwOutputOc
+    {0, 0, 6},  // PCS_a003_chgHwInputOv
+    {0, 0, 7},  // PCS_a004_chgHwIntBusOv
+    {0, 1, 0},  // PCS_a005_chgOutputOv
+    {0, 1, 1},  // PCS_a006_chgPrechargeFailedScr
+    {0, 1, 2},  // PCS_a007_chgPhaseTempHot
+    {0, 1, 3},  // PCS_a008_chgPhaseOverTemp
+    {0, 1, 4},  // PCS_a009_chgPfcCurrentRegulation
+    {0, 1, 5},  // PCS_a010_chgIntBusVRegulation
+    {0, 1, 6},  // PCS_a011_chgLlcCurrentRegulation
+    {0, 1, 7},  // PCS_a012_chgPfcIBandTracerFault
+    {0, 2, 0},  // PCS_a013_chgPrechargeFailedBoost
+    {0, 2, 1},  // PCS_a014_chgTempRationality
+    {0, 2, 2},  // PCS_a015_chg12vUv
+    {0, 2, 3},  // PCS_a016_chgAllPhasesFaulted
+    {0, 2, 4},  // PCS_a017_chgWallPowerRemoval
+    {0, 2, 5},  // PCS_a018_chgUnknownGridConfig
+    {0, 2, 6},  // PCS_a019_acChargePowerLimited
+    {0, 2, 7},  // PCS_a020_chgEnableLineMismatch
+    {0, 3, 0},  // PCS_a021_hvpMia
+    {0, 3, 1},  // PCS_a022_bmsMia
+    {0, 3, 2},  // PCS_a023_cpMia
+    {0, 3, 3},  // PCS_a024_vcfrontMia
+    {0, 3, 4},  // PCS_a025_cpu2Malfunction
+    {0, 3, 5},  // PCS_a026_watchdogAlarmed
+    {0, 3, 6},  // PCS_a027_chgInsufficientCooling
+    {0, 3, 7},  // PCS_a028_chgOutputUv
+    {0, 4, 0},  // PCS_a029_chgPowerRationality
+    {0, 4, 1},  // PCS_a030_canRationality
+    {0, 4, 2},  // PCS_a031_uiMia
+    {0, 4, 3},  // PCS_a032_gtwMia
+    {0, 4, 4},  // PCS_a033_hvBusUv
+    {0, 4, 5},  // PCS_a034_hvBusOv
+    {0, 4, 6},  // PCS_a035_lvBusUv
+    {0, 4, 7},  // PCS_a036_lvBusOv
+    {0, 5, 0},  // PCS_a037_resonantTankOc
+    {0, 5, 1},  // PCS_a038_claFaulted
+    {0, 5, 2},  // PCS_a039_sdModuleClkFault
+    {0, 5, 3},  // PCS_a040_dcdcMaxPowerReached
+    {0, 5, 4},  // PCS_a041_dcdcOverTemp
+    {0, 5, 5},  // PCS_a042_dcdcEnableLineMismatch
+    {0, 5, 6},  // PCS_a043_hvBusPrechargeFailure
+    {0, 5, 7},  // PCS_a044_12vSupportRegulation
+    {0, 6, 0},  // PCS_a045_hvBusLowImpedance
+    {0, 6, 1},  // PCS_a046_hvBusHighImpedence
+    {0, 6, 2},  // PCS_a047_lvBusLowImpedance
+    {0, 6, 3},  // PCS_a048_lvBusHighImpedance
+    {0, 6, 4},  // PCS_a049_dcdcTempRationality
+    {0, 6, 5},  // PCS_a050_dcdc12VsupportFaulted
+    {0, 6, 6},  // PCS_a051_chgIntBusUv
+    {0, 6, 7},  // PCS_a052_acVoltageNotPresent
+    {0, 7, 0},  // PCS_a053_chgInputVDropHigh
+    {0, 7, 1},  // PCS_a054_chgInputVDropTooHigh
+    {0, 7, 2},  // PCS_a055_chgLineImedanceHigh
+    {0, 7, 3},  // PCS_a056_chgLineImedanceTooHigh
+    {0, 7, 4},  // PCS_a057_chgInputOverFreq
+    {0, 7, 5},  // PCS_a058_chgInputUnderFreq
+    {0, 7, 6},  // PCS_a059_chgInputOvRms
+    {0, 7, 7},  // PCS_a060_chgInputOvPeak
+    {1, 0, 4},  // PCS_a061_chgVLineRationality
+    {1, 0, 5},  // PCS_a062_chgILineRationality
+    {1, 0, 6},  // PCS_a063_chgVOutRationality
+    {1, 0, 7},  // PCS_a064_chgIOutRationality
+    {1, 1, 0},  // PCS_a065_chgPllNotLocked
+    {1, 1, 1},  // PCS_a066_dcdcHvRationality
+    {1, 1, 2},  // PCS_a067_dcdcLvRationality
+    {1, 1, 3},  // PCS_a068_dcdcTankvRationality
+    {1, 1, 4},  // PCS_a069_chgPfcLineDidt
+    {1, 1, 5},  // PCS_a070_chgPfcLineDvdt
+    {1, 1, 6},  // PCS_a071_chgPfcILoopRationality
+    {1, 1, 7},  // PCS_a072_cpu2ClaStopped
+    {1, 2, 0},  // PCS_a073_unexpectedAcInputVoltage
+    {1, 2, 1},  // PCS_a074_hvBusDischargeFailure
+    {1, 2, 2},  // PCS_a075_hvBusDischargeTimeout
+    {1, 2, 3},  // PCS_a076_dcdcEnDeassertedErr
+    {1, 2, 4},  // PCS_a077_microGridEnergyLow
+    {1, 2, 5},  // PCS_a078_chgStopDcdcTooHot
+    {1, 2, 6},  // PCS_a079_eepromOperationError
+    {1, 2, 7},  // PCS_a080_damagedPhaseDetected
+    {1, 3, 0},  // PCS_a081_dcdcPchgTimeout
+    {1, 3, 1},  // PCS_a082_dcdcPchgUnsafeDiVoltage
+    {1, 3, 2},  // PCS_a083_triggerOdin
+    {1, 3, 3},  // PCS_a084_dcdcPchgStartVoltages
+    {1, 3, 4},  // PCS_a085_dcdcFetsNotSwitching
+    {1, 3, 5},  // PCS_a086_dcdcInsufficientCooling
+    {1, 3, 6},  // PCS_a087_nvramRecordStatusError
+    {1, 3, 7},  // PCS_a088_pchgParameters
+    {1, 4, 0},  // PCS_a089_hvBusDischargeIrrational
+    {1, 4, 1},  // PCS_a090_expectedAcVoltageSourceMissing
+    {1, 4, 2},  // PCS_a091_chgIntBusRationality
+    {1, 4, 3},  // PCS_a092_chgPowerLimitedByBusRipple
+    {1, 4, 4},  // PCS_a093_powerRailRationality
+    {1, 4, 5},  // PCS_a094_pcsDcdcNeedService
+};
+
+static_assert(sizeof(kPcsAlertBits) / sizeof(TeslaAlertBit) == 94, "PCS alert count");
+static_assert(alertBitsFitInFrame(kPcsAlertBits, 94), "PCS alert bit out of range");
+
+static constexpr TeslaAlertBit kCpAlertBits[] = {
+    {0, 0, 4},  // CP_a001_canRx
+    {0, 0, 5},  // CP_a002_canTx
+    {0, 0, 6},  // CP_a003_canError
+    {0, 0, 7},  // CP_a004_proximityRationality
+    {0, 1, 0},  // CP_a005_gbdcLiveDisconnect
+    {0, 1, 1},  // CP_a006_lostCommsBMS
+    {0, 1, 2},  // CP_a007_watchdog
+    {0, 1, 3},  // CP_a008_memoryError
+    {0, 1, 4},  // CP_a009_coverOpen
+    {0, 1, 5},  // CP_a010_pilotRationality
+    {0, 1, 6},  // CP_a011_eeprom
+    {0, 1, 7},  // CP_a012_ledDriver
+    {0, 2, 0},  // CP_a013_lostCommsGTW
+    {0, 2, 1},  // CP_a014_lostCommsCHG
+    {0, 2, 2},  // CP_a015_apsVov
+    {0, 2, 3},  // CP_a016_apsVuv
+    {0, 2, 4},  // CP_a017_fiveVov
+    {0, 2, 5},  // CP_a018_fiveVuv
+    {0, 2, 6},  // CP_a019_threeVov
+    {0, 2, 7},  // CP_a020_threeVuv
+    {0, 3, 0},  // CP_a021_zeroVov
+    {0, 3, 1},  // CP_a022_zeroVuv
+    {0, 3, 2},  // CP_a023_gbdcSessionFailed
+    {0, 3, 3},  // CP_a024_ledsUC
+    {0, 3, 4},  // CP_a025_ledsOC
+    {0, 3, 5},  // CP_a026_networkManagement
+    {0, 3, 6},  // CP_a027_doorSensorOutOfSpec
+    {0, 3, 7},  // CP_a028_insertEnableMismatch
+    {0, 4, 0},  // CP_a029_doorClosedProxPilot
+    {0, 4, 1},  // CP_a030_busOff
+    {0, 4, 2},  // CP_a031_doorClosedCommandedOpen
+    {0, 4, 3},  // CP_a032_doorOpenExpectedClosed
+    {0, 4, 4},  // CP_a033_spiOpen
+    {0, 4, 5},  // CP_a034_calibrationIncomplete
+    {0, 4, 6},  // CP_a035_latchMovement_1
+    {0, 4, 7},  // CP_a036_latchNotDisengaged
+    {0, 5, 0},  // CP_a037_latchNotEngaged
+    {0, 5, 1},  // CP_a038_latchNotBlocking
+    {0, 5, 2},  // CP_a039_latchMovement_2
+    {0, 5, 3},  // CP_a040_doNotUse
+    {0, 5, 4},  // CP_a041_doorSensorUnplugged
+    {0, 5, 5},  // CP_a042_doorAssemblyBroken
+    {0, 5, 6},  // CP_a043_doorPotIrrational
+    {0, 5, 7},  // CP_a044_lostCommsHVP
+    {0, 6, 0},  // CP_a045_lostCommsVCSEC
+    {0, 6, 1},  // CP_a046_lostCommsEVSE
+    {0, 6, 2},  // CP_a047_lostCommsVCFRONT
+    {0, 6, 3},  // CP_a048_lostCommsUI
+    {0, 6, 4},  // CP_a049_multipleCablesDetected
+    {0, 6, 5},  // CP_a050_latchNotConnected
+    {0, 6, 6},  // CP_a051_doorInductiveSensorMIA
+    {0, 6, 7},  // CP_a052_evseNotSupported
+    {0, 7, 0},  // CP_a053_proxLatchedNoPilot
+    {0, 7, 1},  // CP_a054_cableNotSecured
+    {0, 7, 2},  // CP_a055_chargeStoppedNoPilot
+    {0, 7, 3},  // CP_a056_proxDisconnected
+    {0, 7, 4},  // CP_a057_evseFaulted
+    {0, 7, 5},  // CP_a058_acChargingBlocked
+    {0, 7, 6},  // CP_a059_swcanError
+    {0, 7, 7},  // CP_a060_lostCommsPCS
+    {1, 0, 4},  // CP_a061_uhfReceiverMIA
+    {1, 0, 5},  // CP_a062_scOutOfService
+    {1, 0, 6},  // CP_a063_scUpdateInProgress
+    {1, 0, 7},  // CP_a064_superchargingBlocked
+    {1, 1, 0},  // CP_a065_selfTestFailed
+    {1, 1, 1},  // CP_a066_proxLatchedIdlePilot
+    {1, 1, 2},  // CP_a067_gbdcConnFault
+    {1, 1, 3},  // CP_a068_doorSensorMismatch
+    {1, 1, 4},  // CP_a069_doorInductiveSensorError
+    {1, 1, 5},  // CP_a070_doorInductiveSensorReset
+    {1, 1, 6},  // CP_a071_exiDecodeFailure
+    {1, 1, 7},  // CP_a072_v2gEvccTimeout
+    {1, 2, 0},  // CP_a073_iecComboShutdown
+    {1, 2, 1},  // CP_a074_failedToEstablishV2gComm
+    {1, 2, 2},  // CP_a075_v2gCommsFailure
+    {1, 2, 3},  // CP_a076_LDC1612errorWatchdog
+    {1, 2, 4},  // CP_a077_invalidMacAddress
+    {1, 2, 5},  // CP_a078_latchNotDisengagedCold
+    {1, 2, 6},  // CP_a079_cableNotSecuredCold
+    {1, 2, 7},  // CP_a080_taskStackOverflow
+    {1, 3, 0},  // CP_a081_swException
+    {1, 3, 1},  // CP_a082_powerOnReset
+    {1, 3, 2},  // CP_a083_watchdogTraceData
+    {1, 3, 3},  // CP_a084_proximityPeDisconnected
+    {1, 3, 4},  // CP_a085_dcPinTempFaulted
+    {1, 3, 5},  // CP_a086_dcPinTempIrrational
+    {1, 3, 6},  // CP_a087_dcTempModelFault
+    {1, 3, 7},  // CP_a088_dcTempModelDeviation
+    {1, 4, 0},  // CP_a089_plcConfigMismatch
+    {1, 4, 1},  // CP_a090_ccsEvseLowIso
+    {1, 4, 2},  // CP_a091_wrongSuperchargerHandle
+    {1, 4, 3},  // CP_a092_modemAppLoadFailed
+    {1, 4, 4},  // CP_a093_modemLoadedWithReset
+    {1, 4, 5},  // CP_a094_inductiveResetSuccessful
+    {1, 4, 6},  // CP_a095_thermalDcLimitActive
+    {1, 4, 7},  // CP_a096_pilotWake
+};
+
+static_assert(sizeof(kCpAlertBits) / sizeof(TeslaAlertBit) == 96, "CP alert count");
+static_assert(alertBitsFitInFrame(kCpAlertBits, 96), "CP alert bit out of range");
+
+}  // namespace
+
+// Not the detail-page table: index 0 is "NOT OK" here and "UNKNOWN or CONTACTORS OPEN" on the page.
 inline const char* getHvilStatusState(int index) {
   switch (index) {
     case 0:
@@ -616,10 +963,10 @@ void TeslaBattery::
   }
   // Raise any Tesla BMS events in BE
   // Events: Informational
-  if (BMS_a145_SW_SOC_Change) {  // BMS has newly recalibrated pack SOC
+  if (bmsSocChangeAlert()) {  // BMS has newly recalibrated pack SOC
     set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0,
                       battery_index);  // Latcched as BMS_a145 can be active for a while
-  } else if (!BMS_a145_SW_SOC_Change) {
+  } else if (!bmsSocChangeAlert()) {
     clear_event(EVENT_BATTERY_SOC_RECALIBRATION, battery_index);
   }
   // Events: Warning
@@ -677,7 +1024,7 @@ void TeslaBattery::
     user_requests_isolation_clear = false;
   }
   if (user_requests_bms_reset) {
-    if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
+    if (battery_contactor == 1 && bmsEcuResetBlocked() == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       user_requests_bms_reset = false;
@@ -941,297 +1288,7 @@ void TeslaBattery::
   datalayer_tesla->HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_tesla->HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-  // Alert-matrix (DTC) fault state -> datalayer for the Faults web page (fw 2019.20.4.2)
-  datalayer_tesla->BMS_alertMatrixActive[0] = BMS_a001_Pack_Config_Mismatch;
-  datalayer_tesla->BMS_alertMatrixActive[1] = BMS_a017_SW_Brick_OV;
-  datalayer_tesla->BMS_alertMatrixActive[2] = BMS_a018_SW_Brick_UV;
-  datalayer_tesla->BMS_alertMatrixActive[3] = BMS_a019_SW_Module_OT;
-  datalayer_tesla->BMS_alertMatrixActive[4] = BMS_a021_SW_Dr_Limits_Regulation;
-  datalayer_tesla->BMS_alertMatrixActive[5] = BMS_a022_SW_Over_Current;
-  datalayer_tesla->BMS_alertMatrixActive[6] = BMS_a023_SW_Stack_OV;
-  datalayer_tesla->BMS_alertMatrixActive[7] = BMS_a024_SW_Islanded_Brick;
-  datalayer_tesla->BMS_alertMatrixActive[8] = BMS_a025_SW_PwrBalance_Anomaly;
-  datalayer_tesla->BMS_alertMatrixActive[9] = BMS_a026_SW_HFCurrent_Anomaly;
-  datalayer_tesla->BMS_alertMatrixActive[10] = BMS_a034_SW_Passive_Isolation;
-  datalayer_tesla->BMS_alertMatrixActive[11] = BMS_a035_SW_Isolation;
-  datalayer_tesla->BMS_alertMatrixActive[12] = BMS_a036_SW_HvpHvilFault;
-  datalayer_tesla->BMS_alertMatrixActive[13] = BMS_a037_SW_Flood_Port_Open;
-  datalayer_tesla->BMS_alertMatrixActive[14] = BMS_a039_SW_DC_Link_Over_Voltage;
-  datalayer_tesla->BMS_alertMatrixActive[15] = BMS_a041_SW_Power_On_Reset;
-  datalayer_tesla->BMS_alertMatrixActive[16] = BMS_a042_SW_MPU_Error;
-  datalayer_tesla->BMS_alertMatrixActive[17] = BMS_a043_SW_Watch_Dog_Reset;
-  datalayer_tesla->BMS_alertMatrixActive[18] = BMS_a044_SW_Assertion;
-  datalayer_tesla->BMS_alertMatrixActive[19] = BMS_a045_SW_Exception;
-  datalayer_tesla->BMS_alertMatrixActive[20] = BMS_a046_SW_Task_Stack_Usage;
-  datalayer_tesla->BMS_alertMatrixActive[21] = BMS_a047_SW_Task_Stack_Overflow;
-  datalayer_tesla->BMS_alertMatrixActive[22] = BMS_a048_SW_Log_Upload_Request;
-  datalayer_tesla->BMS_alertMatrixActive[23] = BMS_a050_SW_Brick_Voltage_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[24] = BMS_a051_SW_HVC_Vref_Bad;
-  datalayer_tesla->BMS_alertMatrixActive[25] = BMS_a052_SW_PCS_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[26] = BMS_a053_SW_ThermalModel_Sanity;
-  datalayer_tesla->BMS_alertMatrixActive[27] = BMS_a054_SW_Ver_Supply_Fault;
-  datalayer_tesla->BMS_alertMatrixActive[28] = BMS_a055_SW_HvChain_Model_Fault;
-  datalayer_tesla->BMS_alertMatrixActive[29] = BMS_a059_SW_Pack_Voltage_Sensing;
-  datalayer_tesla->BMS_alertMatrixActive[30] = BMS_a060_SW_Leakage_Test_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[31] = BMS_a061_robinBrickOverVoltage;
-  datalayer_tesla->BMS_alertMatrixActive[32] = BMS_a062_SW_BrickV_Imbalance;
-  datalayer_tesla->BMS_alertMatrixActive[33] = BMS_a063_SW_ChargePort_Fault;
-  datalayer_tesla->BMS_alertMatrixActive[34] = BMS_a064_SW_SOC_Imbalance;
-  datalayer_tesla->BMS_alertMatrixActive[35] = BMS_a069_SW_Low_Power;
-  datalayer_tesla->BMS_alertMatrixActive[36] = BMS_a071_SW_SM_TransCon_Not_Met;
-  datalayer_tesla->BMS_alertMatrixActive[37] = BMS_a075_SW_Chg_Disable_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[38] = BMS_a076_SW_Dch_While_Charging;
-  datalayer_tesla->BMS_alertMatrixActive[39] = BMS_a077_SW_Charger_Regulation;
-  datalayer_tesla->BMS_alertMatrixActive[40] = BMS_a081_SW_Ctr_Close_Blocked;
-  datalayer_tesla->BMS_alertMatrixActive[41] = BMS_a082_SW_Ctr_Force_Open;
-  datalayer_tesla->BMS_alertMatrixActive[42] = BMS_a083_SW_Ctr_Close_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[43] = BMS_a084_SW_Sleep_Wake_Aborted;
-  datalayer_tesla->BMS_alertMatrixActive[44] = BMS_a087_SW_Feim_Test_Blocked;
-  datalayer_tesla->BMS_alertMatrixActive[45] = BMS_a088_SW_VcFront_MIA_InDrive;
-  datalayer_tesla->BMS_alertMatrixActive[46] = BMS_a089_SW_VcFront_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[47] = BMS_a090_SW_Gateway_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[48] = BMS_a091_SW_ChargePort_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[49] = BMS_a092_SW_ChargePort_Mia_On_Hv;
-  datalayer_tesla->BMS_alertMatrixActive[50] = BMS_a094_SW_Drive_Inverter_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[51] = BMS_a099_SW_BMB_Communication;
-  datalayer_tesla->BMS_alertMatrixActive[52] = BMS_a105_SW_One_Module_Tsense;
-  datalayer_tesla->BMS_alertMatrixActive[53] = BMS_a106_SW_All_Module_Tsense;
-  datalayer_tesla->BMS_alertMatrixActive[54] = BMS_a107_SW_Stack_Voltage_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[55] = BMS_a121_SW_NVRAM_Config_Error;
-  datalayer_tesla->BMS_alertMatrixActive[56] = BMS_a122_SW_BMS_Therm_Irrational;
-  datalayer_tesla->BMS_alertMatrixActive[57] = BMS_a123_SW_Internal_Isolation;
-  datalayer_tesla->BMS_alertMatrixActive[58] = BMS_a126_SW_Thermistor_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[59] = BMS_a127_SW_shunt_SNA;
-  datalayer_tesla->BMS_alertMatrixActive[60] = BMS_a128_SW_shunt_MIA;
-  datalayer_tesla->BMS_alertMatrixActive[61] = BMS_a129_SW_VSH_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[62] = BMS_a130_IO_CAN_Error;
-  datalayer_tesla->BMS_alertMatrixActive[63] = BMS_a131_Bleed_FET_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[64] = BMS_a132_HW_BMB_OTP_Uncorrctbl;
-  datalayer_tesla->BMS_alertMatrixActive[65] = BMS_a134_SW_Delayed_Ctr_Off;
-  datalayer_tesla->BMS_alertMatrixActive[66] = BMS_a135_HW_BMB_Diagnostics_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[67] = BMS_a136_SW_Module_OT_Warning;
-  datalayer_tesla->BMS_alertMatrixActive[68] = BMS_a137_SW_Brick_UV_Warning;
-  datalayer_tesla->BMS_alertMatrixActive[69] = BMS_a138_SW_Brick_OV_Warning;
-  datalayer_tesla->BMS_alertMatrixActive[70] = BMS_a139_SW_DC_Link_V_Irrational;
-  datalayer_tesla->BMS_alertMatrixActive[71] = BMS_a141_SW_BMB_Status_Warning;
-  datalayer_tesla->BMS_alertMatrixActive[72] = BMS_a143_SW_CAC_Change;
-  datalayer_tesla->BMS_alertMatrixActive[73] = BMS_a144_Hvp_Config_Mismatch;
-  datalayer_tesla->BMS_alertMatrixActive[74] = BMS_a145_SW_SOC_Change;
-  datalayer_tesla->BMS_alertMatrixActive[75] = BMS_a146_SW_Brick_Overdischarged;
-  datalayer_tesla->BMS_alertMatrixActive[76] = BMS_a149_SW_Missing_Config_Block;
-  datalayer_tesla->BMS_alertMatrixActive[77] = BMS_a151_SW_external_isolation;
-  datalayer_tesla->BMS_alertMatrixActive[78] = BMS_a155_SW_Weak_short_impedence;
-  datalayer_tesla->BMS_alertMatrixActive[79] = BMS_a156_SW_BMB_Vref_bad;
-  datalayer_tesla->BMS_alertMatrixActive[80] = BMS_a157_SW_HVP_HVS_Comms;
-  datalayer_tesla->BMS_alertMatrixActive[81] = BMS_a158_SW_HVP_HVI_Comms;
-  datalayer_tesla->BMS_alertMatrixActive[82] = BMS_a159_SW_HVP_ECU_Error;
-  datalayer_tesla->BMS_alertMatrixActive[83] = BMS_a161_SW_DI_Open_Request;
-  datalayer_tesla->BMS_alertMatrixActive[84] = BMS_a162_SW_No_Power_For_Support;
-  datalayer_tesla->BMS_alertMatrixActive[85] = BMS_a163_SW_Contactor_Mismatch;
-  datalayer_tesla->BMS_alertMatrixActive[86] = BMS_a164_SW_Uncontrolled_Regen;
-  datalayer_tesla->BMS_alertMatrixActive[87] = BMS_a165_SW_Pack_Partial_Weld;
-  datalayer_tesla->BMS_alertMatrixActive[88] = BMS_a166_SW_Pack_Full_Weld;
-  datalayer_tesla->BMS_alertMatrixActive[89] = BMS_a167_SW_FC_Partial_Weld;
-  datalayer_tesla->BMS_alertMatrixActive[90] = BMS_a168_SW_FC_Full_Weld;
-  datalayer_tesla->BMS_alertMatrixActive[91] = BMS_a169_SW_FC_Pack_Weld;
-  datalayer_tesla->BMS_alertMatrixActive[92] = BMS_a170_SW_Limp_Mode;
-  datalayer_tesla->BMS_alertMatrixActive[93] = BMS_a171_SW_Stack_Voltage_Sense;
-  datalayer_tesla->BMS_alertMatrixActive[94] = BMS_a173_SW_Charge_Component_Fault;
-  datalayer_tesla->BMS_alertMatrixActive[95] = BMS_a174_SW_Charge_Failure;
-  datalayer_tesla->BMS_alertMatrixActive[96] = BMS_a176_SW_GracefulPowerOff;
-  datalayer_tesla->BMS_alertMatrixActive[97] = BMS_a178_SW_Uncontrolled_Regen_PwrB;
-  datalayer_tesla->BMS_alertMatrixActive[98] = BMS_a179_SW_Hvp_12V_Fault;
-  datalayer_tesla->BMS_alertMatrixActive[99] = BMS_a180_SW_ECU_reset_blocked;
-  datalayer_tesla->PCS_alertMatrixActive[0] = PCS_a001_chgHwInputOc;
-  datalayer_tesla->PCS_alertMatrixActive[1] = PCS_a002_chgHwOutputOc;
-  datalayer_tesla->PCS_alertMatrixActive[2] = PCS_a003_chgHwInputOv;
-  datalayer_tesla->PCS_alertMatrixActive[3] = PCS_a004_chgHwIntBusOv;
-  datalayer_tesla->PCS_alertMatrixActive[4] = PCS_a005_chgOutputOv;
-  datalayer_tesla->PCS_alertMatrixActive[5] = PCS_a006_chgPrechargeFailedScr;
-  datalayer_tesla->PCS_alertMatrixActive[6] = PCS_a007_chgPhaseTempHot;
-  datalayer_tesla->PCS_alertMatrixActive[7] = PCS_a008_chgPhaseOverTemp;
-  datalayer_tesla->PCS_alertMatrixActive[8] = PCS_a009_chgPfcCurrentRegulation;
-  datalayer_tesla->PCS_alertMatrixActive[9] = PCS_a010_chgIntBusVRegulation;
-  datalayer_tesla->PCS_alertMatrixActive[10] = PCS_a011_chgLlcCurrentRegulation;
-  datalayer_tesla->PCS_alertMatrixActive[11] = PCS_a012_chgPfcIBandTracerFault;
-  datalayer_tesla->PCS_alertMatrixActive[12] = PCS_a013_chgPrechargeFailedBoost;
-  datalayer_tesla->PCS_alertMatrixActive[13] = PCS_a014_chgTempRationality;
-  datalayer_tesla->PCS_alertMatrixActive[14] = PCS_a015_chg12vUv;
-  datalayer_tesla->PCS_alertMatrixActive[15] = PCS_a016_chgAllPhasesFaulted;
-  datalayer_tesla->PCS_alertMatrixActive[16] = PCS_a017_chgWallPowerRemoval;
-  datalayer_tesla->PCS_alertMatrixActive[17] = PCS_a018_chgUnknownGridConfig;
-  datalayer_tesla->PCS_alertMatrixActive[18] = PCS_a019_acChargePowerLimited;
-  datalayer_tesla->PCS_alertMatrixActive[19] = PCS_a020_chgEnableLineMismatch;
-  datalayer_tesla->PCS_alertMatrixActive[20] = PCS_a021_hvpMia;
-  datalayer_tesla->PCS_alertMatrixActive[21] = PCS_a022_bmsMia;
-  datalayer_tesla->PCS_alertMatrixActive[22] = PCS_a023_cpMia;
-  datalayer_tesla->PCS_alertMatrixActive[23] = PCS_a024_vcfrontMia;
-  datalayer_tesla->PCS_alertMatrixActive[24] = PCS_a025_cpu2Malfunction;
-  datalayer_tesla->PCS_alertMatrixActive[25] = PCS_a026_watchdogAlarmed;
-  datalayer_tesla->PCS_alertMatrixActive[26] = PCS_a027_chgInsufficientCooling;
-  datalayer_tesla->PCS_alertMatrixActive[27] = PCS_a028_chgOutputUv;
-  datalayer_tesla->PCS_alertMatrixActive[28] = PCS_a029_chgPowerRationality;
-  datalayer_tesla->PCS_alertMatrixActive[29] = PCS_a030_canRationality;
-  datalayer_tesla->PCS_alertMatrixActive[30] = PCS_a031_uiMia;
-  datalayer_tesla->PCS_alertMatrixActive[31] = PCS_a032_gtwMia;
-  datalayer_tesla->PCS_alertMatrixActive[32] = PCS_a033_hvBusUv;
-  datalayer_tesla->PCS_alertMatrixActive[33] = PCS_a034_hvBusOv;
-  datalayer_tesla->PCS_alertMatrixActive[34] = PCS_a035_lvBusUv;
-  datalayer_tesla->PCS_alertMatrixActive[35] = PCS_a036_lvBusOv;
-  datalayer_tesla->PCS_alertMatrixActive[36] = PCS_a037_resonantTankOc;
-  datalayer_tesla->PCS_alertMatrixActive[37] = PCS_a038_claFaulted;
-  datalayer_tesla->PCS_alertMatrixActive[38] = PCS_a039_sdModuleClkFault;
-  datalayer_tesla->PCS_alertMatrixActive[39] = PCS_a040_dcdcMaxPowerReached;
-  datalayer_tesla->PCS_alertMatrixActive[40] = PCS_a041_dcdcOverTemp;
-  datalayer_tesla->PCS_alertMatrixActive[41] = PCS_a042_dcdcEnableLineMismatch;
-  datalayer_tesla->PCS_alertMatrixActive[42] = PCS_a043_hvBusPrechargeFailure;
-  datalayer_tesla->PCS_alertMatrixActive[43] = PCS_a044_12vSupportRegulation;
-  datalayer_tesla->PCS_alertMatrixActive[44] = PCS_a045_hvBusLowImpedance;
-  datalayer_tesla->PCS_alertMatrixActive[45] = PCS_a046_hvBusHighImpedence;
-  datalayer_tesla->PCS_alertMatrixActive[46] = PCS_a047_lvBusLowImpedance;
-  datalayer_tesla->PCS_alertMatrixActive[47] = PCS_a048_lvBusHighImpedance;
-  datalayer_tesla->PCS_alertMatrixActive[48] = PCS_a049_dcdcTempRationality;
-  datalayer_tesla->PCS_alertMatrixActive[49] = PCS_a050_dcdc12VsupportFaulted;
-  datalayer_tesla->PCS_alertMatrixActive[50] = PCS_a051_chgIntBusUv;
-  datalayer_tesla->PCS_alertMatrixActive[51] = PCS_a052_acVoltageNotPresent;
-  datalayer_tesla->PCS_alertMatrixActive[52] = PCS_a053_chgInputVDropHigh;
-  datalayer_tesla->PCS_alertMatrixActive[53] = PCS_a054_chgInputVDropTooHigh;
-  datalayer_tesla->PCS_alertMatrixActive[54] = PCS_a055_chgLineImedanceHigh;
-  datalayer_tesla->PCS_alertMatrixActive[55] = PCS_a056_chgLineImedanceTooHigh;
-  datalayer_tesla->PCS_alertMatrixActive[56] = PCS_a057_chgInputOverFreq;
-  datalayer_tesla->PCS_alertMatrixActive[57] = PCS_a058_chgInputUnderFreq;
-  datalayer_tesla->PCS_alertMatrixActive[58] = PCS_a059_chgInputOvRms;
-  datalayer_tesla->PCS_alertMatrixActive[59] = PCS_a060_chgInputOvPeak;
-  datalayer_tesla->PCS_alertMatrixActive[60] = PCS_a061_chgVLineRationality;
-  datalayer_tesla->PCS_alertMatrixActive[61] = PCS_a062_chgILineRationality;
-  datalayer_tesla->PCS_alertMatrixActive[62] = PCS_a063_chgVOutRationality;
-  datalayer_tesla->PCS_alertMatrixActive[63] = PCS_a064_chgIOutRationality;
-  datalayer_tesla->PCS_alertMatrixActive[64] = PCS_a065_chgPllNotLocked;
-  datalayer_tesla->PCS_alertMatrixActive[65] = PCS_a066_dcdcHvRationality;
-  datalayer_tesla->PCS_alertMatrixActive[66] = PCS_a067_dcdcLvRationality;
-  datalayer_tesla->PCS_alertMatrixActive[67] = PCS_a068_dcdcTankvRationality;
-  datalayer_tesla->PCS_alertMatrixActive[68] = PCS_a069_chgPfcLineDidt;
-  datalayer_tesla->PCS_alertMatrixActive[69] = PCS_a070_chgPfcLineDvdt;
-  datalayer_tesla->PCS_alertMatrixActive[70] = PCS_a071_chgPfcILoopRationality;
-  datalayer_tesla->PCS_alertMatrixActive[71] = PCS_a072_cpu2ClaStopped;
-  datalayer_tesla->PCS_alertMatrixActive[72] = PCS_a073_unexpectedAcInputVoltage;
-  datalayer_tesla->PCS_alertMatrixActive[73] = PCS_a074_hvBusDischargeFailure;
-  datalayer_tesla->PCS_alertMatrixActive[74] = PCS_a075_hvBusDischargeTimeout;
-  datalayer_tesla->PCS_alertMatrixActive[75] = PCS_a076_dcdcEnDeassertedErr;
-  datalayer_tesla->PCS_alertMatrixActive[76] = PCS_a077_microGridEnergyLow;
-  datalayer_tesla->PCS_alertMatrixActive[77] = PCS_a078_chgStopDcdcTooHot;
-  datalayer_tesla->PCS_alertMatrixActive[78] = PCS_a079_eepromOperationError;
-  datalayer_tesla->PCS_alertMatrixActive[79] = PCS_a080_damagedPhaseDetected;
-  datalayer_tesla->PCS_alertMatrixActive[80] = PCS_a081_dcdcPchgTimeout;
-  datalayer_tesla->PCS_alertMatrixActive[81] = PCS_a082_dcdcPchgUnsafeDiVoltage;
-  datalayer_tesla->PCS_alertMatrixActive[82] = PCS_a083_triggerOdin;
-  datalayer_tesla->PCS_alertMatrixActive[83] = PCS_a084_dcdcPchgStartVoltages;
-  datalayer_tesla->PCS_alertMatrixActive[84] = PCS_a085_dcdcFetsNotSwitching;
-  datalayer_tesla->PCS_alertMatrixActive[85] = PCS_a086_dcdcInsufficientCooling;
-  datalayer_tesla->PCS_alertMatrixActive[86] = PCS_a087_nvramRecordStatusError;
-  datalayer_tesla->PCS_alertMatrixActive[87] = PCS_a088_pchgParameters;
-  datalayer_tesla->PCS_alertMatrixActive[88] = PCS_a089_hvBusDischargeIrrational;
-  datalayer_tesla->PCS_alertMatrixActive[89] = PCS_a090_expectedAcVoltageSourceMissing;
-  datalayer_tesla->PCS_alertMatrixActive[90] = PCS_a091_chgIntBusRationality;
-  datalayer_tesla->PCS_alertMatrixActive[91] = PCS_a092_chgPowerLimitedByBusRipple;
-  datalayer_tesla->PCS_alertMatrixActive[92] = PCS_a093_powerRailRationality;
-  datalayer_tesla->PCS_alertMatrixActive[93] = PCS_a094_pcsDcdcNeedService;
-  datalayer_tesla->CP_alertMatrixActive[0] = CP_a001_canRx;
-  datalayer_tesla->CP_alertMatrixActive[1] = CP_a002_canTx;
-  datalayer_tesla->CP_alertMatrixActive[2] = CP_a003_canError;
-  datalayer_tesla->CP_alertMatrixActive[3] = CP_a004_proximityRationality;
-  datalayer_tesla->CP_alertMatrixActive[4] = CP_a005_gbdcLiveDisconnect;
-  datalayer_tesla->CP_alertMatrixActive[5] = CP_a006_lostCommsBMS;
-  datalayer_tesla->CP_alertMatrixActive[6] = CP_a007_watchdog;
-  datalayer_tesla->CP_alertMatrixActive[7] = CP_a008_memoryError;
-  datalayer_tesla->CP_alertMatrixActive[8] = CP_a009_coverOpen;
-  datalayer_tesla->CP_alertMatrixActive[9] = CP_a010_pilotRationality;
-  datalayer_tesla->CP_alertMatrixActive[10] = CP_a011_eeprom;
-  datalayer_tesla->CP_alertMatrixActive[11] = CP_a012_ledDriver;
-  datalayer_tesla->CP_alertMatrixActive[12] = CP_a013_lostCommsGTW;
-  datalayer_tesla->CP_alertMatrixActive[13] = CP_a014_lostCommsCHG;
-  datalayer_tesla->CP_alertMatrixActive[14] = CP_a015_apsVov;
-  datalayer_tesla->CP_alertMatrixActive[15] = CP_a016_apsVuv;
-  datalayer_tesla->CP_alertMatrixActive[16] = CP_a017_fiveVov;
-  datalayer_tesla->CP_alertMatrixActive[17] = CP_a018_fiveVuv;
-  datalayer_tesla->CP_alertMatrixActive[18] = CP_a019_threeVov;
-  datalayer_tesla->CP_alertMatrixActive[19] = CP_a020_threeVuv;
-  datalayer_tesla->CP_alertMatrixActive[20] = CP_a021_zeroVov;
-  datalayer_tesla->CP_alertMatrixActive[21] = CP_a022_zeroVuv;
-  datalayer_tesla->CP_alertMatrixActive[22] = CP_a023_gbdcSessionFailed;
-  datalayer_tesla->CP_alertMatrixActive[23] = CP_a024_ledsUC;
-  datalayer_tesla->CP_alertMatrixActive[24] = CP_a025_ledsOC;
-  datalayer_tesla->CP_alertMatrixActive[25] = CP_a026_networkManagement;
-  datalayer_tesla->CP_alertMatrixActive[26] = CP_a027_doorSensorOutOfSpec;
-  datalayer_tesla->CP_alertMatrixActive[27] = CP_a028_insertEnableMismatch;
-  datalayer_tesla->CP_alertMatrixActive[28] = CP_a029_doorClosedProxPilot;
-  datalayer_tesla->CP_alertMatrixActive[29] = CP_a030_busOff;
-  datalayer_tesla->CP_alertMatrixActive[30] = CP_a031_doorClosedCommandedOpen;
-  datalayer_tesla->CP_alertMatrixActive[31] = CP_a032_doorOpenExpectedClosed;
-  datalayer_tesla->CP_alertMatrixActive[32] = CP_a033_spiOpen;
-  datalayer_tesla->CP_alertMatrixActive[33] = CP_a034_calibrationIncomplete;
-  datalayer_tesla->CP_alertMatrixActive[34] = CP_a035_latchMovement_1;
-  datalayer_tesla->CP_alertMatrixActive[35] = CP_a036_latchNotDisengaged;
-  datalayer_tesla->CP_alertMatrixActive[36] = CP_a037_latchNotEngaged;
-  datalayer_tesla->CP_alertMatrixActive[37] = CP_a038_latchNotBlocking;
-  datalayer_tesla->CP_alertMatrixActive[38] = CP_a039_latchMovement_2;
-  datalayer_tesla->CP_alertMatrixActive[39] = CP_a040_doNotUse;
-  datalayer_tesla->CP_alertMatrixActive[40] = CP_a041_doorSensorUnplugged;
-  datalayer_tesla->CP_alertMatrixActive[41] = CP_a042_doorAssemblyBroken;
-  datalayer_tesla->CP_alertMatrixActive[42] = CP_a043_doorPotIrrational;
-  datalayer_tesla->CP_alertMatrixActive[43] = CP_a044_lostCommsHVP;
-  datalayer_tesla->CP_alertMatrixActive[44] = CP_a045_lostCommsVCSEC;
-  datalayer_tesla->CP_alertMatrixActive[45] = CP_a046_lostCommsEVSE;
-  datalayer_tesla->CP_alertMatrixActive[46] = CP_a047_lostCommsVCFRONT;
-  datalayer_tesla->CP_alertMatrixActive[47] = CP_a048_lostCommsUI;
-  datalayer_tesla->CP_alertMatrixActive[48] = CP_a049_multipleCablesDetected;
-  datalayer_tesla->CP_alertMatrixActive[49] = CP_a050_latchNotConnected;
-  datalayer_tesla->CP_alertMatrixActive[50] = CP_a051_doorInductiveSensorMIA;
-  datalayer_tesla->CP_alertMatrixActive[51] = CP_a052_evseNotSupported;
-  datalayer_tesla->CP_alertMatrixActive[52] = CP_a053_proxLatchedNoPilot;
-  datalayer_tesla->CP_alertMatrixActive[53] = CP_a054_cableNotSecured;
-  datalayer_tesla->CP_alertMatrixActive[54] = CP_a055_chargeStoppedNoPilot;
-  datalayer_tesla->CP_alertMatrixActive[55] = CP_a056_proxDisconnected;
-  datalayer_tesla->CP_alertMatrixActive[56] = CP_a057_evseFaulted;
-  datalayer_tesla->CP_alertMatrixActive[57] = CP_a058_acChargingBlocked;
-  datalayer_tesla->CP_alertMatrixActive[58] = CP_a059_swcanError;
-  datalayer_tesla->CP_alertMatrixActive[59] = CP_a060_lostCommsPCS;
-  datalayer_tesla->CP_alertMatrixActive[60] = CP_a061_uhfReceiverMIA;
-  datalayer_tesla->CP_alertMatrixActive[61] = CP_a062_scOutOfService;
-  datalayer_tesla->CP_alertMatrixActive[62] = CP_a063_scUpdateInProgress;
-  datalayer_tesla->CP_alertMatrixActive[63] = CP_a064_superchargingBlocked;
-  datalayer_tesla->CP_alertMatrixActive[64] = CP_a065_selfTestFailed;
-  datalayer_tesla->CP_alertMatrixActive[65] = CP_a066_proxLatchedIdlePilot;
-  datalayer_tesla->CP_alertMatrixActive[66] = CP_a067_gbdcConnFault;
-  datalayer_tesla->CP_alertMatrixActive[67] = CP_a068_doorSensorMismatch;
-  datalayer_tesla->CP_alertMatrixActive[68] = CP_a069_doorInductiveSensorError;
-  datalayer_tesla->CP_alertMatrixActive[69] = CP_a070_doorInductiveSensorReset;
-  datalayer_tesla->CP_alertMatrixActive[70] = CP_a071_exiDecodeFailure;
-  datalayer_tesla->CP_alertMatrixActive[71] = CP_a072_v2gEvccTimeout;
-  datalayer_tesla->CP_alertMatrixActive[72] = CP_a073_iecComboShutdown;
-  datalayer_tesla->CP_alertMatrixActive[73] = CP_a074_failedToEstablishV2gComm;
-  datalayer_tesla->CP_alertMatrixActive[74] = CP_a075_v2gCommsFailure;
-  datalayer_tesla->CP_alertMatrixActive[75] = CP_a076_LDC1612errorWatchdog;
-  datalayer_tesla->CP_alertMatrixActive[76] = CP_a077_invalidMacAddress;
-  datalayer_tesla->CP_alertMatrixActive[77] = CP_a078_latchNotDisengagedCold;
-  datalayer_tesla->CP_alertMatrixActive[78] = CP_a079_cableNotSecuredCold;
-  datalayer_tesla->CP_alertMatrixActive[79] = CP_a080_taskStackOverflow;
-  datalayer_tesla->CP_alertMatrixActive[80] = CP_a081_swException;
-  datalayer_tesla->CP_alertMatrixActive[81] = CP_a082_powerOnReset;
-  datalayer_tesla->CP_alertMatrixActive[82] = CP_a083_watchdogTraceData;
-  datalayer_tesla->CP_alertMatrixActive[83] = CP_a084_proximityPeDisconnected;
-  datalayer_tesla->CP_alertMatrixActive[84] = CP_a085_dcPinTempFaulted;
-  datalayer_tesla->CP_alertMatrixActive[85] = CP_a086_dcPinTempIrrational;
-  datalayer_tesla->CP_alertMatrixActive[86] = CP_a087_dcTempModelFault;
-  datalayer_tesla->CP_alertMatrixActive[87] = CP_a088_dcTempModelDeviation;
-  datalayer_tesla->CP_alertMatrixActive[88] = CP_a089_plcConfigMismatch;
-  datalayer_tesla->CP_alertMatrixActive[89] = CP_a090_ccsEvseLowIso;
-  datalayer_tesla->CP_alertMatrixActive[90] = CP_a091_wrongSuperchargerHandle;
-  datalayer_tesla->CP_alertMatrixActive[91] = CP_a092_modemAppLoadFailed;
-  datalayer_tesla->CP_alertMatrixActive[92] = CP_a093_modemLoadedWithReset;
-  datalayer_tesla->CP_alertMatrixActive[93] = CP_a094_inductiveResetSuccessful;
-  datalayer_tesla->CP_alertMatrixActive[94] = CP_a095_thermalDcLimitActive;
-  datalayer_tesla->CP_alertMatrixActive[95] = CP_a096_pilotWake;
+  // 0x320, 0x3A4 and 0x31E write the alert arrays directly.
 
   //Safety checks for CAN message sending
   if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
@@ -1970,338 +2027,21 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_fcCtrCloseFailed = ((rx_frame.data.u8[6] & 0x02) >> 1);
       battery_shuntThermistorMia = ((rx_frame.data.u8[6] & 0x04) >> 2);
       break;*/
-    case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
+    case 0x320:  //800 BMS_alertMatrix
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0) {                                      //mux0
-        BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));  // 0|4@1+ (1,0) [0|0] ""  X
-        BMS_a001_Pack_Config_Mismatch =
-            ((rx_frame.data.u8[0] >> 4) & (0x01));                      //4  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));   //20|1@1+ (1,0) [0|0] ""  X
-        BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));   //21|1@1+ (1,0) [0|0] ""  X
-        BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));  //22|1@1+ (1,0) [0|0] ""  X
-        BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));       //24|1@1+ (1,0) [0|0] ""  X
-        BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
-        BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //26|1@1+ (1,0) [0|0] ""  X
-        BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
-        BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));  //28|1@1+ (1,0) [0|0] ""  X
-        BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));   //29|1@1+ (1,0) [0|0] ""  X
-        BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));   //37|1@1+ (1,0) [0|0] ""  X ?
-        BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));           //38|1@1+ (1,0) [0|0] ""  X
-        BMS_a036_SW_HvpHvilFault =
-            ((rx_frame.data.u8[4] >> 7) &
-             (0x01U));  //39|1@1+ (1,0) [0|0] ""  X  (corrected byte4 bit6->bit7 per tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a037_SW_Flood_Port_Open = (rx_frame.data.u8[5] & (0x01U));              //40|1@1+ (1,0) [0|0] ""  X
-        BMS_a039_SW_DC_Link_Over_Voltage = ((rx_frame.data.u8[5] >> 2) & (0x01U));  //42|1@1+ (1,0) [0|0] ""  X
-        BMS_a041_SW_Power_On_Reset = ((rx_frame.data.u8[5] >> 4) & (0x01U));        //44|1@1+ (1,0) [0|0] ""  X
-        BMS_a042_SW_MPU_Error = ((rx_frame.data.u8[5] >> 5) & (0x01U));             //45|1@1+ (1,0) [0|0] ""  X
-        BMS_a043_SW_Watch_Dog_Reset = ((rx_frame.data.u8[5] >> 6) & (0x01U));       //46|1@1+ (1,0) [0|0] ""  X
-        BMS_a044_SW_Assertion = ((rx_frame.data.u8[5] >> 7) & (0x01U));             //47|1@1+ (1,0) [0|0] ""  X
-        BMS_a045_SW_Exception = (rx_frame.data.u8[6] & (0x01U));                    //48|1@1+ (1,0) [0|0] ""  X
-        BMS_a046_SW_Task_Stack_Usage = ((rx_frame.data.u8[6] >> 1) & (0x01U));      //49|1@1+ (1,0) [0|0] ""  X
-        BMS_a047_SW_Task_Stack_Overflow = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
-        BMS_a048_SW_Log_Upload_Request = ((rx_frame.data.u8[6] >> 3) & (0x01U));    //51|1@1+ (1,0) [0|0] ""  X
-        BMS_a050_SW_Brick_Voltage_MIA = ((rx_frame.data.u8[6] >> 5) & (0x01U));     //53|1@1+ (1,0) [0|0] ""  X
-        BMS_a051_SW_HVC_Vref_Bad = ((rx_frame.data.u8[6] >> 6) & (0x01U));          //54|1@1+ (1,0) [0|0] ""  X
-        BMS_a052_SW_PCS_MIA = ((rx_frame.data.u8[6] >> 7) & (0x01U));               //55|1@1+ (1,0) [0|0] ""  X
-        BMS_a053_SW_ThermalModel_Sanity = (rx_frame.data.u8[7] & (0x01U));          //56|1@1+ (1,0) [0|0] ""  X
-        BMS_a054_SW_Ver_Supply_Fault = ((rx_frame.data.u8[7] >> 1) & (0x01U));      //57|1@1+ (1,0) [0|0] ""  X
-        BMS_a055_SW_HvChain_Model_Fault =
-            ((rx_frame.data.u8[7] >> 2) & (0x01U));  //58  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
-        BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
-      }
-      if (mux == 1) {                                                              //mux1
-        BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));   //4|1@1+ (1,0) [0|0] ""  X
-        BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));     //5|1@1+ (1,0) [0|0] ""  X
-        BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));     //6|1@1+ (1,0) [0|0] ""  X
-        BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));        //7|1@1+ (1,0) [0|0] ""  X
-        BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));            //12|1@1+ (1,0) [0|0] ""  X
-        BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));  //14|1@1+ (1,0) [0|0] ""  X
-        BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));  //18|1@1+ (1,0) [0|0] ""  X
-        BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));   //19|1@1+ (1,0) [0|0] ""  X
-        BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));   //20|1@1+ (1,0) [0|0] ""  X
-        BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
-        BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));       //25|1@1+ (1,0) [0|0] ""  X
-        BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));    //26|1@1+ (1,0) [0|0] ""  X
-        BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));   //27|1@1+ (1,0) [0|0] ""  X
-        BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));    //30|1@1+ (1,0) [0|0] ""  X
-        BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));  //31|1@1+ (1,0) [0|0] ""  X
-        BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                 //32|1@1+ (1,0) [0|0] ""  X
-        BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));          //33|1@1+ (1,0) [0|0] ""  X
-        BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));       //34|1@1+ (1,0) [0|0] ""  X
-        BMS_a092_SW_ChargePort_Mia_On_Hv =
-            ((rx_frame.data.u8[4] >> 3) &
-             (0x01U));  //35|1@1+ (1,0) [0|0] ""  X  (tesla-m3-pack-findings fw 2019.20.4.2 names this BMS_a092_SW_ChargePort_Mia_On_Hvs)
-        BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));  //37|1@1+ (1,0) [0|0] ""  X
-        BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));   //42|1@1+ (1,0) [0|0] ""  X
-        BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));          //48|1@1+ (1,0) [0|0] ""  X
-        BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));   //49|1@1+ (1,0) [0|0] ""  X
-        BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
-      }
-      if (mux == 2) {                                                               //mux2
-        BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
-        BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
-        BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
-        BMS_a126_SW_Thermistor_Failure =
-            ((rx_frame.data.u8[1] >> 1) & (0x01U));                        //9  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));    //10|1@1+ (1,0) [0|0] ""  X
-        BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));    //11|1@1+ (1,0) [0|0] ""  X
-        BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));  //12|1@1+ (1,0) [0|0] ""  X
-        BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));    //13|1@1+ (1,0) [0|0] ""  X
-        BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));      //14|1@1+ (1,0) [0|0] ""  X
-        BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));  //15|1@1+ (1,0) [0|0] ""  X
-        BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));     //17|1@1+ (1,0) [0|0] ""  X
-        BMS_a135_HW_BMB_Diagnostics_Failure =
-            ((rx_frame.data.u8[2] >> 2) & (0x01U));  //18  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a136_SW_Module_OT_Warning = ((rx_frame.data.u8[2] >> 3) & (0x01U));     //19|1@1+ (1,0) [0|0] ""  X
-        BMS_a137_SW_Brick_UV_Warning = ((rx_frame.data.u8[2] >> 4) & (0x01U));      //20|1@1+ (1,0) [0|0] ""  X
-        BMS_a138_SW_Brick_OV_Warning = ((rx_frame.data.u8[2] >> 5) & (0x01U));      //21|1@1+ (1,0) [0|0] ""  X
-        BMS_a139_SW_DC_Link_V_Irrational = ((rx_frame.data.u8[2] >> 6) & (0x01U));  //22|1@1+ (1,0) [0|0] ""  X
-        BMS_a141_SW_BMB_Status_Warning = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
-        BMS_a143_SW_CAC_Change = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a144_Hvp_Config_Mismatch = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
-        BMS_a145_SW_SOC_Change = ((rx_frame.data.u8[3] >> 4) & (0x01U));            //28|1@1+ (1,0) [0|0] ""  X
-        BMS_a146_SW_Brick_Overdischarged = ((rx_frame.data.u8[3] >> 5) & (0x01U));  //29|1@1+ (1,0) [0|0] ""  X
-        BMS_a149_SW_Missing_Config_Block = (rx_frame.data.u8[4] & (0x01U));         //32|1@1+ (1,0) [0|0] ""  X
-        BMS_a151_SW_external_isolation = ((rx_frame.data.u8[4] >> 2) & (0x01U));    //34|1@1+ (1,0) [0|0] ""  X
-        BMS_a155_SW_Weak_short_impedence =
-            ((rx_frame.data.u8[4] >> 6) & (0x01U));  //38  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a156_SW_BMB_Vref_bad = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
-        BMS_a157_SW_HVP_HVS_Comms = (rx_frame.data.u8[5] & (0x01U));                //40|1@1+ (1,0) [0|0] ""  X
-        BMS_a158_SW_HVP_HVI_Comms = ((rx_frame.data.u8[5] >> 1) & (0x01U));         //41|1@1+ (1,0) [0|0] ""  X
-        BMS_a159_SW_HVP_ECU_Error = ((rx_frame.data.u8[5] >> 2) & (0x01U));         //42|1@1+ (1,0) [0|0] ""  X
-        BMS_a161_SW_DI_Open_Request = ((rx_frame.data.u8[5] >> 4) & (0x01U));       //44|1@1+ (1,0) [0|0] ""  X
-        BMS_a162_SW_No_Power_For_Support = ((rx_frame.data.u8[5] >> 5) & (0x01U));  //45|1@1+ (1,0) [0|0] ""  X
-        BMS_a163_SW_Contactor_Mismatch = ((rx_frame.data.u8[5] >> 6) & (0x01U));    //46|1@1+ (1,0) [0|0] ""  X
-        BMS_a164_SW_Uncontrolled_Regen = ((rx_frame.data.u8[5] >> 7) & (0x01U));    //47|1@1+ (1,0) [0|0] ""  X
-        BMS_a165_SW_Pack_Partial_Weld = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
-        BMS_a166_SW_Pack_Full_Weld = ((rx_frame.data.u8[6] >> 1) & (0x01U));        //49|1@1+ (1,0) [0|0] ""  X
-        BMS_a167_SW_FC_Partial_Weld = ((rx_frame.data.u8[6] >> 2) & (0x01U));       //50|1@1+ (1,0) [0|0] ""  X
-        BMS_a168_SW_FC_Full_Weld = ((rx_frame.data.u8[6] >> 3) & (0x01U));          //51|1@1+ (1,0) [0|0] ""  X
-        BMS_a169_SW_FC_Pack_Weld = ((rx_frame.data.u8[6] >> 4) & (0x01U));          //52|1@1+ (1,0) [0|0] ""  X
-        BMS_a170_SW_Limp_Mode = ((rx_frame.data.u8[6] >> 5) & (0x01U));             //53|1@1+ (1,0) [0|0] ""  X
-        BMS_a171_SW_Stack_Voltage_Sense = ((rx_frame.data.u8[6] >> 6) & (0x01U));   //54|1@1+ (1,0) [0|0] ""  X
-        BMS_a173_SW_Charge_Component_Fault =
-            (rx_frame.data.u8[7] & (0x01U));  //56  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));    //57|1@1+ (1,0) [0|0] ""  X
-        BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //59|1@1+ (1,0) [0|0] ""  X
-        BMS_a178_SW_Uncontrolled_Regen_PwrB =
-            ((rx_frame.data.u8[7] >> 5) & (0x01U));  //61  (tesla-m3-pack-findings, fw 2019.20.4.2)
-        BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));      //62|1@1+ (1,0) [0|0] ""  X
-        BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
-      }
+      applyAlertMatrix(datalayer_tesla->BMS_alertMatrixActive, kBmsAlertBits, rx_frame.data.u8);
       break;
-    case 0x3a4: {  //932 PCS_alertMatrix — Tesla Model 3/Y
-      // Alert matrix mapped from tesla-m3-pack-findings (firmware 2019.20.4.2); [mux,byte,bit] per extracted matrix.
-      // Muxed frame: mux = data[0] & 0x0F. Read active = (data[byte] >> bit) & 1.
+    case 0x3a4: {  //932 PCS_alertMatrix
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0) {  //mux0
-        PCS_a001_chgHwInputOc = ((rx_frame.data.u8[0] >> 4) & (0x01U));
-        PCS_a002_chgHwOutputOc = ((rx_frame.data.u8[0] >> 5) & (0x01U));
-        PCS_a003_chgHwInputOv = ((rx_frame.data.u8[0] >> 6) & (0x01U));
-        PCS_a004_chgHwIntBusOv = ((rx_frame.data.u8[0] >> 7) & (0x01U));
-        PCS_a005_chgOutputOv = (rx_frame.data.u8[1] & (0x01U));
-        PCS_a006_chgPrechargeFailedScr = ((rx_frame.data.u8[1] >> 1) & (0x01U));
-        PCS_a007_chgPhaseTempHot = ((rx_frame.data.u8[1] >> 2) & (0x01U));
-        PCS_a008_chgPhaseOverTemp = ((rx_frame.data.u8[1] >> 3) & (0x01U));
-        PCS_a009_chgPfcCurrentRegulation = ((rx_frame.data.u8[1] >> 4) & (0x01U));
-        PCS_a010_chgIntBusVRegulation = ((rx_frame.data.u8[1] >> 5) & (0x01U));
-        PCS_a011_chgLlcCurrentRegulation = ((rx_frame.data.u8[1] >> 6) & (0x01U));
-        PCS_a012_chgPfcIBandTracerFault = ((rx_frame.data.u8[1] >> 7) & (0x01U));
-        PCS_a013_chgPrechargeFailedBoost = (rx_frame.data.u8[2] & (0x01U));
-        PCS_a014_chgTempRationality = ((rx_frame.data.u8[2] >> 1) & (0x01U));
-        PCS_a015_chg12vUv = ((rx_frame.data.u8[2] >> 2) & (0x01U));
-        PCS_a016_chgAllPhasesFaulted = ((rx_frame.data.u8[2] >> 3) & (0x01U));
-        PCS_a017_chgWallPowerRemoval = ((rx_frame.data.u8[2] >> 4) & (0x01U));
-        PCS_a018_chgUnknownGridConfig = ((rx_frame.data.u8[2] >> 5) & (0x01U));
-        PCS_a019_acChargePowerLimited = ((rx_frame.data.u8[2] >> 6) & (0x01U));
-        PCS_a020_chgEnableLineMismatch = ((rx_frame.data.u8[2] >> 7) & (0x01U));
-        PCS_a021_hvpMia = (rx_frame.data.u8[3] & (0x01U));
-        PCS_a022_bmsMia = ((rx_frame.data.u8[3] >> 1) & (0x01U));
-        PCS_a023_cpMia = ((rx_frame.data.u8[3] >> 2) & (0x01U));
-        PCS_a024_vcfrontMia = ((rx_frame.data.u8[3] >> 3) & (0x01U));
-        PCS_a025_cpu2Malfunction = ((rx_frame.data.u8[3] >> 4) & (0x01U));
-        PCS_a026_watchdogAlarmed = ((rx_frame.data.u8[3] >> 5) & (0x01U));
-        PCS_a027_chgInsufficientCooling = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-        PCS_a028_chgOutputUv = ((rx_frame.data.u8[3] >> 7) & (0x01U));
-        PCS_a029_chgPowerRationality = (rx_frame.data.u8[4] & (0x01U));
-        PCS_a030_canRationality = ((rx_frame.data.u8[4] >> 1) & (0x01U));
-        PCS_a031_uiMia = ((rx_frame.data.u8[4] >> 2) & (0x01U));
-        PCS_a032_gtwMia = ((rx_frame.data.u8[4] >> 3) & (0x01U));
-        PCS_a033_hvBusUv = ((rx_frame.data.u8[4] >> 4) & (0x01U));
-        PCS_a034_hvBusOv = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-        PCS_a035_lvBusUv = ((rx_frame.data.u8[4] >> 6) & (0x01U));
-        PCS_a036_lvBusOv = ((rx_frame.data.u8[4] >> 7) & (0x01U));
-        PCS_a037_resonantTankOc = (rx_frame.data.u8[5] & (0x01U));
-        PCS_a038_claFaulted = ((rx_frame.data.u8[5] >> 1) & (0x01U));
-        PCS_a039_sdModuleClkFault = ((rx_frame.data.u8[5] >> 2) & (0x01U));
-        PCS_a040_dcdcMaxPowerReached = ((rx_frame.data.u8[5] >> 3) & (0x01U));
-        PCS_a041_dcdcOverTemp = ((rx_frame.data.u8[5] >> 4) & (0x01U));
-        PCS_a042_dcdcEnableLineMismatch = ((rx_frame.data.u8[5] >> 5) & (0x01U));
-        PCS_a043_hvBusPrechargeFailure = ((rx_frame.data.u8[5] >> 6) & (0x01U));
-        PCS_a044_12vSupportRegulation = ((rx_frame.data.u8[5] >> 7) & (0x01U));
-        PCS_a045_hvBusLowImpedance = (rx_frame.data.u8[6] & (0x01U));
-        PCS_a046_hvBusHighImpedence = ((rx_frame.data.u8[6] >> 1) & (0x01U));
-        PCS_a047_lvBusLowImpedance = ((rx_frame.data.u8[6] >> 2) & (0x01U));
-        PCS_a048_lvBusHighImpedance = ((rx_frame.data.u8[6] >> 3) & (0x01U));
-        PCS_a049_dcdcTempRationality = ((rx_frame.data.u8[6] >> 4) & (0x01U));
-        PCS_a050_dcdc12VsupportFaulted = ((rx_frame.data.u8[6] >> 5) & (0x01U));
-        PCS_a051_chgIntBusUv = ((rx_frame.data.u8[6] >> 6) & (0x01U));
-        PCS_a052_acVoltageNotPresent = ((rx_frame.data.u8[6] >> 7) & (0x01U));
-        PCS_a053_chgInputVDropHigh = (rx_frame.data.u8[7] & (0x01U));
-        PCS_a054_chgInputVDropTooHigh = ((rx_frame.data.u8[7] >> 1) & (0x01U));
-        PCS_a055_chgLineImedanceHigh = ((rx_frame.data.u8[7] >> 2) & (0x01U));
-        PCS_a056_chgLineImedanceTooHigh = ((rx_frame.data.u8[7] >> 3) & (0x01U));
-        PCS_a057_chgInputOverFreq = ((rx_frame.data.u8[7] >> 4) & (0x01U));
-        PCS_a058_chgInputUnderFreq = ((rx_frame.data.u8[7] >> 5) & (0x01U));
-        PCS_a059_chgInputOvRms = ((rx_frame.data.u8[7] >> 6) & (0x01U));
-        PCS_a060_chgInputOvPeak = ((rx_frame.data.u8[7] >> 7) & (0x01U));
-      }
-      if (mux == 1) {  //mux1
-        PCS_a061_chgVLineRationality = ((rx_frame.data.u8[0] >> 4) & (0x01U));
-        PCS_a062_chgILineRationality = ((rx_frame.data.u8[0] >> 5) & (0x01U));
-        PCS_a063_chgVOutRationality = ((rx_frame.data.u8[0] >> 6) & (0x01U));
-        PCS_a064_chgIOutRationality = ((rx_frame.data.u8[0] >> 7) & (0x01U));
-        PCS_a065_chgPllNotLocked = (rx_frame.data.u8[1] & (0x01U));
-        PCS_a066_dcdcHvRationality = ((rx_frame.data.u8[1] >> 1) & (0x01U));
-        PCS_a067_dcdcLvRationality = ((rx_frame.data.u8[1] >> 2) & (0x01U));
-        PCS_a068_dcdcTankvRationality = ((rx_frame.data.u8[1] >> 3) & (0x01U));
-        PCS_a069_chgPfcLineDidt = ((rx_frame.data.u8[1] >> 4) & (0x01U));
-        PCS_a070_chgPfcLineDvdt = ((rx_frame.data.u8[1] >> 5) & (0x01U));
-        PCS_a071_chgPfcILoopRationality = ((rx_frame.data.u8[1] >> 6) & (0x01U));
-        PCS_a072_cpu2ClaStopped = ((rx_frame.data.u8[1] >> 7) & (0x01U));
-        PCS_a073_unexpectedAcInputVoltage = (rx_frame.data.u8[2] & (0x01U));
-        PCS_a074_hvBusDischargeFailure = ((rx_frame.data.u8[2] >> 1) & (0x01U));
-        PCS_a075_hvBusDischargeTimeout = ((rx_frame.data.u8[2] >> 2) & (0x01U));
-        PCS_a076_dcdcEnDeassertedErr = ((rx_frame.data.u8[2] >> 3) & (0x01U));
-        PCS_a077_microGridEnergyLow = ((rx_frame.data.u8[2] >> 4) & (0x01U));
-        PCS_a078_chgStopDcdcTooHot = ((rx_frame.data.u8[2] >> 5) & (0x01U));
-        PCS_a079_eepromOperationError = ((rx_frame.data.u8[2] >> 6) & (0x01U));
-        PCS_a080_damagedPhaseDetected = ((rx_frame.data.u8[2] >> 7) & (0x01U));
-        PCS_a081_dcdcPchgTimeout = (rx_frame.data.u8[3] & (0x01U));
-        PCS_a082_dcdcPchgUnsafeDiVoltage = ((rx_frame.data.u8[3] >> 1) & (0x01U));
-        PCS_a083_triggerOdin = ((rx_frame.data.u8[3] >> 2) & (0x01U));
-        PCS_a084_dcdcPchgStartVoltages = ((rx_frame.data.u8[3] >> 3) & (0x01U));
-        PCS_a085_dcdcFetsNotSwitching = ((rx_frame.data.u8[3] >> 4) & (0x01U));
-        PCS_a086_dcdcInsufficientCooling = ((rx_frame.data.u8[3] >> 5) & (0x01U));
-        PCS_a087_nvramRecordStatusError = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-        PCS_a088_pchgParameters = ((rx_frame.data.u8[3] >> 7) & (0x01U));
-        PCS_a089_hvBusDischargeIrrational = (rx_frame.data.u8[4] & (0x01U));
-        PCS_a090_expectedAcVoltageSourceMissing = ((rx_frame.data.u8[4] >> 1) & (0x01U));
-        PCS_a091_chgIntBusRationality = ((rx_frame.data.u8[4] >> 2) & (0x01U));
-        PCS_a092_chgPowerLimitedByBusRipple = ((rx_frame.data.u8[4] >> 3) & (0x01U));
-        PCS_a093_powerRailRationality = ((rx_frame.data.u8[4] >> 4) & (0x01U));
-        PCS_a094_pcsDcdcNeedService = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-      }
+      applyAlertMatrix(datalayer_tesla->PCS_alertMatrixActive, kPcsAlertBits, rx_frame.data.u8);
       break;
     }
-    case 0x31e: {  //798 CP_alertMatrix — Tesla Model 3/Y
-      // Alert matrix mapped from tesla-m3-pack-findings (firmware 2019.20.4.2); [mux,byte,bit] per extracted matrix.
-      // Muxed frame: mux = data[0] & 0x0F. Read active = (data[byte] >> bit) & 1.
+    case 0x31e: {  //798 CP_alertMatrix
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0) {  //mux0
-        CP_a001_canRx = ((rx_frame.data.u8[0] >> 4) & (0x01U));
-        CP_a002_canTx = ((rx_frame.data.u8[0] >> 5) & (0x01U));
-        CP_a003_canError = ((rx_frame.data.u8[0] >> 6) & (0x01U));
-        CP_a004_proximityRationality = ((rx_frame.data.u8[0] >> 7) & (0x01U));
-        CP_a005_gbdcLiveDisconnect = (rx_frame.data.u8[1] & (0x01U));
-        CP_a006_lostCommsBMS = ((rx_frame.data.u8[1] >> 1) & (0x01U));
-        CP_a007_watchdog = ((rx_frame.data.u8[1] >> 2) & (0x01U));
-        CP_a008_memoryError = ((rx_frame.data.u8[1] >> 3) & (0x01U));
-        CP_a009_coverOpen = ((rx_frame.data.u8[1] >> 4) & (0x01U));
-        CP_a010_pilotRationality = ((rx_frame.data.u8[1] >> 5) & (0x01U));
-        CP_a011_eeprom = ((rx_frame.data.u8[1] >> 6) & (0x01U));
-        CP_a012_ledDriver = ((rx_frame.data.u8[1] >> 7) & (0x01U));
-        CP_a013_lostCommsGTW = (rx_frame.data.u8[2] & (0x01U));
-        CP_a014_lostCommsCHG = ((rx_frame.data.u8[2] >> 1) & (0x01U));
-        CP_a015_apsVov = ((rx_frame.data.u8[2] >> 2) & (0x01U));
-        CP_a016_apsVuv = ((rx_frame.data.u8[2] >> 3) & (0x01U));
-        CP_a017_fiveVov = ((rx_frame.data.u8[2] >> 4) & (0x01U));
-        CP_a018_fiveVuv = ((rx_frame.data.u8[2] >> 5) & (0x01U));
-        CP_a019_threeVov = ((rx_frame.data.u8[2] >> 6) & (0x01U));
-        CP_a020_threeVuv = ((rx_frame.data.u8[2] >> 7) & (0x01U));
-        CP_a021_zeroVov = (rx_frame.data.u8[3] & (0x01U));
-        CP_a022_zeroVuv = ((rx_frame.data.u8[3] >> 1) & (0x01U));
-        CP_a023_gbdcSessionFailed = ((rx_frame.data.u8[3] >> 2) & (0x01U));
-        CP_a024_ledsUC = ((rx_frame.data.u8[3] >> 3) & (0x01U));
-        CP_a025_ledsOC = ((rx_frame.data.u8[3] >> 4) & (0x01U));
-        CP_a026_networkManagement = ((rx_frame.data.u8[3] >> 5) & (0x01U));
-        CP_a027_doorSensorOutOfSpec = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-        CP_a028_insertEnableMismatch = ((rx_frame.data.u8[3] >> 7) & (0x01U));
-        CP_a029_doorClosedProxPilot = (rx_frame.data.u8[4] & (0x01U));
-        CP_a030_busOff = ((rx_frame.data.u8[4] >> 1) & (0x01U));
-        CP_a031_doorClosedCommandedOpen = ((rx_frame.data.u8[4] >> 2) & (0x01U));
-        CP_a032_doorOpenExpectedClosed = ((rx_frame.data.u8[4] >> 3) & (0x01U));
-        CP_a033_spiOpen = ((rx_frame.data.u8[4] >> 4) & (0x01U));
-        CP_a034_calibrationIncomplete = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-        CP_a035_latchMovement_1 = ((rx_frame.data.u8[4] >> 6) & (0x01U));
-        CP_a036_latchNotDisengaged = ((rx_frame.data.u8[4] >> 7) & (0x01U));
-        CP_a037_latchNotEngaged = (rx_frame.data.u8[5] & (0x01U));
-        CP_a038_latchNotBlocking = ((rx_frame.data.u8[5] >> 1) & (0x01U));
-        CP_a039_latchMovement_2 = ((rx_frame.data.u8[5] >> 2) & (0x01U));
-        CP_a040_doNotUse = ((rx_frame.data.u8[5] >> 3) & (0x01U));
-        CP_a041_doorSensorUnplugged = ((rx_frame.data.u8[5] >> 4) & (0x01U));
-        CP_a042_doorAssemblyBroken = ((rx_frame.data.u8[5] >> 5) & (0x01U));
-        CP_a043_doorPotIrrational = ((rx_frame.data.u8[5] >> 6) & (0x01U));
-        CP_a044_lostCommsHVP = ((rx_frame.data.u8[5] >> 7) & (0x01U));
-        CP_a045_lostCommsVCSEC = (rx_frame.data.u8[6] & (0x01U));
-        CP_a046_lostCommsEVSE = ((rx_frame.data.u8[6] >> 1) & (0x01U));
-        CP_a047_lostCommsVCFRONT = ((rx_frame.data.u8[6] >> 2) & (0x01U));
-        CP_a048_lostCommsUI = ((rx_frame.data.u8[6] >> 3) & (0x01U));
-        CP_a049_multipleCablesDetected = ((rx_frame.data.u8[6] >> 4) & (0x01U));
-        CP_a050_latchNotConnected = ((rx_frame.data.u8[6] >> 5) & (0x01U));
-        CP_a051_doorInductiveSensorMIA = ((rx_frame.data.u8[6] >> 6) & (0x01U));
-        CP_a052_evseNotSupported = ((rx_frame.data.u8[6] >> 7) & (0x01U));
-        CP_a053_proxLatchedNoPilot = (rx_frame.data.u8[7] & (0x01U));
-        CP_a054_cableNotSecured = ((rx_frame.data.u8[7] >> 1) & (0x01U));
-        CP_a055_chargeStoppedNoPilot = ((rx_frame.data.u8[7] >> 2) & (0x01U));
-        CP_a056_proxDisconnected = ((rx_frame.data.u8[7] >> 3) & (0x01U));
-        CP_a057_evseFaulted = ((rx_frame.data.u8[7] >> 4) & (0x01U));
-        CP_a058_acChargingBlocked = ((rx_frame.data.u8[7] >> 5) & (0x01U));
-        CP_a059_swcanError = ((rx_frame.data.u8[7] >> 6) & (0x01U));
-        CP_a060_lostCommsPCS = ((rx_frame.data.u8[7] >> 7) & (0x01U));
-      }
-      if (mux == 1) {  //mux1
-        CP_a061_uhfReceiverMIA = ((rx_frame.data.u8[0] >> 4) & (0x01U));
-        CP_a062_scOutOfService = ((rx_frame.data.u8[0] >> 5) & (0x01U));
-        CP_a063_scUpdateInProgress = ((rx_frame.data.u8[0] >> 6) & (0x01U));
-        CP_a064_superchargingBlocked = ((rx_frame.data.u8[0] >> 7) & (0x01U));
-        CP_a065_selfTestFailed = (rx_frame.data.u8[1] & (0x01U));
-        CP_a066_proxLatchedIdlePilot = ((rx_frame.data.u8[1] >> 1) & (0x01U));
-        CP_a067_gbdcConnFault = ((rx_frame.data.u8[1] >> 2) & (0x01U));
-        CP_a068_doorSensorMismatch = ((rx_frame.data.u8[1] >> 3) & (0x01U));
-        CP_a069_doorInductiveSensorError = ((rx_frame.data.u8[1] >> 4) & (0x01U));
-        CP_a070_doorInductiveSensorReset = ((rx_frame.data.u8[1] >> 5) & (0x01U));
-        CP_a071_exiDecodeFailure = ((rx_frame.data.u8[1] >> 6) & (0x01U));
-        CP_a072_v2gEvccTimeout = ((rx_frame.data.u8[1] >> 7) & (0x01U));
-        CP_a073_iecComboShutdown = (rx_frame.data.u8[2] & (0x01U));
-        CP_a074_failedToEstablishV2gComm = ((rx_frame.data.u8[2] >> 1) & (0x01U));
-        CP_a075_v2gCommsFailure = ((rx_frame.data.u8[2] >> 2) & (0x01U));
-        CP_a076_LDC1612errorWatchdog = ((rx_frame.data.u8[2] >> 3) & (0x01U));
-        CP_a077_invalidMacAddress = ((rx_frame.data.u8[2] >> 4) & (0x01U));
-        CP_a078_latchNotDisengagedCold = ((rx_frame.data.u8[2] >> 5) & (0x01U));
-        CP_a079_cableNotSecuredCold = ((rx_frame.data.u8[2] >> 6) & (0x01U));
-        CP_a080_taskStackOverflow = ((rx_frame.data.u8[2] >> 7) & (0x01U));
-        CP_a081_swException = (rx_frame.data.u8[3] & (0x01U));
-        CP_a082_powerOnReset = ((rx_frame.data.u8[3] >> 1) & (0x01U));
-        CP_a083_watchdogTraceData = ((rx_frame.data.u8[3] >> 2) & (0x01U));
-        CP_a084_proximityPeDisconnected = ((rx_frame.data.u8[3] >> 3) & (0x01U));
-        CP_a085_dcPinTempFaulted = ((rx_frame.data.u8[3] >> 4) & (0x01U));
-        CP_a086_dcPinTempIrrational = ((rx_frame.data.u8[3] >> 5) & (0x01U));
-        CP_a087_dcTempModelFault = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-        CP_a088_dcTempModelDeviation = ((rx_frame.data.u8[3] >> 7) & (0x01U));
-        CP_a089_plcConfigMismatch = (rx_frame.data.u8[4] & (0x01U));
-        CP_a090_ccsEvseLowIso = ((rx_frame.data.u8[4] >> 1) & (0x01U));
-        CP_a091_wrongSuperchargerHandle = ((rx_frame.data.u8[4] >> 2) & (0x01U));
-        CP_a092_modemAppLoadFailed = ((rx_frame.data.u8[4] >> 3) & (0x01U));
-        CP_a093_modemLoadedWithReset = ((rx_frame.data.u8[4] >> 4) & (0x01U));
-        CP_a094_inductiveResetSuccessful = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-        CP_a095_thermalDcLimitActive = ((rx_frame.data.u8[4] >> 6) & (0x01U));
-        CP_a096_pilotWake = ((rx_frame.data.u8[4] >> 7) & (0x01U));
-      }
+      applyAlertMatrix(datalayer_tesla->CP_alertMatrixActive, kCpAlertBits, rx_frame.data.u8);
       break;
     }
     case 0x72A:  //BMS_serialNumber
@@ -3013,108 +2753,28 @@ void TeslaBattery::printFaultCodesIfActive() {
   printDebugIfActive(battery_fcCtrCloseFailed, "fcCtrCloseFailed is active");
   printDebugIfActive(battery_shuntThermistorMia, "shuntThermistorMia is active");
   */
-  // 0x320 800 BMS_alertMatrix
-  //TODO: This function should later be removed in favour of the webserver diagnostics
-  printDebugIfActive(BMS_a017_SW_Brick_OV, "BMS_a017");
-  printDebugIfActive(BMS_a018_SW_Brick_UV, "BMS_a018");
-  printDebugIfActive(BMS_a019_SW_Module_OT, "BMS_a019");
-  printDebugIfActive(BMS_a021_SW_Dr_Limits_Regulation, "BMS_a021");
-  printDebugIfActive(BMS_a022_SW_Over_Current, "BMS_a022");
-  printDebugIfActive(BMS_a023_SW_Stack_OV, "BMS_a023");
-  printDebugIfActive(BMS_a024_SW_Islanded_Brick, "BMS_a024");
-  printDebugIfActive(BMS_a025_SW_PwrBalance_Anomaly, "BMS_a025");
-  printDebugIfActive(BMS_a026_SW_HFCurrent_Anomaly, "BMS_a026");
-  printDebugIfActive(BMS_a034_SW_Passive_Isolation, "BMS_a034");
-  printDebugIfActive(BMS_a035_SW_Isolation, "BMS_a035");
-  printDebugIfActive(BMS_a036_SW_HvpHvilFault, "BMS_a036");
-  printDebugIfActive(BMS_a037_SW_Flood_Port_Open, "BMS_a037");
-  printDebugIfActive(BMS_a039_SW_DC_Link_Over_Voltage, "BMS_a039");
-  printDebugIfActive(BMS_a041_SW_Power_On_Reset, "BMS_a041");
-  printDebugIfActive(BMS_a042_SW_MPU_Error, "BMS_a042");
-  printDebugIfActive(BMS_a043_SW_Watch_Dog_Reset, "BMS_a043");
-  printDebugIfActive(BMS_a044_SW_Assertion, "BMS_a044");
-  printDebugIfActive(BMS_a045_SW_Exception, "BMS_a045");
-  printDebugIfActive(BMS_a046_SW_Task_Stack_Usage, "BMS_a046");
-  printDebugIfActive(BMS_a047_SW_Task_Stack_Overflow, "BMS_a047");
-  printDebugIfActive(BMS_a048_SW_Log_Upload_Request, "BMS_a048");
-  printDebugIfActive(BMS_a050_SW_Brick_Voltage_MIA, "BMS_a050");
-  printDebugIfActive(BMS_a051_SW_HVC_Vref_Bad, "BMS_a051");
-  printDebugIfActive(BMS_a052_SW_PCS_MIA, "BMS_a052");
-  printDebugIfActive(BMS_a053_SW_ThermalModel_Sanity, "BMS_a053");
-  printDebugIfActive(BMS_a054_SW_Ver_Supply_Fault, "BMS_a054");
-  printDebugIfActive(BMS_a059_SW_Pack_Voltage_Sensing, "BMS_a059");
-  printDebugIfActive(BMS_a060_SW_Leakage_Test_Failure, "BMS_a060");
-  printDebugIfActive(BMS_a061_robinBrickOverVoltage, "BMS_a061");
-  printDebugIfActive(BMS_a062_SW_BrickV_Imbalance, "BMS_a062");
-  printDebugIfActive(BMS_a063_SW_ChargePort_Fault, "BMS_a063");
-  printDebugIfActive(BMS_a064_SW_SOC_Imbalance, "BMS_a064");
-  printDebugIfActive(BMS_a069_SW_Low_Power, "BMS_a069");
-  printDebugIfActive(BMS_a071_SW_SM_TransCon_Not_Met, "BMS_a071");
-  printDebugIfActive(BMS_a075_SW_Chg_Disable_Failure, "BMS_a075");
-  printDebugIfActive(BMS_a076_SW_Dch_While_Charging, "BMS_a076");
-  printDebugIfActive(BMS_a077_SW_Charger_Regulation, "BMS_a077");
-  printDebugIfActive(BMS_a081_SW_Ctr_Close_Blocked, "BMS_a081");
-  printDebugIfActive(BMS_a082_SW_Ctr_Force_Open, "BMS_a082");
-  printDebugIfActive(BMS_a083_SW_Ctr_Close_Failure, "BMS_a083");
-  printDebugIfActive(BMS_a084_SW_Sleep_Wake_Aborted, "BMS_a084");
-  printDebugIfActive(BMS_a087_SW_Feim_Test_Blocked, "BMS_a087");
-  printDebugIfActive(BMS_a088_SW_VcFront_MIA_InDrive, "BMS_a088");
-  printDebugIfActive(BMS_a089_SW_VcFront_MIA, "BMS_a089");
-  printDebugIfActive(BMS_a090_SW_Gateway_MIA, "BMS_a090");
-  printDebugIfActive(BMS_a091_SW_ChargePort_MIA, "BMS_a091");
-  printDebugIfActive(BMS_a092_SW_ChargePort_Mia_On_Hv, "BMS_a092");
-  printDebugIfActive(BMS_a094_SW_Drive_Inverter_MIA, "BMS_a094");
-  printDebugIfActive(BMS_a099_SW_BMB_Communication, "BMS_a099");
-  printDebugIfActive(BMS_a105_SW_One_Module_Tsense, "BMS_a105");
-  printDebugIfActive(BMS_a106_SW_All_Module_Tsense, "BMS_a106");
-  printDebugIfActive(BMS_a107_SW_Stack_Voltage_MIA, "BMS_a107");
-  printDebugIfActive(BMS_a121_SW_NVRAM_Config_Error, "BMS_a121");
-  printDebugIfActive(BMS_a122_SW_BMS_Therm_Irrational, "BMS_a122");
-  printDebugIfActive(BMS_a123_SW_Internal_Isolation, "BMS_a123");
-  printDebugIfActive(BMS_a127_SW_shunt_SNA, "BMS_a127");
-  printDebugIfActive(BMS_a128_SW_shunt_MIA, "BMS_a128");
-  printDebugIfActive(BMS_a129_SW_VSH_Failure, "BMS_a129");
-  printDebugIfActive(BMS_a130_IO_CAN_Error, "BMS_a130");
-  printDebugIfActive(BMS_a131_Bleed_FET_Failure, "BMS_a131");
-  printDebugIfActive(BMS_a132_HW_BMB_OTP_Uncorrctbl, "BMS_a132");
-  printDebugIfActive(BMS_a134_SW_Delayed_Ctr_Off, "BMS_a134");
-  printDebugIfActive(BMS_a136_SW_Module_OT_Warning, "BMS_a136");
-  printDebugIfActive(BMS_a137_SW_Brick_UV_Warning, "BMS_a137");
-  printDebugIfActive(BMS_a139_SW_DC_Link_V_Irrational, "BMS_a139");
-  printDebugIfActive(BMS_a141_SW_BMB_Status_Warning, "BMS_a141");
-  printDebugIfActive(BMS_a144_Hvp_Config_Mismatch, "BMS_a144");
-  printDebugIfActive(BMS_a145_SW_SOC_Change, "INFO: BMS_a145");
-  printDebugIfActive(BMS_a146_SW_Brick_Overdischarged, "BMS_a146");
-  printDebugIfActive(BMS_a149_SW_Missing_Config_Block, "BMS_a149");
-  printDebugIfActive(BMS_a151_SW_external_isolation, "BMS_a151");
-  printDebugIfActive(BMS_a156_SW_BMB_Vref_bad, "BMS_a156");
-  printDebugIfActive(BMS_a157_SW_HVP_HVS_Comms, "BMS_a157");
-  printDebugIfActive(BMS_a158_SW_HVP_HVI_Comms, "BMS_a158");
-  printDebugIfActive(BMS_a159_SW_HVP_ECU_Error, "BMS_a159");
-  printDebugIfActive(BMS_a161_SW_DI_Open_Request, "BMS_a161");
-  printDebugIfActive(BMS_a162_SW_No_Power_For_Support, "BMS_a162");
-  printDebugIfActive(BMS_a163_SW_Contactor_Mismatch, "BMS_a163");
-  printDebugIfActive(BMS_a164_SW_Uncontrolled_Regen, "BMS_a164");
-  printDebugIfActive(BMS_a165_SW_Pack_Partial_Weld, "BMS_a165");
-  printDebugIfActive(BMS_a166_SW_Pack_Full_Weld, "BMS_a166");
-  printDebugIfActive(BMS_a167_SW_FC_Partial_Weld, "BMS_a167");
-  printDebugIfActive(BMS_a168_SW_FC_Full_Weld, "BMS_a168");
-  printDebugIfActive(BMS_a169_SW_FC_Pack_Weld, "BMS_a169");
-  printDebugIfActive(BMS_a170_SW_Limp_Mode, "BMS_a170");
-  printDebugIfActive(BMS_a171_SW_Stack_Voltage_Sense, "BMS_a171");
-  printDebugIfActive(BMS_a174_SW_Charge_Failure, "BMS_a174");
-  printDebugIfActive(BMS_a176_SW_GracefulPowerOff, "BMS_a176");
-  printDebugIfActive(BMS_a179_SW_Hvp_12V_Fault, "BMS_a179");
-  printDebugIfActive(BMS_a180_SW_ECU_reset_blocked, "BMS_a180");
-  // BMS alerts added from tesla-m3-pack-findings (firmware 2019.20.4.2)
-  printDebugIfActive(BMS_a001_Pack_Config_Mismatch, "BMS_a001");
-  printDebugIfActive(BMS_a055_SW_HvChain_Model_Fault, "BMS_a055");
-  printDebugIfActive(BMS_a126_SW_Thermistor_Failure, "BMS_a126");
-  printDebugIfActive(BMS_a135_HW_BMB_Diagnostics_Failure, "BMS_a135");
-  printDebugIfActive(BMS_a143_SW_CAC_Change, "BMS_a143");
-  printDebugIfActive(BMS_a155_SW_Weak_short_impedence, "BMS_a155");
-  printDebugIfActive(BMS_a173_SW_Charge_Component_Fault, "BMS_a173");
-  printDebugIfActive(BMS_a178_SW_Uncontrolled_Regen_PwrB, "BMS_a178");
+  // 0x320 BMS alerts, same text as the old calls. Index order, like PCS and CP below.
+  // BMS_a138 has no line: that call did not exist.
+  static const char* bmsAlertMessage[100] = {
+      "BMS_a001", "BMS_a017", "BMS_a018", "BMS_a019", "BMS_a021",       "BMS_a022", "BMS_a023", "BMS_a024", "BMS_a025",
+      "BMS_a026", "BMS_a034", "BMS_a035", "BMS_a036", "BMS_a037",       "BMS_a039", "BMS_a041", "BMS_a042", "BMS_a043",
+      "BMS_a044", "BMS_a045", "BMS_a046", "BMS_a047", "BMS_a048",       "BMS_a050", "BMS_a051", "BMS_a052", "BMS_a053",
+      "BMS_a054", "BMS_a055", "BMS_a059", "BMS_a060", "BMS_a061",       "BMS_a062", "BMS_a063", "BMS_a064", "BMS_a069",
+      "BMS_a071", "BMS_a075", "BMS_a076", "BMS_a077", "BMS_a081",       "BMS_a082", "BMS_a083", "BMS_a084", "BMS_a087",
+      "BMS_a088", "BMS_a089", "BMS_a090", "BMS_a091", "BMS_a092",       "BMS_a094", "BMS_a099", "BMS_a105", "BMS_a106",
+      "BMS_a107", "BMS_a121", "BMS_a122", "BMS_a123", "BMS_a126",       "BMS_a127", "BMS_a128", "BMS_a129", "BMS_a130",
+      "BMS_a131", "BMS_a132", "BMS_a134", "BMS_a135", "BMS_a136",       "BMS_a137",
+      nullptr,  // BMS_a138 was not printed
+      "BMS_a139", "BMS_a141", "BMS_a143", "BMS_a144", "INFO: BMS_a145", "BMS_a146", "BMS_a149", "BMS_a151", "BMS_a155",
+      "BMS_a156", "BMS_a157", "BMS_a158", "BMS_a159", "BMS_a161",       "BMS_a162", "BMS_a163", "BMS_a164", "BMS_a165",
+      "BMS_a166", "BMS_a167", "BMS_a168", "BMS_a169", "BMS_a170",       "BMS_a171", "BMS_a173", "BMS_a174", "BMS_a176",
+      "BMS_a178", "BMS_a179", "BMS_a180",
+  };
+  for (int i = 0; i < 100; i++) {
+    if (bmsAlertMessage[i] != nullptr) {
+      printDebugIfActive(teslaAlertGet(datalayer_tesla->BMS_alertMatrixActive, i), bmsAlertMessage[i]);
+    }
+  }
   printFaultCodesPcsCp();
 }
 
@@ -3124,12 +2784,12 @@ void TeslaBattery::printFaultCodesPcsCp() {
   // human-readable names are no longer stored on the ESP32 (they live in the GitHub DTC JSON,
   // web_data/dtc/tesla_model3y_dtc.json); look the printed code up there, e.g. "PCS12" / "CP7".
   for (int i = 0; i < 94; i++) {
-    if (datalayer_tesla->PCS_alertMatrixActive[i]) {
+    if (teslaAlertGet(datalayer_tesla->PCS_alertMatrixActive, i)) {
       logging.printf("ERROR: Tesla alert PCS%d active\n", i);
     }
   }
   for (int i = 0; i < 96; i++) {
-    if (datalayer_tesla->CP_alertMatrixActive[i]) {
+    if (teslaAlertGet(datalayer_tesla->CP_alertMatrixActive, i)) {
       logging.printf("ERROR: Tesla alert CP%d active\n", i);
     }
   }

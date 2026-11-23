@@ -606,22 +606,22 @@ TEST_F(TeslaBatteryTest, SocChangeAlertIsLatchedAndCacChangeIsOnlyAnAlert) {
   pack_->handle_incoming_can_frame(AlertMux2(true, false));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-  EXPECT_TRUE(datalayer_extended.tesla.BMS_alertMatrixActive[72]);
-  EXPECT_FALSE(datalayer_extended.tesla.BMS_alertMatrixActive[74]);
+  EXPECT_TRUE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 72));
+  EXPECT_FALSE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 74));
   EXPECT_EQ(EventState(EVENT_BATTERY_SOC_RECALIBRATION), EVENT_STATE_INACTIVE);
 
   pack_->handle_incoming_can_frame(AlertMux2(true, true));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-  EXPECT_TRUE(datalayer_extended.tesla.BMS_alertMatrixActive[72]);
-  EXPECT_TRUE(datalayer_extended.tesla.BMS_alertMatrixActive[74]);
+  EXPECT_TRUE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 72));
+  EXPECT_TRUE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 74));
   EXPECT_EQ(EventState(EVENT_BATTERY_SOC_RECALIBRATION), EVENT_STATE_ACTIVE_LATCHED);
 
   pack_->handle_incoming_can_frame(AlertMux2(false, false));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-  EXPECT_FALSE(datalayer_extended.tesla.BMS_alertMatrixActive[72]);
-  EXPECT_FALSE(datalayer_extended.tesla.BMS_alertMatrixActive[74]);
+  EXPECT_FALSE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 72));
+  EXPECT_FALSE(teslaAlertGet(datalayer_extended.tesla.BMS_alertMatrixActive, 74));
   EXPECT_EQ(EventState(EVENT_BATTERY_SOC_RECALIBRATION), EVENT_STATE_ACTIVE_LATCHED);
 }
 

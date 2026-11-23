@@ -366,13 +366,29 @@ struct DATALAYER_INFO_RIVIAN {
   bool operation_limit_violation_warning;
 };
 
+// One alert bit. index 0 is the low bit of byte 0.
+inline bool teslaAlertGet(const uint8_t* packed, int index) {
+  return (packed[static_cast<unsigned>(index) >> 3] >> (index & 7)) & 0x01;
+}
+
+inline void teslaAlertSet(uint8_t* packed, int index, bool active) {
+  const uint8_t mask = static_cast<uint8_t>(1u << (index & 7));
+  uint8_t* byte = &packed[static_cast<unsigned>(index) >> 3];
+  if (active) {
+    *byte = static_cast<uint8_t>(*byte | mask);
+  } else {
+    *byte = static_cast<uint8_t>(*byte & static_cast<uint8_t>(~mask));
+  }
+}
+
 // Detail page fields are raw (see DETAIL PAGE RULE in TESLA-HTML.cpp), the calculated values have their own fields
 // (nominal_full_held_x10, battery_beginning_of_life, cac_*_x10 ...).
 struct DATALAYER_INFO_TESLA {
-  // Alert-matrix (DTC) fault flags for the Faults web page; mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
-  bool BMS_alertMatrixActive[100];
-  bool PCS_alertMatrixActive[94];
-  bool CP_alertMatrixActive[96];
+  // Alert-matrix (DTC) fault flags for the Faults web page, one bit per alert.
+  // 100, 94 and 96 bits. Mapped from tesla-m3-pack-findings (fw 2019.20.4.2).
+  uint8_t BMS_alertMatrixActive[(100 + 7) / 8];
+  uint8_t PCS_alertMatrixActive[(94 + 7) / 8];
+  uint8_t CP_alertMatrixActive[(96 + 7) / 8];
 
   uint64_t BMS_info_bootGitHash;
   uint64_t PCS_info_bootGitHash;
