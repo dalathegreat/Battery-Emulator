@@ -6,6 +6,7 @@
 #include "../../charger/CanCharger.h"
 #endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
@@ -78,13 +79,23 @@ void init_stored_settings() {
     datalayer.battery2.info.total_capacity_Wh = temp;
     datalayer.battery3.info.total_capacity_Wh = temp;
   }
-  temp = settings.getUInt("MAXPERCENTAGE", false);
-  if (temp != 0) {
-    datalayer.battery_settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
+  /* The saved SOC window, held to the same limits as an edit on the settings page: an end that is
+     missing or outside them keeps its default, and so does a minimum that is not below the
+     maximum. Saved in 0.1 % steps for backwards compatibility, hence the * 10. */
+  const uint32_t saved_max = settings.getUInt("MAXPERCENTAGE", 0);
+  if (saved_max >= (uint32_t)(SOC_MAX_PERCENTAGE_LOWEST / 10) &&
+      saved_max <= (uint32_t)(SOC_MAX_PERCENTAGE_HIGHEST / 10)) {
+    datalayer.battery_settings.max_percentage = (uint16_t)(saved_max * 10);
   }
-  int32_t temp2 = settings.getInt("MINPERCENTAGE", false);
-  if (temp2 <= 500 && temp2 >= -100) {
-    datalayer.battery_settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
+  int32_t saved_min = settings.getInt("MINPERCENTAGE", INT32_MIN);
+  if (saved_min == INT32_MIN && settings.settingExists("MINPERCENTAGE")) {
+    /* Saved unsigned until negative minimums came in (October 2025). getInt() cannot read such an
+       entry, so an install that has not changed its minimum since got 0 % at every boot */
+    saved_min = (int32_t)settings.getUInt("MINPERCENTAGE", 0);
+  }
+  if (saved_min >= SOC_MIN_PERCENTAGE_LOWEST / 10 && saved_min <= SOC_MIN_PERCENTAGE_HIGHEST / 10 &&
+      soc_window_valid(saved_min * 10, datalayer.battery_settings.max_percentage)) {
+    datalayer.battery_settings.min_percentage = (int16_t)(saved_min * 10);
   }
   // The window in use starts out as the saved one. MQTT SET_SCALESOC moves only the one in use
   datalayer.battery_settings.user_set_max_percentage = datalayer.battery_settings.max_percentage;
