@@ -7,6 +7,7 @@
 #endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
@@ -300,12 +301,15 @@ static String shunt_option_css(const char* attr, bool (*supported)(ShuntType, En
   return css;
 }
 
-/* One end of the SOC window in use, with the saved one beside it while MQTT SET_SCALESOC has moved
-   it: the window in use goes back to the saved one at the next reboot. */
-static String soc_percentage_text(int32_t in_use, int32_t saved) {
+/* One end of the SOC window in use, with the saved one beside it while something else holds it: a
+   remote override (MQTT SET_SCALESOC) until the next reboot, or a battery override (the BYD Atto 3
+   lifting the top for a full charge) until that charge has ended. */
+static String soc_percentage_text(int32_t in_use, int32_t saved, const char* by) {
   String text(in_use / 100.0f, 1);
   if (in_use != saved) {
-    text += " (MQTT, saved " + String(saved / 100.0f, 1) + ")";
+    text += " (";
+    text += by;
+    text += " override, saved " + String(saved / 100.0f, 1) + ")";
   }
   return text;
 }
@@ -936,13 +940,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return soc_percentage_text(datalayer.battery_settings.max_percentage,
-                               datalayer.battery_settings.user_set_max_percentage);
+    // A lifted top is the maximum in use, whatever MQTT may have set beneath it
+    return soc_percentage_text(soc_window_top(), datalayer.battery_settings.user_set_max_percentage,
+                               datalayer.battery_settings.soc_window_top_lifted ? "battery" : "remote");
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
     return soc_percentage_text(datalayer.battery_settings.min_percentage,
-                               datalayer.battery_settings.user_set_min_percentage);
+                               datalayer.battery_settings.user_set_min_percentage, "remote");
   }
 
   if (var == "CHARGE_VOLTAGE") {

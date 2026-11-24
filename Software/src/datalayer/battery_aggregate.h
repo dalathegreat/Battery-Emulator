@@ -132,6 +132,14 @@ static inline bool soc_window_valid(int32_t min_percentage, int32_t max_percenta
 }
 
 /**
+ * @brief The top of the SOC window in use, in integer-percent x 100: the maximum percentage, or
+ * 100 % while a battery has lifted it for a full charge (the BYD Atto 3 full-charge schedule).
+ */
+static inline int32_t soc_window_top() {
+  return datalayer.battery_settings.soc_window_top_lifted ? 10000 : datalayer.battery_settings.max_percentage;
+}
+
+/**
  * @brief Scale one pack's SOC and capacity into its own reported_ fields.
  *
  * Applies the system-wide SOC window (min_percentage / max_percentage) to the pack handed in,

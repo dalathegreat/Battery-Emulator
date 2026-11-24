@@ -56,10 +56,6 @@ int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 }
 #endif  // SMALL_FLASH_DEVICE
 
-static int32_t soc_window_top() {
-  return datalayer.battery_settings.soc_window_top_lifted ? 10000 : datalayer.battery_settings.max_percentage;
-}
-
 /* Scale one set of figures - a pack's or the installation's - into the SOC window. One copy for
    scale_pack_values() and apply_soc_window(), so the two cannot drift apart again: the pack's
    own copy multiplied in 32 bits, which overflowed once its scaled capacity passed about 215 kWh
