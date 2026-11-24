@@ -54,11 +54,16 @@
 // compare versions over the IDENT message without any hardcoded duplicate.
 extern const char* version_number;  // defined in Software.cpp
 
-// Encode "MAJOR.MINOR[.suffix]" as (major << 8) | minor, e.g. "10.11.dev" -> 0x0A0B.
+// Encode "[v]MAJOR.MINOR[.suffix]" as (major << 8) | minor, e.g. "10.11.dev" -> 0x0A0B,
+// "v13.6.0dev-45b8f8b (#8)" -> 0x0D06. Builds derive the string from the git tag, which
+// starts with 'v'; without skipping it every build parsed as 0.0 and always "matched".
 inline uint16_t iu_fw_version_num() {
   uint16_t major = 0;
   uint16_t minor = 0;
   const char* p = version_number;
+  if (*p == 'v' || *p == 'V') {
+    p++;
+  }
   while (*p >= '0' && *p <= '9') {
     major = (uint16_t)(major * 10 + (*p - '0'));
     p++;
