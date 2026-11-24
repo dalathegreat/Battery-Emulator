@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "esp_private/esp_clk.h"           // esp_clk_slowclk_cal_get()
+#include "esp_private/startup_internal.h"  // g_startup_time
+#include "esp_rom_sys.h"                   // esp_rom_get_reset_reason()
+#include "esp_rtc_time.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "soc/rtc.h"  // rtc_clk_slow_freq_get_hz()
 
 #include "src/battery/BATTERIES.h"
 #ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
@@ -23,6 +28,7 @@
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
+#include "src/devboard/safety/restart_watchdog.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -474,6 +480,22 @@ void update_calculated_values(uint32_t currentMillis) {
   update_aggregate_values();
 }
 
+/* Diagnostic for RESET_WDT after restarts. esp_restart() gives the RTC watchdog 1000 ms by its own clock
+   to see the bootloader take over, counting on from what startup used of it: from esp_clk_init(), where
+   startup fed it and took g_startup_time, until it stopped it just before app_main(). Taken as setup()
+   starts, so a little more than that. */
+static uint64_t startup_rtc_wdt_us = 0;
+
+static void log_reset_diagnostics(esp_reset_reason_t reason) {
+  const uint32_t cal = esp_clk_slowclk_cal_get();  // RTC slow clock period in us, Q13.19
+  const uint64_t ticks = cal ? (startup_rtc_wdt_us << 19) / cal : 0;
+  logging.printf(
+      "Reset reason %d, hardware 0x%02X/0x%02X. Startup ran the RTC watchdog for up to %u ms of its "
+      "clock, a restart gives it 1000\n",
+      (int)reason, (unsigned)esp_rom_get_reset_reason(0), (unsigned)esp_rom_get_reset_reason(1),
+      (unsigned)(ticks * 1000 / rtc_clk_slow_freq_get_hz()));
+}
+
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
   switch (reason) {
@@ -499,7 +521,9 @@ void check_reset_reason() {
       set_event(EVENT_RESET_TASK_WDT, reason);
       break;
     case ESP_RST_WDT:  //Reset due to other watchdogs
-      set_event(EVENT_RESET_WDT, reason);
+      // Hardware reason as data, it tells which one: 16 RTC watchdog, whole chip with RTC; 9 RTC watchdog,
+      // digital core only; 13 RTC watchdog, CPU only; 18 super watchdog
+      set_event(EVENT_RESET_WDT, (int16_t)esp_rom_get_reset_reason(0));
       break;
     case ESP_RST_DEEPSLEEP:  //Reset after exiting deep sleep mode
       set_event(EVENT_RESET_DEEPSLEEP, reason);
@@ -528,6 +552,7 @@ void check_reset_reason() {
     default:
       break;
   }
+  log_reset_diagnostics(reason);
 }
 
 void core_loop(void*) {
@@ -671,6 +696,8 @@ void mqtt_loop(void*) {
 
 // Initialization
 void setup() {
+  startup_rtc_wdt_us = esp_rtc_get_time_us() - g_startup_time;  // First thing, see log_reset_diagnostics()
+
   init_hal();
 
   init_serial();
@@ -691,6 +718,9 @@ void setup() {
       datalayer.system.info.web_logging_active = false;
     }
   }
+
+  // Before anything can restart the board
+  register_restart_watchdog_feed();
 
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
