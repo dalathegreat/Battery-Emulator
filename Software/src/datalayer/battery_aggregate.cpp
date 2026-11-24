@@ -56,8 +56,34 @@ int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 }
 #endif  // SMALL_FLASH_DEVICE
 
-static int32_t soc_window_top() {
-  return datalayer.battery_settings.soc_window_top_lifted ? 10000 : datalayer.battery_settings.max_percentage;
+/* Scale one set of figures - a pack's or the installation's - into the SOC window. One copy for
+   scale_pack_values() and apply_soc_window(), so the two cannot drift apart again: the pack's
+   own copy multiplied in 32 bits, which overflowed once its scaled capacity passed about 215 kWh
+   and wrapped above about 430 kWh, and it fell back to the unscaled capacity whenever the real
+   SOC read 0, although nothing here divides by the SOC. The energy is worked out in 64 bits. */
+static void scale_into_soc_window(uint16_t real_soc, uint32_t total_capacity_Wh, uint32_t remaining_capacity_Wh,
+                                  uint16_t& reported_soc, uint32_t& reported_total_capacity_Wh,
+                                  uint32_t& reported_remaining_capacity_Wh) {
+  const int32_t bottom = datalayer.battery_settings.min_percentage;
+  const int32_t top = soc_window_top();
+  if (top <= bottom) {  // No window to scale into. The settings refuse one, but never divide by it
+    reported_soc = real_soc;
+    reported_total_capacity_Wh = total_capacity_Wh;
+    reported_remaining_capacity_Wh = remaining_capacity_Wh;
+    return;
+  }
+  const uint32_t span = (uint32_t)(top - bottom);
+  const int32_t clamped_soc = CONSTRAIN((int32_t)real_soc, bottom, top);
+  const uint32_t scaled_soc = (uint32_t)(clamped_soc - bottom) * 10000u / span;
+  reported_soc = (uint16_t)scaled_soc;
+
+  if (total_capacity_Wh > 0) {
+    reported_total_capacity_Wh = (uint32_t)(((uint64_t)total_capacity_Wh * span) / 10000u);
+    reported_remaining_capacity_Wh = (uint32_t)(((uint64_t)reported_total_capacity_Wh * scaled_soc) / 10000u);
+  } else {  // Capacity not known yet
+    reported_total_capacity_Wh = total_capacity_Wh;
+    reported_remaining_capacity_Wh = remaining_capacity_Wh;
+  }
 }
 
 /* The SOC window belongs to the installation, not to any one pack: it decides what the inverter
@@ -79,23 +105,9 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
     return;
   }
 
-  int32_t delta_pct = soc_window_top() - datalayer.battery_settings.min_percentage;
-  int32_t clamped_soc = CONSTRAIN(pack.status.real_soc, datalayer.battery_settings.min_percentage, soc_window_top());
-  int32_t scaled_soc = 0;
-  if (delta_pct != 0) {  //Safeguard against division by 0
-    scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;
-  }
-  pack.status.reported_soc = scaled_soc;
-
-  if (pack.info.total_capacity_Wh > 0 && pack.status.real_soc > 0) {
-    int32_t scaled_total_capacity = (pack.info.total_capacity_Wh * delta_pct) / 10000;
-    pack.info.reported_total_capacity_Wh = scaled_total_capacity;
-    pack.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
-  } else {
-    // Fallback if scaling cannot be performed
-    pack.info.reported_total_capacity_Wh = pack.info.total_capacity_Wh;
-    pack.status.reported_remaining_capacity_Wh = pack.status.remaining_capacity_Wh;
-  }
+  scale_into_soc_window(pack.status.real_soc, pack.info.total_capacity_Wh, pack.status.remaining_capacity_Wh,
+                        pack.status.reported_soc, pack.info.reported_total_capacity_Wh,
+                        pack.status.reported_remaining_capacity_Wh);
 }
 
 /* Apply the SOC window to the installation. Same arithmetic scale_pack_values() uses, run once
@@ -108,21 +120,8 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
     return;
   }
 
-  int32_t delta_pct = soc_window_top() - datalayer.battery_settings.min_percentage;
-  int32_t clamped_soc = CONSTRAIN(agg.real_soc, datalayer.battery_settings.min_percentage, soc_window_top());
-  int32_t scaled_soc = 0;
-  if (delta_pct != 0) {  //Safeguard against division by 0
-    scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;
-  }
-  agg.reported_soc = scaled_soc;
-
-  if (agg.total_capacity_Wh > 0) {
-    agg.reported_total_capacity_Wh = ((uint64_t)agg.total_capacity_Wh * delta_pct) / 10000;
-    agg.reported_remaining_capacity_Wh = ((uint64_t)agg.reported_total_capacity_Wh * scaled_soc) / 10000;
-  } else {
-    agg.reported_total_capacity_Wh = agg.total_capacity_Wh;
-    agg.reported_remaining_capacity_Wh = agg.remaining_capacity_Wh;
-  }
+  scale_into_soc_window(agg.real_soc, agg.total_capacity_Wh, agg.remaining_capacity_Wh, agg.reported_soc,
+                        agg.reported_total_capacity_Wh, agg.reported_remaining_capacity_Wh);
 }
 
 /* Roll every configured pack up into datalayer.aggregate.

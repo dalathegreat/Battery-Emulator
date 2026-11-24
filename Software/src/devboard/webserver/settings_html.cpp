@@ -7,6 +7,7 @@
 #endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
@@ -298,6 +299,19 @@ static String shunt_option_css(const char* attr, bool (*supported)(ShuntType, En
   }
 
   return css;
+}
+
+/* One end of the SOC window in use, with the saved one beside it while something else holds it: a
+   remote override (MQTT SET_SCALESOC) until the next reboot, or a battery override (the BYD Atto 3
+   lifting the top for a full charge) until that charge has ended. */
+static String soc_percentage_text(int32_t in_use, int32_t saved, const char* by) {
+  String text(in_use / 100.0f, 1);
+  if (in_use != saved) {
+    text += " (";
+    text += by;
+    text += " override, saved " + String(saved / 100.0f, 1) + ")";
+  }
+  return text;
 }
 
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
@@ -926,11 +940,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery_settings.max_percentage / 100.0f, 1);
+    // A lifted top is the maximum in use, whatever MQTT may have set beneath it
+    return soc_percentage_text(soc_window_top(), datalayer.battery_settings.user_set_max_percentage,
+                               datalayer.battery_settings.soc_window_top_lifted ? "battery" : "remote");
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery_settings.min_percentage / 100.0f, 1);
+    return soc_percentage_text(datalayer.battery_settings.min_percentage,
+                               datalayer.battery_settings.user_set_min_percentage, "remote");
   }
 
   if (var == "CHARGE_VOLTAGE") {
@@ -949,12 +966,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return datalayer.battery_settings.user_set_voltage_limits_active ? "active" : "inactive";
   }
 
-  if (var == "SOC_SCALING_CLASS") {
-    return datalayer.battery_settings.soc_scaling_active ? "active" : "inactiveSoc";
-  }
-
+  // The button names what pressing it does
   if (var == "SOC_SCALING") {
-    return datalayer.battery_settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+    return datalayer.battery_settings.soc_scaling_active ? "Disable" : "Enable";
   }
 
   if (var == "MANUAL_BALANCING_CLASS") {
@@ -970,11 +984,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "VOLTAGE_LIMITS") {
-    if (datalayer.battery_settings.user_set_voltage_limits_active) {
-      return TRUE_CHAR_CODE;
-    } else {
-      return FALSE_CHAR_CODE;
-    }
+    return datalayer.battery_settings.user_set_voltage_limits_active ? "Disable" : "Enable";
   }
 
   if (var == "BALANCING_CLASS") {
@@ -1546,7 +1556,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       }
     }
 
-    function editComplete(){if(this.status==200){window.location.reload();}}
+    function editComplete(){if(this.status==200){window.location.reload();}else{alert(this.responseText||'Invalid input');}}
 
     function editError(){alert('Invalid input');}
         function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
@@ -1558,18 +1568,17 @@ String qnhck_zero_text(uint16_t zero_mV) {
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
           alert('Invalid value. Please enter a value between 1 and 400000.');}}}
 
-        function editUseScaledSOC(){var value=prompt('Extends battery life by rescaling the SOC within the configured minimum and maximum percentage. Should SOC scaling be applied? (0 = No, 1 = Yes):');
-          if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseScaledSOC?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
+        function editToggle(b,r,n){if(confirm('Are you sure you want to '+b.textContent.toLowerCase()+' '+n+'?')){var xhr=new
+        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET',r+'?value='+(b.textContent=='Enable'?1:0),true);xhr.send();}}
     
-        function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
+        function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value.trim()!==''&&value>=50&&value<=100){var xhr=new
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
 
 
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
-          if(value!==null){if(value>=-10&&value<=50){var xhr=new 
+          if(value!==null){if(value.trim()!==''&&value>=-10&&value<=50){var xhr=new
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between -10 and 50.0');}}}
     
         function editMaxChargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum charge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new 
@@ -1577,9 +1586,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
     
         function editMaxDischargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum discharge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
-    
-        function editUseVoltageLimit(){var value=prompt('Enable this option to manually restrict charge/discharge to a specific voltage set below. If disabled the emulator automatically determines this based on battery limits. Restrict manually? (0 = No, 1 = Yes):');if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseVoltageLimit?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
     
         function editMaxChargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new voltage setpoint batttery should charge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxChargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
@@ -2625,7 +2631,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4 class='%BATTERY_WH_CLASS%' data-h=battwh>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-      <h4 data-h=socscale>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>%SOC_SCALING%</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
+      <h4 data-h=socscale>Rescale SOC: <button onclick='editToggle(this,"/updateUseScaledSOC","Rescale SOC")'>%SOC_SCALING%</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
@@ -2635,9 +2641,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4 data-h=maxdchga>Max discharge current: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
 
-      <h4 data-h=vlimits>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
-        <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
-                </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
+      <h4 data-h=vlimits>Manual charge voltage limits: <button onclick='editToggle(this,"/updateUseVoltageLimit","manual charge voltage limits")'>%VOLTAGE_LIMITS%</button></h4>
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target charge voltage: %CHARGE_VOLTAGE% V </span> <button onclick='editMaxChargeVoltage()'>Edit</button></h4>
 

@@ -1281,7 +1281,7 @@ static void subscribe() {
   esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
 }
 
-void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len) {
+void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len, bool retained) {
 
   char* topic = strndup(topic_raw, topic_len);
 
@@ -1381,11 +1381,15 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   // Runtime change of the SOC rescale limits. Payload: {"max_pct": 50.0-100.0, "min_pct": -10.0-50.0}.
-  // Either key may be omitted to leave that limit unchanged. Only the live datalayer values are
-  // touched (nothing is written to NVS), so a reboot restores the saved settings.
+  // Either key may be omitted to leave that limit unchanged. Only the window in use is moved: the
+  // saved one stays as it is, also through a later save from the settings page, so a reboot
+  // restores it. A retained copy is not applied, since the broker hands it out again on every
+  // reconnect and after every boot, which would undo exactly that.
   if (strcmp(topic, button_command_topics[BTN_SET_SCALESOC].c_str()) == 0) {
     if (!datalayer.battery_settings.soc_scaling_active) {
       // Limits have no effect without "Rescale SOC", so the command is ignored.
+    } else if (retained) {
+      logging.println("MQTT: SET_SCALESOC retained copy ignored, publish it without retain");
     } else {
       JsonDocument doc;
       char* data_str = strndup(data, data_len);
@@ -1396,10 +1400,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         //logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
       } else {
         // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
+        int32_t max_percentage = datalayer.battery_settings.max_percentage;
+        int32_t min_percentage = datalayer.battery_settings.min_percentage;
         if (doc["max_pct"].is<float>()) {
           float max_pct = doc["max_pct"].as<float>();
           if (max_pct >= 50.0f && max_pct <= 100.0f) {
-            datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
+            max_percentage = lroundf(max_pct * 100.0f);
           } else {
             logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
           }
@@ -1407,10 +1413,18 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         if (doc["min_pct"].is<float>()) {
           float min_pct = doc["min_pct"].as<float>();
           if (min_pct >= -10.0f && min_pct <= 50.0f) {
-            datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
+            min_percentage = lroundf(min_pct * 100.0f);
           } else {
             logging.printf("MQTT: SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
           }
+        }
+        // Both ranges allow 50.0 %, and both ends there would leave a window with no width
+        if (soc_window_valid(min_percentage, max_percentage)) {
+          datalayer.battery_settings.max_percentage = (uint16_t)max_percentage;
+          datalayer.battery_settings.min_percentage = (int16_t)min_percentage;
+        } else {
+          logging.printf("MQTT: SET_SCALESOC min %.2f not below max %.2f, ignored\n", min_percentage / 100.0f,
+                         max_percentage / 100.0f);
         }
       }
     }
@@ -1439,7 +1453,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       set_event(EVENT_MQTT_DISCONNECT, 0);  // also printing a log entry
       break;
     case MQTT_EVENT_DATA:
-      mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
+      // retain is only set on what the broker holds and hands out when a subscription is made
+      mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len, event->retain);
       break;
     case MQTT_EVENT_ERROR:
       // logging.println("MQTT_ERROR");

@@ -266,6 +266,55 @@ void canReplayTask(void* param) {
   vTaskDelete(NULL);
 }
 
+/* A percentage typed into the settings page, such as "80.5", in integer-percent x 100 and rounded
+   to the 0.1 % steps the page shows and the settings are saved in. False for an empty or
+   non-numeric value, or one outside lowest..highest. String::toFloat() took either for 0 %, and
+   truncating toFloat() * 100 stored 80.2 as 80.19 %, which the save then cut to 80.1 %. */
+static bool parse_soc_percentage(const String& text, int32_t lowest, int32_t highest, int32_t& percentage) {
+  const char* begin = text.c_str();
+  char* end = nullptr;
+  const double percent = strtod(begin, &end);
+  if (end == begin) {
+    return false;
+  }
+  while (*end == ' ') {
+    end++;
+  }
+  // NaN fails both comparisons. The ends are whole 0.1 % steps, so rounding stays within them
+  if (*end != '\0' || !(percent * 100.0 >= lowest && percent * 100.0 <= highest)) {
+    return false;
+  }
+  const double tenths = percent * 10.0;
+  percentage = (int32_t)(tenths < 0 ? tenths - 0.5 : tenths + 0.5) * 10;  // Half away from zero
+  return true;
+}
+
+/* An edit of one end of the SOC window from the settings page. Refused unless it parses and
+   leaves a usable window with the other end, both the one in use and the saved one, which differ
+   while MQTT SET_SCALESOC has moved the window. Applied to both only with apply set, so that the
+   same check serves as the route's validator. */
+static bool edit_soc_window_end(const String& text, bool max_end, bool apply) {
+  DATALAYER_BATTERY_SETTINGS_TYPE& battery_settings = datalayer.battery_settings;
+  int32_t percentage = 0;
+  if (!parse_soc_percentage(text, max_end ? SOC_MAX_PERCENTAGE_LOWEST : SOC_MIN_PERCENTAGE_LOWEST,
+                            max_end ? SOC_MAX_PERCENTAGE_HIGHEST : SOC_MIN_PERCENTAGE_HIGHEST, percentage)) {
+    return false;
+  }
+  const int32_t min_in_use = max_end ? battery_settings.min_percentage : percentage;
+  const int32_t max_in_use = max_end ? percentage : battery_settings.max_percentage;
+  const int32_t min_saved = max_end ? battery_settings.user_set_min_percentage : percentage;
+  const int32_t max_saved = max_end ? percentage : battery_settings.user_set_max_percentage;
+  if (!soc_window_valid(min_in_use, max_in_use) || !soc_window_valid(min_saved, max_saved)) {
+    return false;
+  }
+  if (apply && max_end) {
+    battery_settings.max_percentage = battery_settings.user_set_max_percentage = (uint16_t)percentage;
+  } else if (apply) {
+    battery_settings.min_percentage = battery_settings.user_set_min_percentage = (int16_t)percentage;
+  }
+  return true;
+}
+
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
@@ -926,17 +975,20 @@ void init_webserver() {
   // Route for editing Wh
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
 
-  // Route for editing USE_SCALED_SOC
-  update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery_settings.soc_scaling_active = value; });
+  // Route for editing USE_SCALED_SOC. Only "0" or "1": toInt() read an empty value as 0, so OK on
+  // an empty prompt used to switch the rescaling off
+  update_string_setting(
+      "/updateUseScaledSOC", [](String value) { datalayer.battery_settings.soc_scaling_active = (value == "1"); },
+      [](String value) { return value == "0" || value == "1"; });
 
   // Route for enabling recovery mode charging
   update_int_setting("/enableRecoveryMode",
                      [](int value) { datalayer.battery_settings.user_requests_forced_charging_recovery_mode = value; });
 
-  // Route for editing SOCMax
-  update_string_setting("/updateSocMax", [](String value) {
-    datalayer.battery_settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
+  // Route for editing SOCMax. Refused unless it leaves a usable window with the minimum
+  update_string_setting(
+      "/updateSocMax", [](String value) { edit_soc_window_end(value, true, true); },
+      [](String value) { return edit_soc_window_end(value, true, false); });
 
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
@@ -1104,10 +1156,11 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
-  // Route for editing SOCMin
-  update_string_setting("/updateSocMin", [](String value) {
-    datalayer.battery_settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
+  // Route for editing SOCMin. Refused unless it leaves a usable window with the maximum. A negative
+  // minimum used to go through a cast to uint16_t, which is undefined for a negative float
+  update_string_setting(
+      "/updateSocMin", [](String value) { edit_soc_window_end(value, false, true); },
+      [](String value) { return edit_soc_window_end(value, false, false); });
 
   // Route for editing MaxChargeA
   update_string_setting("/updateMaxChargeA", [](String value) {

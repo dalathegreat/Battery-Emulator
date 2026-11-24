@@ -2,6 +2,7 @@
 
 #include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
+#include "../../Software/src/datalayer/battery_aggregate.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/datalayer/datalayer_extended.h"
 #include "../../Software/src/devboard/utils/events.h"
@@ -1088,4 +1089,40 @@ TEST(BydAtto3DmPackTests, NearFullFeedbackBitLatchesDmHandling) {
   EXPECT_NE(last_transmitted_frame(0x343), nullptr);
 
   delete battery;
+}
+
+// With native termination and a full charge due every N days, the schedule lifts the top of the
+// SOC window to 100 % once N days have passed, so the inverter is shown room to charge the pack
+// full. It drops again once a terminated charge has reset the count.
+TEST(BydAtto3Tests, FullChargeScheduleLiftsTheSocWindowTop) {
+  const DATALAYER_INFO_BYDATTO3 saved = datalayer_extended.bydAtto3;  // not reset between tests
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 2000;
+  datalayer.battery_settings.max_percentage = 8000;
+  datalayer.battery.status.real_soc = 8000;
+  datalayer_extended.bydAtto3.native_termination_enabled = true;
+  datalayer_extended.bydAtto3.full_charge_every_days = 7;
+  datalayer_extended.bydAtto3.full_charge_hours = 7 * 24;
+
+  battery->transmit_can(100);
+  scale_pack_values(datalayer.battery);
+  update_aggregate_values();
+
+  EXPECT_TRUE(datalayer.battery_settings.soc_window_top_lifted);
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 7500);  // 80 % real in a 20-100 % window
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 7500);
+
+  datalayer_extended.bydAtto3.full_charge_hours = 0;  // What a terminated charge does
+  battery->transmit_can(200);
+  scale_pack_values(datalayer.battery);
+  update_aggregate_values();
+
+  EXPECT_FALSE(datalayer.battery_settings.soc_window_top_lifted);
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 10000);  // Back in the 20-80 % window
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 10000);
+
+  delete battery;
+  datalayer_extended.bydAtto3 = saved;
 }
