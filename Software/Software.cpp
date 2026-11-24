@@ -28,6 +28,7 @@
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
+#include "src/devboard/safety/restart_trace.h"
 #include "src/devboard/safety/restart_watchdog.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -494,6 +495,7 @@ static void log_reset_diagnostics(esp_reset_reason_t reason) {
       "clock, a restart gives it 1000\n",
       (int)reason, (unsigned)esp_rom_get_reset_reason(0), (unsigned)esp_rom_get_reset_reason(1),
       (unsigned)(ticks * 1000 / rtc_clk_slow_freq_get_hz()));
+  restart_trace_report();
 }
 
 void check_reset_reason() {
@@ -720,6 +722,7 @@ void setup() {
   }
 
   // Before anything can restart the board
+  register_restart_trace();  // First, so it runs last
   register_restart_watchdog_feed();
 
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
