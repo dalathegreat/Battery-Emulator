@@ -1442,7 +1442,8 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     }
   }
 
-  // The user set voltage limits, as on the settings page, stored so they survive a reboot.
+  // The user set voltage limits, as on the settings page. Runtime only: the stored settings are
+  // not changed, so a reboot restores the values from the settings page.
   // Payload: {"active": true/false, "max_v": 0.1-1000.0, "min_v": 0.1-1000.0}. Any key may be
   // omitted to leave that value unchanged. Nothing is changed unless min_v ends up below max_v.
   if (strcmp(topic, button_command_topics[BTN_SET_VOLTLIMITS].c_str()) == 0) {
@@ -1486,7 +1487,6 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         if (doc["active"].is<bool>()) {
           datalayer.battery_settings.user_set_voltage_limits_active = doc["active"].as<bool>();
         }
-        store_settings();
         logging.printf("MQTT: voltage limits %s, max %.1f V, min %.1f V\n",
                        datalayer.battery_settings.user_set_voltage_limits_active ? "on" : "off", max_dV / 10.0f,
                        min_dV / 10.0f);
@@ -1494,9 +1494,10 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     }
   }
 
-  // "Rescale SOC" as on the settings page, stored so it survives a reboot (SET_SCALESOC above
-  // only changes the limits until the next reboot). Payload: {"active": true/false,
-  // "max_pct": 50.0-100.0, "min_pct": -10.0-50.0}. Any key may be omitted to leave it unchanged.
+  // "Rescale SOC" as on the settings page. Unlike SET_SCALESOC above, it can also switch the
+  // scaling on or off. Runtime only, a reboot restores the values from the settings page.
+  // Payload: {"active": true/false, "max_pct": 50.0-100.0, "min_pct": -10.0-50.0}. Any key may be
+  // omitted to leave it unchanged.
   if (strcmp(topic, button_command_topics[BTN_SET_SOCSCALING].c_str()) == 0) {
     JsonDocument doc;
     char* data_str = strndup(data, data_len);
@@ -1534,7 +1535,6 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         if (doc["active"].is<bool>()) {
           datalayer.battery_settings.soc_scaling_active = doc["active"].as<bool>();
         }
-        store_settings();
         logging.printf("MQTT: SOC scaling %s, max %.1f %%, min %.1f %%\n",
                        datalayer.battery_settings.soc_scaling_active ? "on" : "off", max_pptt / 100.0f,
                        min_pptt / 100.0f);
