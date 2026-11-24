@@ -1,7 +1,9 @@
 #include "ota_rollback.h"
 
 #include <esp_app_format.h>
+#include <esp_image_format.h>
 #include <esp_ota_ops.h>
+#include <esp_partition.h>
 
 #include "events.h"
 #include "logging.h"
@@ -29,6 +31,24 @@ extern "C" bool verifyRollbackLater(void) {
   return true;
 }
 
+#ifdef CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
+/* An image's BUILD_VERSION, read from the record that follows its esp_app_desc_t
+ * (OTA_BUILD_VERSION_MAGIC in ota_rollback.h). False for an image built before
+ * the record existed: the bytes there are then just its first rodata. */
+static bool read_build_version(const esp_partition_t* image, char* out, size_t size) {
+  const size_t at = sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t);
+  uint32_t magic = 0;
+  if (esp_partition_read(image, at, &magic, sizeof(magic)) != ESP_OK || magic != OTA_BUILD_VERSION_MAGIC) {
+    return false;
+  }
+  if (esp_partition_read(image, at + sizeof(magic), out, size - 1) != ESP_OK) {
+    return false;
+  }
+  out[size - 1] = '\0';  // A longer string is cut short, never left unterminated
+  return out[0] != '\0';
+}
+#endif  // CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
+
 void report_ota_rollback(void) {
 #ifdef CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
   /* The image the bootloader gave up on is the OTHER slot, and its otadata
@@ -55,11 +75,16 @@ void report_ota_rollback(void) {
   /* Naming the version it rolled back FROM is the difference between "something
    * went wrong once" and a user knowing which release not to install again. It
    * is read from the failed image's own header, so it is right even when the
-   * failure happened several boots ago. */
+   * failure happened several boots ago. Its BUILD_VERSION record is preferred,
+   * so both versions read the same way as on the web UI; only an image older
+   * than that record falls back to the IDF project version. */
   esp_app_desc_t failed;
   if (esp_ota_get_partition_description(other, &failed) == ESP_OK) {
+    char failed_version[64];
+    const char* failed_name =
+        read_build_version(other, failed_version, sizeof(failed_version)) ? failed_version : failed.version;
     LOG_SET_NEXT_SEVERITY(4);  // warning
-    logging.printf("Firmware %s failed to start and was rolled back; running %s instead\n", failed.version,
+    logging.printf("Firmware %s failed to start and was rolled back; running %s instead\n", failed_name,
                    version_number);
   } else {
     LOG_SET_NEXT_SEVERITY(4);  // warning
@@ -74,6 +99,11 @@ void ota_confirm_service(void) {
      millions of passes where nothing is owed. */
   if (ota_confirm_take_pending()) {
     mark_ota_image_valid();
+    /* A watchdog reset is worth a warning while the boot it caused is still
+       proving itself. Past this point it has, so acknowledge it: the status
+       goes back to green, and the event stays in the list with its count and
+       time. Otherwise only clearing every event would turn the page green. */
+    clear_event(EVENT_RESET_WDT);
   }
 }
 
