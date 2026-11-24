@@ -43,7 +43,7 @@ const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
     {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery main switch has tripped
     {EVENT_MODBUS_INVERTER_MISSING, 1, 46},      // Communication error between inverter and battery
     {EVENT_RESET_UNKNOWN, 1, 46},                // A restart process has been initiated: unknown cause
-    {EVENT_RESET_PANIC, 4, 46},                  // A restart process has been initiated: panic or a watchdog
+    {EVENT_RESET_PANIC, 3, 46},                  // A restart process has been initiated: panic, int or task watchdog
     {EVENT_RESET_BROWNOUT, 1, 46},               // A restart process has been initiated: low supply voltage
     {EVENT_RESET_EFUSE, 3, 46},                  // A restart process has been initiated: efuse, glitch, lockup
     {EVENT_CONTACTOR_WELDED, 3, 47},             // Internal hardware failure at the battery control unit (BCU)
@@ -55,8 +55,8 @@ const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
     {EVENT_HVIL_FAILURE, 3, 49},                 // Faulty wiring of the battery supply line
     {EVENT_BATTERY_ISOLATION, 3, 49},            // Faulty wiring of the battery supply line
 };
-// The unexpected reset causes, taken above as runs of the enum: PANIC to WDT, EFUSE to CPU_LOCKUP
-static_assert(EVENT_RESET_WDT == EVENT_RESET_PANIC + 3 && EVENT_RESET_CPU_LOCKUP == EVENT_RESET_EFUSE + 2,
+// The unexpected reset causes, taken above as runs of the enum: PANIC to TASK_WDT, EFUSE to CPU_LOCKUP
+static_assert(EVENT_RESET_TASK_WDT == EVENT_RESET_PANIC + 2 && EVENT_RESET_CPU_LOCKUP == EVENT_RESET_EFUSE + 2,
               "FAULT_MAP takes the reset causes as runs of the enum");
 const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
