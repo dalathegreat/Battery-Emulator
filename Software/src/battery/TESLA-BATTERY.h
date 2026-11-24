@@ -19,6 +19,38 @@ inline bool tesla_cac_plausible(uint32_t min_x10, uint32_t avg_x10, uint32_t max
   return min_x10 >= 200 && min_x10 <= avg_x10 && avg_x10 <= max_x10 && max_x10 <= 4000;
 }
 
+// 0x7AA mux 1 HVP_packVoltage: signed, 0.1 V per count (already dV). 0 means not received yet;
+// above 1000.0 V is not a Tesla pack.
+inline constexpr int16_t tesla_hvp_pack_voltage_max_dV = 10000;
+
+// Voltage to publish as status.voltage_dV.
+// Contactors not open: hv_bus_dV (0x132, the DC link).
+// Contactors open: HVP_packVoltage if fresh and in range, else the brick sum (sum(mV) / 100,
+// truncated) if every expected brick is non-zero, else hv_bus_dV.
+inline uint16_t tesla_reported_voltage_dV(bool contactors_open, uint16_t hv_bus_dV, int16_t hvp_pack_dV, bool hvp_fresh,
+                                          const uint16_t* cell_mV, uint16_t cell_count) {
+  if (!contactors_open) {
+    return hv_bus_dV;
+  }
+  if (hvp_fresh && hvp_pack_dV > 0 && hvp_pack_dV <= tesla_hvp_pack_voltage_max_dV) {
+    return static_cast<uint16_t>(hvp_pack_dV);
+  }
+  if (cell_mV != nullptr && cell_count > 0 && cell_count <= MAX_AMOUNT_CELLS) {
+    uint32_t sum_mV = 0;
+    for (uint16_t i = 0; i < cell_count; i++) {
+      if (cell_mV[i] == 0) {
+        return hv_bus_dV;
+      }
+      sum_mV += cell_mV[i];
+    }
+    const uint32_t sum_dV = sum_mV / 100;
+    if (sum_dV > 0 && sum_dV <= 65535u) {
+      return static_cast<uint16_t>(sum_dV);
+    }
+  }
+  return hv_bus_dV;
+}
+
 // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
 // These are user configurable from the Webserver UI
 extern bool user_selected_tesla_digital_HVIL;
@@ -135,6 +167,12 @@ class TeslaBattery : public CanBattery {
 
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
+
+  // 0x212 BMS_contactorState OPEN (CLOSED is 4).
+  static constexpr uint8_t ContactorOpen = 1;
+  // 0x7AA mux 1 is one page of the rotating HVP_debugMessage, so gaps of a few seconds are normal.
+  // The last HVP_packVoltage stays usable for this many update_values() calls (1 Hz).
+  static constexpr uint16_t HvpPackVoltageFresh_s = 30;
 
  private:
   TeslaHtmlRenderer renderer;
@@ -872,6 +910,9 @@ class TeslaBattery : public CanBattery {
   uint32_t HVP_info_bootCrc = 0;
   int16_t HVP_dcLinkVoltage = 0;
   int16_t HVP_packVoltage = 0;
+  // Freshness of HVP_packVoltage: age counts update_values() calls since the last 0x7AA mux 1.
+  bool hvp_pack_voltage_seen = false;
+  uint16_t hvp_pack_voltage_age_s = 0;
   int16_t HVP_fcLinkVoltage = 0;
   uint16_t HVP_packContVoltage = 0;
   int16_t HVP_packNegativeV = 0;

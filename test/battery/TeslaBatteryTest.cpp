@@ -171,6 +171,18 @@ CAN_frame TwelveVolt(uint16_t raw_tenth_volt) {
   return frame;
 }
 
+// 0x7AA mux 1. DC link and pack voltage are signed 16-bit counts of 0.1 V, so the
+// count is already dV. Pack voltage is bytes 3 and 4, DC link is bytes 1 and 2.
+CAN_frame HvpMux1(int16_t dc_link_dV, int16_t pack_dV) {
+  CAN_frame frame = Frame(0x7AA);
+  frame.data.u8[0] = 1;
+  frame.data.u8[1] = (uint8_t)(dc_link_dV & 0xFF);
+  frame.data.u8[2] = (uint8_t)((dc_link_dV >> 8) & 0xFF);
+  frame.data.u8[3] = (uint8_t)(pack_dV & 0xFF);
+  frame.data.u8[4] = (uint8_t)((pack_dV >> 8) & 0xFF);
+  return frame;
+}
+
 // 0x7AA mux 2. Pack-end voltages. Zero means the contactors are open.
 CAN_frame PackEnds(uint16_t negative_raw, uint16_t positive_raw) {
   CAN_frame frame = Frame(0x7AA);
@@ -1495,4 +1507,119 @@ TEST_F(TeslaBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfter30Sec
     pack_->update_values();
     EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
   }
+}
+
+// ---- Open contactors: stack voltage instead of the DC link ----
+//
+// 0x132 is the DC link, already stored in dV. With the contactors open that link
+// is a few volts and the cells are still the pack. 3885 dV is 388.5 V (closed,
+// link matches the stack). 85 dV is 8.5 V (open link). 3889 dV is 388.9 V from
+// 0x7AA mux 1, whose count is already 0.1 V.
+
+TEST(TeslaReportedVoltage, ContactorsClosedKeepsTheDcLink) {
+  const uint16_t cells[2] = {4051, 4051};
+  EXPECT_EQ(tesla_reported_voltage_dV(false, 3885, 3889, true, cells, 2), 3885);
+  // A closed pack keeps 0x132 even when that reading sits in the fuse window.
+  EXPECT_EQ(tesla_reported_voltage_dV(false, 85, 3889, true, cells, 2), 85);
+}
+
+TEST(TeslaReportedVoltage, OpenWithFreshHvpPackVoltageUsesThat) {
+  const uint16_t cells[2] = {4051, 4051};
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 3889, true, cells, 2), 3889);
+  // The top of the accepted range is still the pack voltage, not the link.
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, tesla_hvp_pack_voltage_max_dV, true, nullptr, 0),
+            static_cast<uint16_t>(tesla_hvp_pack_voltage_max_dV));
+}
+
+TEST(TeslaReportedVoltage, OpenWithoutHvpUsesTheBrickSum) {
+  // 4051 + 4050 = 8101 mV, which truncates to 81 dV (the leftover 1 mV is dropped).
+  const uint16_t cells[2] = {4051, 4050};
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 0, false, cells, 2), 81);
+  // A fresh reading of 0 has not been received, so the bricks are used.
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 0, true, cells, 2), 81);
+  // One brick still at 0 mV means the set is not complete.
+  const uint16_t incomplete[2] = {4051, 0};
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 0, false, incomplete, 2), 85);
+}
+
+TEST(TeslaReportedVoltage, OpenWithNothingValidKeepsTheDcLink) {
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 0, false, nullptr, 0), 85);
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, -1, true, nullptr, 0), 85);
+  EXPECT_EQ(
+      tesla_reported_voltage_dV(true, 85, static_cast<int16_t>(tesla_hvp_pack_voltage_max_dV + 1), true, nullptr, 0),
+      85);
+  EXPECT_EQ(tesla_reported_voltage_dV(true, 85, 3889, false, nullptr, 0), 85);
+}
+
+// The helper above, fed by the real frames. Contactors closed keep 0x132.
+// Contactors open with a fresh HVP pack voltage publish that, and a DC link
+// inside the 5-50 dV fuse window does not raise the fuse. Once that reading
+// is older than HvpPackVoltageFresh_s the link is published again and the fuse
+// window is unchanged. A full set of non-zero bricks then replaces the link.
+TEST_F(TeslaBatteryTest, OpenContactorsReportTheStackVoltage) {
+  struct SavedCells {
+    uint8_t count;
+    uint16_t cells[96];
+    SavedCells() : count(datalayer.battery.info.number_of_cells) {
+      for (int i = 0; i < 96; i++) {
+        cells[i] = datalayer.battery.status.cell_voltages_mV[i];
+      }
+      datalayer.battery.info.number_of_cells = 0;
+    }
+    ~SavedCells() {
+      datalayer.battery.info.number_of_cells = count;
+      for (int i = 0; i < 96; i++) {
+        datalayer.battery.status.cell_voltages_mV[i] = cells[i];
+      }
+      reset_all_events();
+    }
+  } saved_cells;
+  reset_all_events();
+
+  pack_->handle_incoming_can_frame(BmsStatus(4));  // CLOSED
+  pack_->handle_incoming_can_frame(HvBus(38850, 0));
+  pack_->handle_incoming_can_frame(HvpMux1(3885, 3889));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3885);
+  EXPECT_EQ(datalayer_extended.tesla.HVP_packVoltage, 3889);
+  EXPECT_EQ(datalayer_extended.tesla.HVP_dcLinkVoltage, 3885);
+  EXPECT_EQ(datalayer_extended.tesla.BMS_contactorState, 4);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
+
+  pack_->handle_incoming_can_frame(BmsStatus(TeslaBattery::ContactorOpen));
+  pack_->handle_incoming_can_frame(HvBus(850, 0));  // 8.5 V, 85 dV, just above the fuse window
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3889);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
+
+  // The link itself is now inside the fuse window. The stack reading still wins.
+  pack_->handle_incoming_can_frame(HvpMux1(50, 3889));
+  pack_->handle_incoming_can_frame(HvBus(500, 0));  // 5.0 V, 50 dV
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3889);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
+
+  for (int second = 1; second < TeslaBattery::HvpPackVoltageFresh_s; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.voltage_dV, 3889) << second;
+    EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE) << second;
+  }
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 50);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_ACTIVE);
+
+  uint32_t sum_mV = 0;
+  for (int i = 0; i < 96; i++) {
+    datalayer.battery.status.cell_voltages_mV[i] = 4051;
+    sum_mV += 4051;
+  }
+  datalayer.battery.info.number_of_cells = 96;
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, sum_mV / 100);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
+
+  datalayer.battery.status.cell_voltages_mV[95] = 0;
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 50);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_ACTIVE);
 }
