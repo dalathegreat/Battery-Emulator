@@ -23,6 +23,7 @@
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
+#include "src/devboard/safety/restart_quiesce.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -691,6 +692,9 @@ void setup() {
       datalayer.system.info.web_logging_active = false;
     }
   }
+
+  // Before the connectivity task starts Wi-Fi, so this shutdown handler runs after esp_wifi_stop()
+  register_restart_quiesce();
 
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
