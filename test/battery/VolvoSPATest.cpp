@@ -1,9 +1,15 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "../../Software/src/battery/VOLVO-SPA-BATTERY.h"
+#include "../../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
 #include "Arduino.h"
+
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
 
 namespace {
 
@@ -37,6 +43,31 @@ VolvoSpaBattery* battery_awaiting_dtc_reply() {
   battery->read_DTC();
   battery->update_values();
   return battery;
+}
+
+// Frames the startup sequence puts on the wire, from the CAN emulation's transmit log.
+struct VolvoStartupFrames {
+  int close = 0;  // 0x140 with byte 3 = 0xB7
+  int open = 0;   // 0x140 with byte 3 = 0x9E
+  int erase = 0;  // 0x7FF 04 14 FF FF FF: global DTC erase
+};
+
+template <typename B>
+VolvoStartupFrames run_volvo_startup(B* battery, unsigned long until_ms) {
+  clear_transmitted_frames();
+  for (unsigned long t = 100; t <= until_ms; t += 100) {
+    battery->transmit_can(t);
+  }
+  VolvoStartupFrames frames;
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == 0x140) {
+      (frame.data.u8[3] == 0xB7 ? frames.close : frames.open)++;
+    }
+    if (frame.ID == 0x7FF && frame.data.u8[1] == 0x14) {
+      frames.erase++;
+    }
+  }
+  return frames;
 }
 
 }  // namespace
@@ -132,4 +163,103 @@ TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[19], 0x20);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[20], 0x106800u);
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[20], 0x21);
+}
+
+// Inspection mode: the setting the wiki's "comment out the 0x140 messages" advice used to need a custom build for.
+class VolvoSPAInspectionModeTests : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    datalayer.system.status.system_status = ACTIVE;
+    datalayer.system.status.battery_allows_contactor_closing = false;
+    user_selected_volvo_inspection_mode = false;
+  }
+  void TearDown() override { user_selected_volvo_inspection_mode = false; }
+
+  // 0x177 power limits of 100 kW in both directions ((0x190 >> 2) kW)
+  static CAN_frame power_limits_100kW() {
+    CAN_frame frame = {};
+    frame.DLC = 8;
+    frame.ID = 0x177;
+    frame.data.u8[2] = 0x09;
+    frame.data.u8[3] = 0x90;
+    frame.data.u8[4] = 0x09;
+    frame.data.u8[5] = 0x90;
+    return frame;
+  }
+};
+
+TEST_F(VolvoSPAInspectionModeTests, NormalModeErasesDtcsThenClosesContactors) {
+  auto battery = new VolvoSpaBattery();
+  battery->setup();
+
+  VolvoStartupFrames frames = run_volvo_startup(battery, 5000);
+
+  EXPECT_EQ(frames.erase, 2);
+  EXPECT_GT(frames.close, 0);
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+TEST_F(VolvoSPAInspectionModeTests, InspectionModeNeverClosesContactorsOrErasesDtcs) {
+  user_selected_volvo_inspection_mode = true;
+  auto battery = new VolvoSpaBattery();
+  battery->setup();
+
+  VolvoStartupFrames frames = run_volvo_startup(battery, 5000);
+
+  EXPECT_EQ(frames.close, 0);
+  EXPECT_GT(frames.open, 0);  // Still an explicit open request every 100 ms, as in FAULT
+  EXPECT_EQ(frames.erase, 0);
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+TEST_F(VolvoSPAInspectionModeTests, InspectionModeOffersNoPower) {
+  auto battery = new VolvoSpaBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(power_limits_100kW());
+
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 100000u);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 100000u);
+
+  user_selected_volvo_inspection_mode = true;
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
+}
+
+TEST_F(VolvoSPAInspectionModeTests, HybridNormalModeErasesDtcsThenClosesContactors) {
+  auto battery = new VolvoSpaHybridBattery();
+  battery->setup();
+
+  VolvoStartupFrames frames = run_volvo_startup(battery, 5000);
+
+  EXPECT_EQ(frames.erase, 2);
+  EXPECT_GT(frames.close, 0);
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+TEST_F(VolvoSPAInspectionModeTests, HybridInspectionModeNeverClosesContactorsOrErasesDtcs) {
+  user_selected_volvo_inspection_mode = true;
+  auto battery = new VolvoSpaHybridBattery();
+  battery->setup();
+
+  VolvoStartupFrames frames = run_volvo_startup(battery, 5000);
+
+  EXPECT_EQ(frames.close, 0);
+  EXPECT_GT(frames.open, 0);
+  EXPECT_EQ(frames.erase, 0);
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+TEST_F(VolvoSPAInspectionModeTests, HybridInspectionModeOffersNoPower) {
+  auto battery = new VolvoSpaHybridBattery();
+  battery->setup();
+
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 6600u);  // Fixed charge-connector limit
+
+  user_selected_volvo_inspection_mode = true;
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
 }

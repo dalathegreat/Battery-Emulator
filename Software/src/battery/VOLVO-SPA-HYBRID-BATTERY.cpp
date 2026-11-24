@@ -60,6 +60,10 @@ void VolvoSpaHybridBattery::
 
   datalayer.battery.status.max_discharge_power_W = 6600;  //default power on charge connector
   datalayer.battery.status.max_charge_power_W = 6600;     //default power on charge connector
+  if (user_selected_volvo_inspection_mode) {              //Contactors are held open, so there is no power to offer
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  }
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
@@ -474,7 +478,9 @@ void VolvoSpaHybridBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     transmit_can_frame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
-    if ((datalayer.system.status.system_status == ACTIVE) && startedUp) {
+    // Inspection mode never asks the BECM to close: without a DC/DC load on the HV side, closing latches a
+    // permanent "contactor welded" fault. It keeps sending the open request, as in FAULT or equipment stop.
+    if ((datalayer.system.status.system_status == ACTIVE) && startedUp && !user_selected_volvo_inspection_mode) {
       datalayer.system.status.battery_allows_contactor_closing = true;
       transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
@@ -485,7 +491,9 @@ void VolvoSpaHybridBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
 
-    if (!startedUp) {
+    // The erase only clears DTCs that would stop the contactors closing. Inspection mode never closes them,
+    // so it leaves the stored DTCs in place for a DTC readout of the pack.
+    if (!startedUp && !user_selected_volvo_inspection_mode) {
       transmit_can_frame(&VOLVO_DTC_Erase);  //Erase any DTCs preventing startup
       DTC_reset_counter++;
       if (DTC_reset_counter > 1) {  // Performed twice before starting
