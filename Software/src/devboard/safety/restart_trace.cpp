@@ -10,6 +10,7 @@
 #include "esp_cpu.h"
 #include "esp_memory_utils.h"
 #include "esp_newlib.h"                    // esp_sync_timekeeping_timers()
+#include "esp_private/esp_clk.h"           // esp_clk_slowclk_cal_get()
 #include "esp_private/rtc_clk.h"           // rtc_clk_cpu_set_to_default_config()
 #include "esp_private/startup_internal.h"  // ESP_SYSTEM_INIT_FN
 #include "esp_rom_sys.h"
@@ -28,7 +29,7 @@
 enum : uint32_t {
   STEP_NONE = 0,
   STEP_ENTERED,     // The shutdown handlers before this one ran: Wi-Fi stopped, watchdog counter zeroed
-  STEP_RWDT_ARMED,  // The RTC watchdog's one second runs from here
+  STEP_RWDT_ARMED,  // The RTC watchdog's ten seconds run from here
   STEP_MWDT_OFF,
   STEP_OTHER_CPU_STALLED,
   STEP_ICACHE_OFF,
@@ -42,15 +43,26 @@ enum : uint32_t {
   STEP_COUNT
 };
 
-static const char* const STEP_NAMES[STEP_COUNT] = {
-    "none",          "entered",     "RTC watchdog armed", "timer watchdogs off", "other CPU stalled",
-    "ICache off",    "DCache off",  "flushing UART0",     "flushing UART1",      "flushing UART2",
-    "modules reset", "CPU on XTAL", "CPUs reset"};
+static const char* const STEP_NAMES[STEP_COUNT] = {"none",
+                                                   "entered",
+                                                   "RTC watchdog armed (10 s)",
+                                                   "timer watchdogs off",
+                                                   "other CPU stalled",
+                                                   "ICache off",
+                                                   "DCache off",
+                                                   "flushing UART0",
+                                                   "flushing UART1",
+                                                   "flushing UART2",
+                                                   "modules reset",
+                                                   "CPU on XTAL",
+                                                   "CPUs reset"};
 
 struct RestartTrace {
   uint32_t magic;
   uint32_t step;
-  uint32_t app_starts;  // Counted from early startup, since the restart began
+  uint32_t app_starts;   // Counted from early startup, since the restart began
+  uint64_t reset_ticks;  // RTC counter as the CPUs are reset. A CPU reset leaves the counter running,
+  uint64_t start_ticks;  // so this, read at the first app start, tells how long the ROM and bootloader took
 };
 static constexpr uint32_t TRACE_MAGIC = 0x52535431;  // "RST1"
 
@@ -64,19 +76,21 @@ static inline void IRAM_ATTR mark(uint32_t step) {
   trace_rtc.step = step;
 }
 
-// IDF 5.5.6's esp_restart_noos() for the ESP32-S3, step for step, with esp_system_reset_modules_on_exit()
-// written out in it, and a mark after each step
-// Not inlined: inside its flash-resident caller it would lose IRAM_ATTR, and run from flash with the caches off
+/* IDF 5.5.6's esp_restart_noos() for the ESP32-S3, step for step, with esp_system_reset_modules_on_exit()
+   written out in it, and a mark after each step. One change: the RTC watchdog gets ten seconds instead of
+   one, armed the plain way rather than through flash-boot mode, so a boot that is only slow gets through
+   and the next one can tell how long it took, while one that is stuck for good still ends in a reset.
+   Not inlined: inside its flash-resident caller it would lose IRAM_ATTR, and run from flash with the caches
+   off. */
 [[noreturn]] static void __attribute__((noinline)) IRAM_ATTR traced_restart_noos() {
   esp_cpu_intr_disable(0xFFFFFFFF);
 
   wdt_hal_context_t rtc_wdt;
   wdt_hal_init(&rtc_wdt, WDT_RWDT, 0, false);
-  const uint32_t stage_timeout_ticks = rtc_clk_slow_freq_get_hz();  // One second
   wdt_hal_write_protect_disable(&rtc_wdt);
-  wdt_hal_config_stage(&rtc_wdt, WDT_STAGE0, stage_timeout_ticks, WDT_STAGE_ACTION_RESET_SYSTEM);
-  wdt_hal_config_stage(&rtc_wdt, WDT_STAGE1, stage_timeout_ticks, WDT_STAGE_ACTION_RESET_RTC);
-  wdt_hal_set_flashboot_en(&rtc_wdt, true);
+  wdt_hal_config_stage(&rtc_wdt, WDT_STAGE0, 10 * rtc_clk_slow_freq_get_hz(), WDT_STAGE_ACTION_RESET_RTC);
+  wdt_hal_set_flashboot_en(&rtc_wdt, false);
+  wdt_hal_enable(&rtc_wdt);  // Feeds it, then starts it
   wdt_hal_write_protect_enable(&rtc_wdt);
   mark(STEP_RWDT_ARMED);
 
@@ -138,6 +152,9 @@ static inline void IRAM_ATTR mark(uint32_t step) {
   mark(STEP_CPU_ON_XTAL);
 
   REG_WRITE(SYSTEM_CORE_1_CONTROL_1_REG, 0);  // Clear the APP CPU entry point
+  const uint64_t ticks = rtc_time_get();
+  trace_ram.reset_ticks = ticks;
+  trace_rtc.reset_ticks = ticks;
   mark(STEP_CPUS_RESET);
   if (core_id == 0) {
     esp_rom_software_reset_cpu(1);
@@ -168,10 +185,17 @@ static void restart_trace_handler() {
 
 // Early in startup, before PSRAM init: tells a stop in the ROM or the bootloader from one in the app
 ESP_SYSTEM_INIT_FN(restart_trace_app_start, CORE, BIT(0), 2) {
+  const uint64_t ticks = rtc_time_get();
   if (trace_ram.magic == TRACE_MAGIC) {
+    if (trace_ram.app_starts == 0) {
+      trace_ram.start_ticks = ticks;
+    }
     trace_ram.app_starts = trace_ram.app_starts + 1;
   }
   if (trace_rtc.magic == TRACE_MAGIC) {
+    if (trace_rtc.app_starts == 0) {
+      trace_rtc.start_ticks = ticks;
+    }
     trace_rtc.app_starts = trace_rtc.app_starts + 1;
   }
   return ESP_OK;
@@ -187,11 +211,23 @@ void restart_trace_report() {
   const bool in_ram = trace_ram.magic == TRACE_MAGIC;
   const bool in_rtc = trace_rtc.magic == TRACE_MAGIC;
   if (in_ram || in_rtc) {
-    const uint32_t step = in_ram ? trace_ram.step : trace_rtc.step;
-    const uint32_t app_starts = in_ram ? trace_ram.app_starts : trace_rtc.app_starts;
+    const volatile RestartTrace& trace = in_ram ? trace_ram : trace_rtc;
+    const uint32_t step = trace.step;
+    const uint32_t app_starts = trace.app_starts;
     logging.printf("Last restart got to: %s (step %u), app starts since: %u (kept in RAM: %s, RTC: %s)\n",
                    step < STEP_COUNT ? STEP_NAMES[step] : "?", (unsigned)step, (unsigned)app_starts,
                    in_ram ? "yes" : "no", in_rtc ? "yes" : "no");
+    if (step == STEP_CPUS_RESET && app_starts > 0) {
+      const uint64_t reset_ticks = trace.reset_ticks;
+      const uint64_t start_ticks = trace.start_ticks;
+      const uint32_t cal = esp_clk_slowclk_cal_get();  // RTC slow clock period in us, Q13.19
+      if (start_ticks >= reset_ticks && cal) {
+        logging.printf("Last restart: ROM and bootloader took %u ms, CPU reset to app start\n",
+                       (unsigned)(((start_ticks - reset_ticks) * cal >> 19) / 1000));
+      } else {
+        logging.println("Last restart: the RTC counter started over, so the chip had an RTC reset in between");
+      }
+    }
   } else {
     logging.println("Last restart got to: no trace");
   }
