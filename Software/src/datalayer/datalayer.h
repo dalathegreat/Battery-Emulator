@@ -215,8 +215,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% Example 8000 = 80.0% */
+   * will "see" 100% Example 8000 = 80.0%
+   * This is the window in use: MQTT SET_SCALESOC may move it until the next reboot */
   uint16_t max_percentage = 8000;
+  /** The maximum percentage the settings page set and the saved settings hold. Only the settings
+   * page changes it, so a save never persists a value MQTT SET_SCALESOC put in max_percentage */
+  uint16_t user_set_max_percentage = 8000;
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
    * Updates later on via Settings */
   uint16_t max_user_set_charge_dA = 300;
@@ -245,8 +249,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% , Example 2000 = 20.0% */
+   * will "see" 0% , Example 2000 = 20.0%
+   * This is the window in use: MQTT SET_SCALESOC may move it until the next reboot */
   int16_t min_percentage = 2000;
+  /** The minimum percentage the settings page set and the saved settings hold, see
+   * user_set_max_percentage */
+  int16_t user_set_min_percentage = 2000;
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;

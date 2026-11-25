@@ -1,0 +1,11 @@
+# Tesla Model S/X (legacy) pack, received frames only, from a capture: the frames the tests need, one or a few of each type.
+(75.673) rx0 102 [8] 3d 87 00 00 21 ff f8 1f
+(75.683) rx0 202 [8] c0 5d 80 9d c4 09 3f 23
+(75.683) rx0 6f2 [8] 00 a4 30 29 5c 0a 9b c2
+(75.683) rx0 212 [5] 40 01 00 ff 00
+(76.588) rx0 7e2 [8] 00 45 d8 82 53 b8 82 df
+(76.588) rx0 5d2 [8] 0a 01 81 00 40 00 03 00
+(76.590) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
+(81.584) rx0 302 [8] 2c 3d 14 00 ea 42 31 02
+(81.585) rx0 382 [8] d1 22 46 30 82 01 00 1e
+(82.585) rx0 332 [8] 0a 17 be 73 08 67 17 72

@@ -82,3 +82,81 @@ TEST(PylonBatteryTests, FractionalAmpLimitIsNotDiscarded) {
 
   delete battery;
 }
+
+namespace {
+
+// 0x7320 (system equipment info):
+// total cell count @0 (LE16)
+// modules in series @2
+// cells per module @3
+// voltage level [V] @4 (LE16)
+// capacity [Ah] @6 (LE16)
+CAN_frame pylon_7320(uint16_t cells, uint8_t modules, uint8_t cells_per_module, uint16_t voltage_level_V,
+                     uint16_t capacity_Ah) {
+  CAN_frame frame = {};
+  frame.ext_ID = true;
+  frame.DLC = 8;
+  frame.ID = 0x7320;
+  put_le16(frame, 0, cells);
+  frame.data.u8[2] = modules;
+  frame.data.u8[3] = cells_per_module;
+  put_le16(frame, 4, voltage_level_V);
+  put_le16(frame, 6, capacity_Ah);
+  return frame;
+}
+
+// 0x18FF9A6E (Dyness): byte0 = 0x03, remaining capacity @3 (LE16, *10 Wh), total capacity @5 (LE16, *10 Wh)
+CAN_frame dyness_9a6e(uint16_t remaining_10Wh, uint16_t total_10Wh) {
+  CAN_frame frame = {};
+  frame.ext_ID = true;
+  frame.DLC = 8;
+  frame.ID = 0x18FF9A6E;
+  frame.data.u8[0] = 0x03;
+  frame.data.u8[3] = remaining_10Wh & 0xFF;
+  frame.data.u8[4] = (remaining_10Wh >> 8) & 0xFF;
+  frame.data.u8[5] = total_10Wh & 0xFF;
+  frame.data.u8[6] = (total_10Wh >> 8) & 0xFF;
+  return frame;
+}
+
+}  // namespace
+
+// Battery without 0x18FF9A6E: nominal capacity from 0x7320 (130 Ah * 358 V = 46540 Wh).
+// The 358 V voltage level does not fit in 8 bits and must not be truncated.
+TEST(PylonBatteryTests, CapacityFallsBackToNominalFrom7320) {
+  auto battery = new PylonBattery();
+  battery->handle_incoming_can_frame(pylon_4210(3661, 0, 50, 100));
+  battery->handle_incoming_can_frame(pylon_7320(112, 7, 16, 358, 130));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 46540u);
+
+  delete battery;
+}
+
+// Battery that sends both: real capacity from 0x18FF9A6E has priority over the 0x7320 nominal value,
+// regardless of the order the frames arrive in.
+TEST(PylonBatteryTests, DynessCapacityHasPriorityOver7320) {
+  auto battery = new PylonBattery();
+  battery->handle_incoming_can_frame(pylon_7320(16, 1, 16, 51, 100));
+  battery->handle_incoming_can_frame(dyness_9a6e(256, 512));
+  battery->handle_incoming_can_frame(pylon_7320(16, 1, 16, 51, 100));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 5120u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 2560u);
+
+  delete battery;
+}
+
+// Dyness capacity above 65535 Wh must not overflow (7000 * 10 Wh = 70000 Wh).
+TEST(PylonBatteryTests, DynessCapacityAbove65kWhDoesNotOverflow) {
+  auto battery = new PylonBattery();
+  battery->handle_incoming_can_frame(dyness_9a6e(7000, 7000));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 70000u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 70000u);
+
+  delete battery;
+}

@@ -210,6 +210,83 @@ TEST_F(BatteryAggregateTest, SingleBatteryKeepsItsScaledFields) {
   EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 24000u);
 }
 
+// What the settings page, MQTT and the saved settings accept as a window. The two ranges meet at
+// 50 %, and both ends set there would leave a window with no width.
+TEST_F(BatteryAggregateTest, SocWindowNeedsTheMinimumBelowTheMaximum) {
+  EXPECT_TRUE(soc_window_valid(2000, 8000));
+  EXPECT_TRUE(soc_window_valid(-1000, 10000));  // The widest there is
+  EXPECT_TRUE(soc_window_valid(5000, 5010));
+  EXPECT_FALSE(soc_window_valid(5000, 5000));   // No width
+  EXPECT_FALSE(soc_window_valid(-1010, 8000));  // Minimum below -10 %
+  EXPECT_FALSE(soc_window_valid(5010, 8000));   // Minimum above 50 %
+  EXPECT_FALSE(soc_window_valid(2000, 4990));   // Maximum below 50 %
+  EXPECT_FALSE(soc_window_valid(2000, 10010));  // Maximum above 100 %
+}
+
+// A pack's scaled energy used to be multiplied out in 32 bits: past about 215 kWh of scaled
+// capacity the remaining energy wrapped round to some 4.29 GWh, and past about 430 kWh the total
+// did as well. It now comes out the way the installation's always did.
+TEST_F(BatteryAggregateTest, LargeSinglePackScalesWithoutOverflow) {
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 0;
+  datalayer.battery_settings.max_percentage = 10000;
+  datalayer.battery.info.total_capacity_Wh = 300000;
+  datalayer.battery.status.real_soc = 7200;
+  datalayer.battery.status.remaining_capacity_Wh = 216000;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 300000u);
+  EXPECT_EQ(datalayer.battery.status.reported_remaining_capacity_Wh, 216000u);
+  EXPECT_EQ(datalayer.aggregate.reported_remaining_capacity_Wh, 216000u);
+
+  datalayer.battery.info.total_capacity_Wh = 450000;
+  datalayer.battery.status.real_soc = 5000;
+  scale_all();
+
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 450000u);
+  EXPECT_EQ(datalayer.battery.status.reported_remaining_capacity_Wh, 225000u);
+}
+
+// At 0 % real SOC a pack kept its scaled SOC but went back to its unscaled capacity, so what it
+// published disagreed with the installation it is.
+TEST_F(BatteryAggregateTest, EmptySinglePackKeepsItsScaledCapacity) {
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 2000;
+  datalayer.battery_settings.max_percentage = 8000;
+  datalayer.battery.info.total_capacity_Wh = 60000;
+  datalayer.battery.status.real_soc = 0;
+  datalayer.battery.status.remaining_capacity_Wh = 0;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 0);
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 36000u);
+  EXPECT_EQ(datalayer.aggregate.reported_total_capacity_Wh, 36000u);
+  EXPECT_EQ(datalayer.battery.status.reported_remaining_capacity_Wh, 0u);
+}
+
+// A window with no width cannot be scaled into. The settings refuse one, and should one get
+// through anyway the real figures go out, not a SOC stuck at 0 % with no energy behind it.
+TEST_F(BatteryAggregateTest, WindowWithoutWidthReportsTheRealFigures) {
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 5000;
+  datalayer.battery_settings.max_percentage = 5000;
+  datalayer.battery.info.total_capacity_Wh = 60000;
+  datalayer.battery.status.real_soc = 7000;
+  datalayer.battery.status.remaining_capacity_Wh = 42000;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 7000);
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 60000u);
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 7000);
+  EXPECT_EQ(datalayer.aggregate.reported_remaining_capacity_Wh, 42000u);
+}
+
 // SOC follows the emptiest pack: that is what protects the weakest one on discharge.
 TEST_F(BatteryAggregateTest, SocFollowsTheEmptiestPack) {
   add_second_pack();
