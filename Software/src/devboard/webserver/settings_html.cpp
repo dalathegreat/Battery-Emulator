@@ -392,6 +392,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     uint32_t mode = settings.getUInt("BMWI3SOCHAVR", 0);
     return options_from_map(mode > 2 ? 0 : mode, bmw_i3_soc_havrla_modes);
   }
+
+  if (var == "BMWI3ENDCHGW") {
+    // Out-of-range values boot as 400 W (see init_stored_settings()), so show them that way.
+    uint32_t power_W = settings.getUInt("BMWI3ENDCHGW", 400);
+    return String((power_W < 100 || power_W > 5000) ? 400 : power_W);
+  }
+
+  if (var == "BMWI3RAMPMV") {
+    // Out-of-range values boot as 0 mV (see init_stored_settings()), so show them that way.
+    uint32_t shift_mV = settings.getUInt("BMWI3RAMPMV", 0);
+    return String(shift_mV > 10 ? 0 : shift_mV);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   if (var == "EQSTOP") {
@@ -1499,7 +1511,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #endif  // SMALL_FLASH_DEVICE
 
 #ifndef SMALL_FLASH_DEVICE
-// BMW i3 SOC Havrla selector, left out on small flash devices together with the calculation
+// BMW i3 SOC Havrla selector, end-of-charge power and charge ramp shift, left out on small flash devices together with the calculation
 #define BMWI3_SOCHAVR_SETTING_HTML \
   R"rawliteral(
         <div class="if-bmw-i3">
@@ -1508,6 +1520,18 @@ String qnhck_zero_text(uint16_t zero_mV) {
             title="Voltage-based SOC with internal resistance correction">
           %BMWI3SOCHAVR%
           </select>
+        </div>
+        <div class="if-bmw-i3">
+          <label for='BMWI3ENDCHGW'>End-of-charge power, watt: </label>
+          <input type='number' name='BMWI3ENDCHGW' id='BMWI3ENDCHGW' value="%BMWI3ENDCHGW%"
+            min="100" max="5000" step="1"
+            title="Charge power the highest cell voltage ramp ends at near full (about 400 W = 1 A)" />
+        </div>
+        <div class="if-bmw-i3">
+          <label for='BMWI3RAMPMV'>Charge ramp shift, mV: </label>
+          <input type='number' name='BMWI3RAMPMV' id='BMWI3RAMPMV' value="%BMWI3RAMPMV%"
+            min="0" max="10" step="1"
+            title="Moves the highest cell voltage charge ramp up so full power is kept longer. The ramp end never goes above the max cell voltage - 10 mV" />
         </div>
 )rawliteral"
 #else
@@ -1920,10 +1944,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY          \
+#define SETTINGS_HTML_BODY                                                                               \
   R"rawliteral(
-  )rawliteral" INDEX_HTML_NAV_START \
-  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
+  )rawliteral" INDEX_HTML_NAV_START                                                                      \
+  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END \
+  R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {
