@@ -91,6 +91,10 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_dashboard;
   /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
   uint16_t pack_voltage_dV;
+  /** BMS-measured HV bus voltage from 0x35E, deci-volts. Telemetry only */
+  uint16_t hv_bus_voltage_dV = 0;
+  /** A checksum-valid reading arrived within three seconds; zero volts is valid */
+  bool hv_bus_voltage_valid = false;
   /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
   uint16_t insulation_ohm_per_volt;
   /** True once a checksum-valid 0x43A has been seen */
