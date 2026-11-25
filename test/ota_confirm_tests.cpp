@@ -397,31 +397,3 @@ TEST(OtaConfirmPlacement, TheServiceWritesExactlyWhenTheGateSaysSo) {
   EXPECT_NE(brace_block_at(service, gate).find("mark_ota_image_valid()"), std::string::npos)
       << "the gate is taken but the image is never marked valid - every update would be reverted on the next reset";
 }
-
-/* A watchdog reset is acknowledged on the same pass as the confirmation, i.e.
- * 42 s into the boot. Read off the source for the same reason as the test above:
- * ota_rollback.cpp has no host build.
- */
-TEST(OtaConfirmPlacement, TheServiceAcknowledgesAWatchdogReset) {
-  const std::string service =
-      function_body(read_source("../Software/src/devboard/utils/ota_rollback.cpp"), "void ota_confirm_service(void) {");
-  ASSERT_FALSE(service.empty());
-
-  const size_t gate = service.find("if (ota_confirm_take_pending()) {");
-  ASSERT_NE(gate, std::string::npos);
-  EXPECT_NE(brace_block_at(service, gate).find("clear_event(EVENT_RESET_WDT)"), std::string::npos)
-      << "a watchdog reset is never acknowledged - the status stays yellow until every event is cleared";
-}
-
-/* ...and acknowledging it turns the status green while the event stays listed
- * (the events page lists every event that has occurred at least once). */
-TEST(OtaConfirmEvents, AnAcknowledgedWatchdogResetStaysListedButNoLongerWarns) {
-  init_events();
-  reset_all_events();
-  set_event(EVENT_RESET_WDT, 0);
-  ASSERT_EQ(get_emulator_status(), EMULATOR_STATUS::STATUS_WARNING);
-
-  clear_event(EVENT_RESET_WDT);
-  EXPECT_EQ(get_emulator_status(), EMULATOR_STATUS::STATUS_OK);
-  EXPECT_EQ(get_event_pointer(EVENT_RESET_WDT)->occurences, 1u);
-}

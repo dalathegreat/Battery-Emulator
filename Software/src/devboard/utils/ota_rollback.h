@@ -39,10 +39,6 @@ void report_ota_rollback(void);
 // The WRITE side of the gate, for ordinary main-task context: performs the
 // confirmation on the one pass where the gate says it is owed, and costs a
 // single flag read on every other. Call it from loop().
-//
-// The same pass also acknowledges EVENT_RESET_WDT: a watchdog reset keeps the
-// status yellow while the boot it caused is still proving itself, then the
-// status goes back to green with the event left in the list.
 void ota_confirm_service(void);
 
 // "This image works." Writes otadata, so it belongs on the runtime flash-write

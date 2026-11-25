@@ -99,11 +99,6 @@ void ota_confirm_service(void) {
      millions of passes where nothing is owed. */
   if (ota_confirm_take_pending()) {
     mark_ota_image_valid();
-    /* A watchdog reset is worth a warning while the boot it caused is still
-       proving itself. Past this point it has, so acknowledge it: the status
-       goes back to green, and the event stays in the list with its count and
-       time. Otherwise only clearing every event would turn the page green. */
-    clear_event(EVENT_RESET_WDT);
   }
 }
 
