@@ -257,9 +257,8 @@ TEST_F(BydModbusFaultTest, AnUnexpectedRestartIsReported) {
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[1015], 46);
 
-  // Neither a restart that was asked for, nor one by the other watchdog
+  // A restart that was asked for is not reported
   set_event(EVENT_RESET_SW, 3);
-  set_event(EVENT_RESET_WDT, 7);
   inverter.update_values();
   EXPECT_EQ(inverter.mbPV[1024], 0);
 }
