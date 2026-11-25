@@ -92,8 +92,9 @@ class PylonBattery : public CanBattery {
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
   int16_t current_dA = 0;
-  uint16_t total_capacity_Wh = 0;
-  uint16_t remaining_capacity_Wh = 0;
+  uint32_t total_capacity_Wh = 0;      // real data from 0x18FF9A6E (Dyness)
+  uint32_t remaining_capacity_Wh = 0;  // real data from 0x18FF9A6E (Dyness)
+  uint32_t capacity_from_7320_Wh = 0;  // nominal capacity (Ah * voltage level) from 0x7320/0x7321
   uint16_t voltage_dV = 0;
   uint16_t cellvoltage_max_mV = 3300;
   uint16_t cellvoltage_min_mV = 3300;
@@ -105,8 +106,8 @@ class PylonBattery : public CanBattery {
   uint8_t battery_module_quantity = 0;
   uint8_t battery_modules_in_series = 0;
   uint8_t cell_quantity_in_module = 0;
-  uint8_t voltage_level = 0;
-  uint8_t ah_number = 0;
+  uint16_t voltage_level = 0;  // 2 bytes in 0x7320, resolution 1V
+  uint16_t ah_number = 0;      // 2 bytes in 0x7320, resolution 1Ah
   uint8_t SOC = 50;
   uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
