@@ -1496,3 +1496,18 @@ TEST_F(TeslaBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfter30Sec
     EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
   }
 }
+
+// String tables are indexed by raw CAN values; past the end must read "UNKNOWN", not off the table.
+TEST_F(TeslaBatteryTest, HtmlStringLookupsStayInsideTheTable) {
+  EXPECT_STREQ(getContactorText(5), "CLOSED");
+  EXPECT_STREQ(getContactorText(13), "UNKNOWN");
+  EXPECT_STREQ(getContactorText(-1), "UNKNOWN");
+  EXPECT_STREQ(getContactorState(7), "WELDED");
+  EXPECT_STREQ(getContactorState(12), "UNKNOWN");
+
+  DATALAYER_INFO_TESLA& t = datalayer_extended.tesla;
+  memset(&t, 0, sizeof(t));
+  t.BMS_state = 0x0F;  // 4-bit field, table has 10
+  EXPECT_NE(DetailPage(*pack_).find("<h4>BMS State: UNKNOWN</h4>"), std::string::npos);
+  memset(&t, 0, sizeof(t));
+}
