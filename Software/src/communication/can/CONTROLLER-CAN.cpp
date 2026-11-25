@@ -167,7 +167,7 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
   node.online = true;
   // Note: EVENT_BATTERY_NODE_MISSING is intentionally NOT cleared here so the
   // event history shows that a node was offline. Contactor is re-allowed by
-  // check_node_voltage_safety() once voltage is within ±1.5V.
+  // check_node_voltage_safety() once the voltage matches the bus (prejoin, or ±0.5 V at idle).
 
   switch (sub) {
     case 0x00:  // STATUS message
@@ -787,6 +787,7 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
           logging.printf("Controller CAN: Pre-join ABORT node %d — load %dW below %uW for %us\n", idx + 1, (int)load_W,
                          (unsigned)PREJOIN_LOW_POWER_ABORT_W, (unsigned)PREJOIN_LOW_POWER_ABORT_S);
           reset_prejoin_state(idx);
+          voltage_diff_seconds[idx] = 0;  // the voltage qualification must restart, not close on the old count
         }
       } else {
         prejoin_low_power_seconds[idx] = 0;
@@ -825,7 +826,12 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
       logging.printf("Controller CAN: Node %d contactor OPENED (fault flags: 0x%02X)\n", idx + 1, node.fault_flags);
     }
   } else if (!node.contactor_allowed) {
-    if (diff <= VOLTAGE_DIFF_THRESHOLD_dV) {
+    // Outside an active prejoin (inverter idle, or prejoin just aborted) the node must already be
+    // inside the prejoin close window. The 1.5 V threshold only applies while prejoin is active,
+    // where the prejoin gate below adds the direction and dwell checks. Without this, an aborted
+    // prejoin fell straight through and closed a low-voltage pack at 1.3 V (~45 A inrush).
+    const uint16_t close_limit_dV = prejoin_active[idx] ? VOLTAGE_DIFF_THRESHOLD_dV : PREJOIN_CLOSE_RAW_DIFF_dV;
+    if (diff <= close_limit_dV) {
       if (voltage_diff_seconds[idx] < VOLTAGE_DIFF_SECONDS_LIMIT) {
         voltage_diff_seconds[idx]++;
       }
@@ -854,7 +860,7 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
     } else {
       if (voltage_diff_seconds[idx] != 0) {
         logging.printf("Controller CAN: Node %d contactor BLOCKED (voltage diff %u.%uV > %u.%uV)\n", idx + 1, diff / 10,
-                       diff % 10, VOLTAGE_DIFF_THRESHOLD_dV / 10, VOLTAGE_DIFF_THRESHOLD_dV % 10);
+                       diff % 10, close_limit_dV / 10, close_limit_dV % 10);
       }
       voltage_diff_seconds[idx] = 0;
     }
