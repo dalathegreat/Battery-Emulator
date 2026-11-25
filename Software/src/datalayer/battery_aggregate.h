@@ -107,6 +107,39 @@ static inline int16_t installation_current_dA() {
 }
 
 /**
+ * @brief The range each end of the SOC window may be set to, in integer-percent x 100: what the
+ * settings page offers, what MQTT SET_SCALESOC accepts and what the saved settings may hold.
+ */
+static constexpr int32_t SOC_MIN_PERCENTAGE_LOWEST = -1000;   // -10.0 %
+static constexpr int32_t SOC_MIN_PERCENTAGE_HIGHEST = 5000;   // 50.0 %
+static constexpr int32_t SOC_MAX_PERCENTAGE_LOWEST = 5000;    // 50.0 %
+static constexpr int32_t SOC_MAX_PERCENTAGE_HIGHEST = 10000;  // 100.0 %
+
+/**
+ * @brief Whether a minimum and a maximum percentage make a usable SOC window: each within its
+ * range, and the minimum below the maximum.
+ *
+ * The two ranges meet at 50.0 %. Both ends set there leave a window with no width, which reads
+ * 0 % to the inverter whatever the battery holds, so that pair is refused like any other.
+ *
+ * @param[in] min_percentage Integer-percent x 100
+ * @param[in] max_percentage Integer-percent x 100
+ */
+static inline bool soc_window_valid(int32_t min_percentage, int32_t max_percentage) {
+  return min_percentage >= SOC_MIN_PERCENTAGE_LOWEST && min_percentage <= SOC_MIN_PERCENTAGE_HIGHEST &&
+         max_percentage >= SOC_MAX_PERCENTAGE_LOWEST && max_percentage <= SOC_MAX_PERCENTAGE_HIGHEST &&
+         min_percentage < max_percentage;
+}
+
+/**
+ * @brief The top of the SOC window in use, in integer-percent x 100: the maximum percentage, or
+ * 100 % while a battery has lifted it for a full charge (the BYD Atto 3 full-charge schedule).
+ */
+static inline int32_t soc_window_top() {
+  return datalayer.battery_settings.soc_window_top_lifted ? 10000 : datalayer.battery_settings.max_percentage;
+}
+
+/**
  * @brief Scale one pack's SOC and capacity into its own reported_ fields.
  *
  * Applies the system-wide SOC window (min_percentage / max_percentage) to the pack handed in,

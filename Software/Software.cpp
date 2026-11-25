@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "esp_rom_sys.h"  // esp_rom_get_reset_reason()
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
@@ -23,6 +24,7 @@
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
+#include "src/devboard/safety/restart_core_reset.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -505,7 +507,9 @@ void check_reset_reason() {
       set_event(EVENT_RESET_TASK_WDT, reason);
       break;
     case ESP_RST_WDT:  //Reset due to other watchdogs
-      set_event(EVENT_RESET_WDT, reason);
+      // Hardware reason as data, it tells which one: 16 RTC watchdog, whole chip with RTC; 9 RTC watchdog,
+      // digital core only; 13 RTC watchdog, CPU only; 18 super watchdog
+      set_event(EVENT_RESET_WDT, (int16_t)esp_rom_get_reset_reason(0));
       break;
     case ESP_RST_DEEPSLEEP:  //Reset after exiting deep sleep mode
       set_event(EVENT_RESET_DEEPSLEEP, reason);
@@ -697,6 +701,10 @@ void setup() {
       datalayer.system.info.web_logging_active = false;
     }
   }
+
+  // Before the connectivity task starts Wi-Fi: this shutdown handler never returns, so it has to run after
+  // the one Wi-Fi adds, and esp_restart() runs them newest first
+  register_restart_core_reset();
 
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
