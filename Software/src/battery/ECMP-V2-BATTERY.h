@@ -22,7 +22,7 @@ class EcmpV2Battery : public UdsCanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr const char* Name = "Stellantis eCMP v2 54kWh (102S)";
+  static constexpr const char* Name = "Stellantis ECMPv2 102S & STLA 96S";
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
