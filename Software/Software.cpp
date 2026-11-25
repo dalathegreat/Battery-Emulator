@@ -47,8 +47,14 @@
 #error You must select a target hardware!
 #endif
 
-// The current software version, shown on webserver
-const char* version_number = BUILD_VERSION;
+/* The current software version, shown on webserver.
+   Kept as the image's custom app description, at a fixed offset right after esp_app_desc_t,
+   so a later build can read it back from this image's slot (see ota_rollback.h). */
+static const struct {
+  uint32_t magic;
+  char version[sizeof(BUILD_VERSION)];
+} build_version_record __attribute__((section(".rodata_custom_desc"))) = {OTA_BUILD_VERSION_MAGIC, BUILD_VERSION};
+const char* version_number = build_version_record.version;
 
 // Interval timers. Time values are uint32_t on purpose: that is the width
 // millis() actually has on the target, so the wrap arithmetic is identical on
