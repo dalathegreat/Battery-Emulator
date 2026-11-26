@@ -232,6 +232,8 @@ void init_events(void) {
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_MODBUS_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_INVERTER_LIMITS_IGNORED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_INVERTER_LIMITS_IGNORED_LOCKOUT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_NO_ENABLE_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   set_battery_event_level(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, EVENT_LEVEL_ERROR);
@@ -578,6 +580,12 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_MODBUS_INVERTER_DETECTED:
       return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
+    case EVENT_INVERTER_LIMITS_IGNORED:
+      return "Inverter charged or discharged beyond the battery's limits (likely a GivEnergy battery calibration). "
+             "Ending it by reporting empty then full.";
+    case EVENT_INVERTER_LIMITS_IGNORED_LOCKOUT:
+      return "Inverter keeps ignoring the battery's limits. The battery link to the inverter is stopped. "
+             "On the inverter, set HR29 (battery calibration) to 0, then restart the emulator.";
     case EVENT_INVERTER_REBOOT_DECLINED:
       return "Inverter asked the emulator to restart, but the request was declined. "
              "Enable 'Accept reboot command from inverter' in the settings if you want to allow it next time.";
