@@ -280,6 +280,7 @@
   XX(EVENT_GPIO_NOT_DEFINED)                 \
   XX(EVENT_GPIO_CONFLICT)                    \
   XX(EVENT_INVERTER_REBOOT_DECLINED)         \
+  XX(EVENT_WEB_403)                          \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;

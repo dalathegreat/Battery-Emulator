@@ -16,7 +16,9 @@ extern bool webserver_auth;
 // OTA status
 extern bool ota_active;
 
-static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
+// The realm goes out in every 401, to anyone who asks. The library's default is shared by countless
+// devices, so it does not tell an internet scanner what answered, as "Battery Emulator" did.
+static constexpr const char* WEB_AUTH_REALM = asyncsrv::T_LOGIN_REQ;
 
 /**
  * @brief Initialization function for the webserver.
