@@ -462,7 +462,9 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::ChargebyteCCSBattery:
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::EcmpV2Battery:
+#endif
     case BatteryType::FordMachE:
     case BatteryType::GeelyGeometryC:
     case BatteryType::GeelySea:
