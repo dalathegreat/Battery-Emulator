@@ -29,6 +29,7 @@ enum class InverterProtocolType {
   PylonLV485 = 23,
   SmaSBSByd = 24,
   FoxessEp = 25,
+  FroniusGenericStorage = 26,
   Highest
 };
 

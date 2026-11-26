@@ -30,6 +30,7 @@ ModbusInverterProtocol::~ModbusInverterProtocol() {
 }
 
 void ModbusInverterProtocol::notify_inverter_communication() {
+  last_request_ms = millis();
   if (!inverter_detected) {
     inverter_detected = true;
     set_event(EVENT_MODBUS_INVERTER_DETECTED, 1);
@@ -49,9 +50,11 @@ ModbusMessage ModbusInverterProtocol::FC03(ModbusMessage request) {
   if ((addr + words) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-    logging.printf("Modbus FC03 error: illegal request addr=%d words=%d\n", addr, words);
+    logging.printf("%sModbus FC03 error: illegal request addr=%d words=%d\n", log_prefix, addr, words);
     return response;
   }
+
+  on_registers_read(addr, words);
 
   // Set up response
   response.add(request.getServerID(), request.getFunctionCode(), (uint8_t)(words * 2));
@@ -76,7 +79,7 @@ ModbusMessage ModbusInverterProtocol::FC06(ModbusMessage request) {
   if ((addr) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-    logging.printf("Modbus FC06 error: illegal request addr=%d val=%d\n", addr, val);
+    logging.printf("%sModbus FC06 error: illegal request addr=%d val=%d\n", log_prefix, addr, val);
     return response;
   }
 
@@ -105,14 +108,14 @@ ModbusMessage ModbusInverterProtocol::FC16(ModbusMessage request) {
       || (words > 123))       // can't support more than this in request packet
   {                           // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_VALUE);
-    logging.printf("Modbus FC16 error: bad registers addr=%d words=%d bytes=%d\n", addr, words, bytes);
+    logging.printf("%sModbus FC16 error: bad registers addr=%d words=%d bytes=%d\n", log_prefix, addr, words, bytes);
     return response;
   }
   // Address overflow?
   if ((addr + words) > MBPV_MAX) {
     // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-    logging.printf("Modbus FC16 error: overflow addr=%d words=%d\n", addr, words);
+    logging.printf("%sModbus FC16 error: overflow addr=%d words=%d\n", log_prefix, addr, words);
     return response;
   }
 
@@ -150,16 +153,16 @@ ModbusMessage ModbusInverterProtocol::FC23(ModbusMessage request) {
       || (read_words > 125))              // can't fit more than this in the response packet
   {                                       // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_VALUE);
-    logging.printf("Modbus FC23 error: bad registers write_addr=%d write_words=%d write_bytes=%d read_words=%d\n",
-                   write_addr, write_words, write_bytes, read_words);
+    logging.printf("%sModbus FC23 error: bad registers write_addr=%d write_words=%d write_bytes=%d read_words=%d\n",
+                   log_prefix, write_addr, write_words, write_bytes, read_words);
     return response;
   }
   // Address overflow?
   if (((write_addr + write_words) > MBPV_MAX) ||
       ((read_addr + read_words) > MBPV_MAX)) {  // Yes - send respective error response
     response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_ADDRESS);
-    logging.printf("Modbus FC23 error: overflow write_addr=%d write_words=%d read_addr=%d read_words=%d\n", write_addr,
-                   write_words, read_addr, read_words);
+    logging.printf("%sModbus FC23 error: overflow write_addr=%d write_words=%d read_addr=%d read_words=%d\n",
+                   log_prefix, write_addr, write_words, read_addr, read_words);
     return response;
   }
 
@@ -171,6 +174,7 @@ ModbusMessage ModbusInverterProtocol::FC23(ModbusMessage request) {
   }
 
   // READ SECTION
+  on_registers_read(read_addr, read_words);
   // Set up response
   response.add(request.getServerID(), request.getFunctionCode(), (uint8_t)(read_words * 2));
   for (uint8_t i = 0; i < read_words; ++i) {

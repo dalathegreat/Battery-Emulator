@@ -34,12 +34,13 @@ extern bool user_selected_pylon_invert_byteorder;
 extern bool user_selected_inverter_deye_workaround;
 extern bool user_selected_inverter_long_CAN_timeout;
 extern bool user_selected_primo_gen24;
+extern bool user_selected_fronius_iso_check;
 extern bool inverter_low_pass_filter;
 extern bool charge_taper_soc;
 extern uint16_t charge_taper_band_pptt;
 extern uint16_t charge_taper_floor_W;
 
-// BYD-Modbus (Fronius GenericStorage) ControlData block, registers 400-408.
+// BYD-Modbus and Fronius Generic Storage ControlData block, registers 400-408 (500-508 from v2 on).
 // Default watchdog period in seconds, used until the inverter tells us otherwise via register 402.
 static const uint32_t MODBUS_INV_WATCHDOG_DEFAULT_S = 60;
 // Live watchdog period. Restored from NVM at boot, re-persisted whenever register 402 brings a new value.

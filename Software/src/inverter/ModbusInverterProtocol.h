@@ -22,6 +22,12 @@ class ModbusInverterProtocol : public InverterProtocol {
   // Sets the one-shot "inverter detected" event on the first valid request from the inverter
   void notify_inverter_communication();
   bool inverter_detected = false;
+  // millis() of the last valid request. Only meaningful once inverter_detected is set
+  volatile uint32_t last_request_ms = 0;
+
+  // Called by the read handlers (FC03, and the read half of FC23) with the registers they are about
+  // to answer, before taking their values. Runs in the Modbus task, so it has to be short
+  virtual void on_registers_read(uint16_t /*first*/, uint16_t /*count*/) {}
 
   ModbusMessage FC03(ModbusMessage request);
   ModbusMessage FC06(ModbusMessage request);
@@ -32,6 +38,9 @@ class ModbusInverterProtocol : public InverterProtocol {
   static const int MBPV_MAX = 30000;
   // The Modbus server ID we respond to
   int _serverId;
+  // Put in front of every line this protocol logs, so its lines can be told apart ("Fronius: ").
+  // Empty unless a driver sets one in its constructor
+  const char* log_prefix = "";
   // The Modbus registers themselves
   std::map<uint16_t, uint16_t> mbPV;
 
