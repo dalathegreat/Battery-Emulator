@@ -4,7 +4,8 @@
 
 // Stellantis eCMP v2 (54 kWh 102S: Peugeot e-208/e-2008, Fiat 600e, Avenger, Corsa/Mokka-e)
 // & STLA Medium (73/82 kWh 96S: Peugeot e-3008 / e-5008, Opel Grandland Electric)
-#define SIMULATE_FULL_CAR_ECMPV2
+
+#ifndef SMALL_FLASH_DEVICE
 
 class EcmpV2Battery : public UdsCanBattery {
  public:
@@ -455,4 +456,6 @@ class EcmpV2Battery : public UdsCanBattery {
   uint8_t pid_bms_state = NOT_SAMPLED_YET;
   uint8_t pid_battery_serial[16] = {0};
 };
+#endif
+
 #endif

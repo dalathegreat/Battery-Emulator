@@ -4,6 +4,8 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
+#ifndef SMALL_FLASH_DEVICE
+
 // Store up to 16 unique live JDD fault codes broadcast from BMS on 0x774
 static constexpr uint8_t MAX_JDD_DTCS = 16;
 static uint32_t jdd_dtcs[MAX_JDD_DTCS] = {0};
@@ -1198,3 +1200,5 @@ void EcmpV2Battery::setup(void) {
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
+
+#endif

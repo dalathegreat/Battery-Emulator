@@ -148,8 +148,6 @@ const char* name_for_battery_type(BatteryType type) {
       return SonoBattery::Name;
     case BatteryType::StellantisEcmp:
       return EcmpBattery::Name;
-    case BatteryType::StellantisEcmpV2:
-      return EcmpV2Battery::Name;
     case BatteryType::StellantisProOne:
       return StellantisProOneBattery::Name;
     case BatteryType::ImievCZeroIon:
@@ -171,6 +169,8 @@ const char* name_for_battery_type(BatteryType type) {
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+    case BatteryType::StellantisEcmpV2:
+      return EcmpV2Battery::Name;
 #endif
     case BatteryType::MgGen1:
       return MgGen1Battery::Name;
@@ -319,8 +319,6 @@ Battery* create_battery(BatteryType type) {
       return new SonoBattery();
     case BatteryType::StellantisEcmp:
       return new EcmpBattery();
-    case BatteryType::StellantisEcmpV2:
-      return new EcmpV2Battery();
     case BatteryType::StellantisProOne:
       return new StellantisProOneBattery();
     case BatteryType::ImievCZeroIon:
@@ -342,6 +340,8 @@ Battery* create_battery(BatteryType type) {
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
+    case BatteryType::StellantisEcmpV2:
+      return new EcmpV2Battery();
 #endif
     case BatteryType::MgGen1:
       return new MgGen1Battery();
@@ -577,9 +577,11 @@ void setup_battery() {
         case BatteryType::StellantisEcmp:
           battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
           break;
+#ifndef SMALL_FLASH_DEVICE
         case BatteryType::StellantisEcmpV2:
           battery2 = new EcmpV2Battery(&datalayer.battery2, can_config.battery_double);
           break;
+#endif
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
         case BatteryType::Kia64FD:
