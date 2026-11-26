@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "esp_rom_sys.h"  // esp_rom_get_reset_reason()
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
@@ -23,6 +24,7 @@
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
+#include "src/devboard/safety/restart_core_reset.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -45,8 +47,14 @@
 #error You must select a target hardware!
 #endif
 
-// The current software version, shown on webserver
-const char* version_number = BUILD_VERSION;
+/* The current software version, shown on webserver.
+   Kept as the image's custom app description, at a fixed offset right after esp_app_desc_t,
+   so a later build can read it back from this image's slot (see ota_rollback.h). */
+static const struct {
+  uint32_t magic;
+  char version[sizeof(BUILD_VERSION)];
+} build_version_record __attribute__((section(".rodata_custom_desc"))) = {OTA_BUILD_VERSION_MAGIC, BUILD_VERSION};
+const char* version_number = build_version_record.version;
 
 // Interval timers. Time values are uint32_t on purpose: that is the width
 // millis() actually has on the target, so the wrap arithmetic is identical on
@@ -499,7 +507,9 @@ void check_reset_reason() {
       set_event(EVENT_RESET_TASK_WDT, reason);
       break;
     case ESP_RST_WDT:  //Reset due to other watchdogs
-      set_event(EVENT_RESET_WDT, reason);
+      // Hardware reason as data, it tells which one: 16 RTC watchdog, whole chip with RTC; 9 RTC watchdog,
+      // digital core only; 13 RTC watchdog, CPU only; 18 super watchdog
+      set_event(EVENT_RESET_WDT, (int16_t)esp_rom_get_reset_reason(0));
       break;
     case ESP_RST_DEEPSLEEP:  //Reset after exiting deep sleep mode
       set_event(EVENT_RESET_DEEPSLEEP, reason);
@@ -692,6 +702,10 @@ void setup() {
     }
   }
 
+  // Before the connectivity task starts Wi-Fi: this shutdown handler never returns, so it has to run after
+  // the one Wi-Fi adds, and esp_restart() runs them newest first
+  register_restart_core_reset();
+
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
      logging are all switched on from stored settings, so a rollback report made
@@ -715,7 +729,7 @@ void setup() {
   }
 #endif  // SDCARD
 
-  init_contactors();
+  init_contactors(esp_reset_reason() == ESP_RST_POWERON);
 
   // Release any pins latched across the reboot. MUST run after init_contactors(), which
   // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;

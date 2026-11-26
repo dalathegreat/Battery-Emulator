@@ -163,6 +163,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
+    content += "<h4>HV bus voltage: ";
+    if (byd_datalayer->hv_bus_voltage_valid) {
+      content += String(byd_datalayer->hv_bus_voltage_dV / 10.0f, 1) + " V</h4>";
+    } else {
+      content += "Not received</h4>";
+    }
     content +=
         "<h4>Capacity original: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100.0f) + " Ah</h4>";
     content +=
@@ -274,16 +280,11 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       }
 
       content += "<hr>";
-      const bool dm_pack = (byd_datalayer->contactor_feedback & 0x20) != 0;  // 0x344 DM bit
-      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white";
-      content += dm_pack ? ";opacity:0.45;pointer-events:none'>" : "'>";
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
       // The panel's explanation is the "bydnative" entry of web_data/help/help.json.
       content +=
           "<h4 data-h=bydnative style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination "
           "&amp; balancing</h4>";
-      if (dm_pack) {
-        content += "<p style='margin:0 0 8px 0'>Not available on DM packs</p>";
-      }
       content += panel_table;
 
       content += "<tr>";
@@ -650,7 +651,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         content += "</td></tr>";
       }
 
-      if (s.length() == 0) {  // one set of controls, applied to every BYD battery
+      const bool iso_controls = s.length() == 0 && !byd_datalayer->dm_pack;  // one set, applied to every BYD battery
+      if (iso_controls) {
         content += "<tr>";
         content += iso_label_td;
         content += "Keep disabled at boot:</td>";
@@ -662,7 +664,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       }
 
       content += "</table>";
-      if (s.length() == 0) {
+      if (iso_controls) {
         content += "<div style='margin:10px 0 0'>";
         content += "<button onclick='bydIsoEnable()'>Enable monitoring</button> ";
         content += "<button onclick='bydIsoDisable()'>Disable monitoring</button>";

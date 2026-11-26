@@ -64,7 +64,8 @@ enum class BatteryType {
   GrowattLv = 57,
   StellantisProOne = 58,
   BYDBatteryBoxPremium = 59,
-  InterUnitController = 60,  // This node acts as Controller in a multi-unit setup
+  StellantisEcmpV2 = 60,
+  InterUnitController = 61,  // This node acts as Controller in a multi-unit setup
   Highest
 };
 
@@ -181,6 +182,16 @@ class Battery {
   // Battery reports insulation/isolation resistance via
   // datalayer status insulation_resistance_kOhm
   virtual bool supports_insulation_resistance() { return false; }
+
+  /* False while the battery's BMS has yet to allow its contactors to close, as a Nissan LEAF LBC
+     signals with LB_FRLYON. The GPIO contactor control waits for it before closing anything for this
+     pack. Batteries without such a signal always allow it. */
+  virtual bool contactors_may_close() { return true; }
+
+  /* True for a battery whose BMS is told about each relay as it closes, and that starts over as if they had
+     opened when a BMS reset cuts its power with them kept closed (Nissan LEAF). The contactor control then
+     shows them closing again with the timing of a cold start, see datalayer reported_*. */
+  virtual bool bms_follows_relays() { return false; }
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 

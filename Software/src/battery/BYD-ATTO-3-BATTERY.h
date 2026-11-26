@@ -424,7 +424,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
-  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x20;  // Set by DM (PHEV) packs only
+  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x30;  // DM (PHEV) packs only: 0x20, or 0x10 near full
   // 0x344 byte 2 low nibble, the BMS charge state: F none, 0 ready, 1 charging, 2 finished, 4 aborted
   static const uint8_t BMS_CHARGE_STATE_CHARGING = 0x01;
   static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
@@ -523,6 +523,7 @@ class BydAttoBattery : public CanBattery {
   bool battery_insulation_valid = false;        // Zero is a valid 0x43A fault reading, so track receipt separately
   bool battery_iso_measurement_active = false;  // 0x35E b0 bit0x80
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
+  uint16_t battery_hv_bus_voltage_dV = 0;       // 0x35E b3-4 LE, deci-volts
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};

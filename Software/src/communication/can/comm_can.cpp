@@ -187,6 +187,22 @@ bool init_CAN() {
     }
   }
 
+  // If the second CAN FD is in use, init and set its CS high now. Otherwise
+  // a pin that defaults low (eg, pulled down) will let the second chip see
+  // the first chip's entire init as one long transaction.
+  gpio_num_t cs2_pin = GPIO_NUM_NC;
+  gpio_num_t int2_pin = GPIO_NUM_NC;
+  if (fdAddonIt_2 != can_receivers.end()) {
+    cs2_pin = esp32hal->MCP2517_CS2();
+    int2_pin = esp32hal->MCP2517_INT2();
+
+    if (!esp32hal->alloc_pins("CANFD2", cs2_pin, int2_pin)) {
+      return false;
+    }
+    gpio_set_level(cs2_pin, 1);
+    gpio_set_direction(cs2_pin, GPIO_MODE_OUTPUT);
+  }
+
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
 
     auto speed = (fdNativeIt != can_receivers.end()) ? fdNativeIt->second.speed : fdAddonIt->second.speed;
@@ -217,12 +233,8 @@ bool init_CAN() {
 
   if (fdAddonIt_2 != can_receivers.end()) {
 
-    auto cs_pin = esp32hal->MCP2517_CS2();
-    auto int_pin = esp32hal->MCP2517_INT2();
-
-    if (!esp32hal->alloc_pins("CANFD2", cs_pin, int_pin)) {
-      return false;
-    }
+    auto cs_pin = cs2_pin;
+    auto int_pin = int2_pin;
 
     auto sck_pin = esp32hal->MCP2517_SCK2();
     auto sdo_pin = esp32hal->MCP2517_SDO2();

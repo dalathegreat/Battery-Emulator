@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
+#include "../../Software/src/datalayer/battery_aggregate.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/datalayer/datalayer_extended.h"
 #include "../../Software/src/devboard/utils/events.h"
@@ -84,6 +86,133 @@ CAN_frame contactor_feedback_frame(uint8_t mode) {
 }
 
 }  // namespace
+
+// Captured open/precharge/closed samples decode in tenths of a volt, including the low byte.
+TEST(BydAtto3Tests, DecodesCapturedHvBusVoltagesAndZero) {
+  reset_byd_state();
+  set_millis64(1000);
+  BydAttoBattery battery;
+  battery.setup();
+  const struct {
+    CAN_frame frame;
+    uint16_t expected_dV;
+  } samples[] = {
+      {byd_frame(0x35E, {0x01, 0x00, 0xB8, 0x40, 0x00, 0x00, 0x00, 0x06}), 64},
+      {byd_frame(0x35E, {0x01, 0x00, 0x5C, 0x97, 0x00, 0x00, 0x00, 0x0B}), 151},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0x3C, 0x06, 0x00, 0x00, 0x5C}), 1596},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0x35, 0x10, 0x00, 0x00, 0x59}), 4149},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0xAD, 0x10, 0x00, 0x00, 0xE1}), 4269},
+      {byd_checksummed_frame(0x35E, {0x01, 0, 0, 0, 0, 0, 0}), 0},
+  };
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.expected_dV);
+    battery.handle_incoming_can_frame(sample.frame);
+    battery.update_values();
+    EXPECT_TRUE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+    EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, sample.expected_dV);
+  }
+}
+
+// HV bus voltage is published and displayed for each valid sample,
+// including zero volts.
+TEST(BydAtto3Tests, PublishesAndDisplaysHvBusVoltage) {
+  reset_byd_state();
+  set_millis64(0);
+  BydAttoBattery battery;
+  battery.setup();
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA2, 0x01, 0x88, 0x13, 0x64, 0x50, 0x00}));
+  battery.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_NE(
+      std::string(battery.get_status_renderer().get_status_html().c_str()).find("HV bus voltage: Not received</h4>"),
+      std::string::npos);
+
+  const struct {
+    uint8_t low;
+    uint8_t high;
+    uint16_t expected_dV;
+    const char* expected_display;
+  } samples[] = {
+      {0x00, 0x00, 0, "0.0 V"},      {0x60, 0x00, 96, "9.6 V"},     {0x2B, 0x07, 1835, "183.5 V"},
+      {0x01, 0x10, 4097, "409.7 V"}, {0x60, 0x10, 4192, "419.2 V"},
+  };
+  uint32_t now = 1;
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.expected_dV);
+    set_millis64(now);
+    battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, sample.low, sample.high, 0, 0}));
+    battery.update_values();
+    EXPECT_TRUE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+    EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, sample.expected_dV);
+    EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4180);
+    const std::string expected = std::string("HV bus voltage: ") + sample.expected_display + "</h4>";
+    EXPECT_NE(std::string(battery.get_status_renderer().get_status_html().c_str()).find(expected), std::string::npos);
+    now += 100;
+  }
+  set_millis64(0);
+}
+
+// Invalid frames neither overwrite a reading nor keep stale voltage visible on the advanced page.
+TEST(BydAtto3Tests, ExpiresHvBusVoltageWithoutValidFramesAndRecovers) {
+  reset_byd_state();
+  set_millis64(1000);
+  BydAttoBattery battery;
+  battery.setup();
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0x10, 0, 0}));
+
+  set_millis64(3999);
+  battery.handle_incoming_can_frame(byd_corrupt_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  battery.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, 4192);
+
+  set_millis64(4000);
+  battery.handle_incoming_can_frame(byd_corrupt_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  battery.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, 4192);
+  EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 2);
+  EXPECT_NE(
+      std::string(battery.get_status_renderer().get_status_html().c_str()).find("HV bus voltage: Not received</h4>"),
+      std::string::npos);
+
+  set_millis64(4100);
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x2B, 0x07, 0, 0}));
+  battery.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, 1835);
+  set_millis64(0);
+}
+
+// Separate battery instances retain their own readings and freshness when the 32-bit clock wraps.
+TEST(BydAtto3Tests, KeepsHvBusVoltageIndependentAcrossBatteriesAndMillisWrap) {
+  reset_byd_state();
+  datalayer_extended.bydAtto3_2 = DATALAYER_INFO_BYDATTO3{};
+  BydAttoBattery first;
+  BydAttoBattery second(&datalayer.battery2, &datalayer_extended.bydAtto3_2, CAN_ADDON_MCP2515);
+  first.setup();
+  second.setup();
+  const uint64_t start = std::numeric_limits<uint32_t>::max() - 1000;
+  set_millis64(start);
+  first.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  first.update_values();
+  second.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_FALSE(datalayer_extended.bydAtto3_2.hv_bus_voltage_valid);
+
+  set_millis64(start + 200);
+  second.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0x10, 0, 0}));
+  set_millis64(start + 3000);
+  first.update_values();
+  second.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.hv_bus_voltage_valid);
+  EXPECT_TRUE(datalayer_extended.bydAtto3_2.hv_bus_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.hv_bus_voltage_dV, 96);
+  EXPECT_EQ(datalayer_extended.bydAtto3_2.hv_bus_voltage_dV, 4192);
+  EXPECT_NE(std::string(second.get_status_renderer().get_status_html().c_str()).find("HV bus voltage: 419.2 V</h4>"),
+            std::string::npos);
+  set_millis64(0);
+}
 
 TEST(BydAtto3BalanceApiTests, RejectsUnconfiguredBatteryIndices) {
   user_selected_battery_type = BatteryType::BydAtto3;
@@ -1051,10 +1180,77 @@ TEST(BydAtto3DmPackTests, ContactorFeedbackBitLatchesDmHandling) {
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 156);
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 10);
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 2);
-  EXPECT_FALSE(datalayer_extended.bydAtto3.native_termination_enabled);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.native_termination_enabled);
   // The isolation-disable routine is never requested, though the setting is on and the BMS is alive.
   EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 0);
 
-  datalayer_extended.bydAtto3.native_termination_enabled = true;  // process-wide, restore the default
   delete battery;
+}
+
+// Closed with no charge session, 0x441 b6 stays FF on Atto packs and is 00 on DM packs.
+TEST(BydAtto3DmPackTests, ClosedPack0x441Byte6FollowsPackFamily) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  ASSERT_EQ(warmup(battery, 0x84, 0x41, 0), kPackVolts - 1);
+  EXPECT_EQ(last_transmitted_frame(0x441)->data.u8[6], 0xFF);
+
+  ASSERT_EQ(warmup(battery, 0xA4, 0x41, 600), kPackVolts - 1);
+  const CAN_frame* frame = last_transmitted_frame(0x441);
+  EXPECT_EQ(frame->data.u8[6], 0x00);
+  EXPECT_EQ(frame->data.u8[7], computeBydChecksum(frame->data.u8));
+
+  delete battery;
+}
+
+// Near full a DM pack shows bit 0x10 in place of 0x20; booting into that state must still latch.
+TEST(BydAtto3DmPackTests, NearFullFeedbackBitLatchesDmHandling) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  for (uint32_t ms = 0; ms < 1000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x12, 0x00), ms);
+    tick(battery, ms);
+  }
+  EXPECT_NE(last_transmitted_frame(0x343), nullptr);
+
+  delete battery;
+}
+
+// With native termination and a full charge due every N days, the schedule lifts the top of the
+// SOC window to 100 % once N days have passed, so the inverter is shown room to charge the pack
+// full. It drops again once a terminated charge has reset the count.
+TEST(BydAtto3Tests, FullChargeScheduleLiftsTheSocWindowTop) {
+  const DATALAYER_INFO_BYDATTO3 saved = datalayer_extended.bydAtto3;  // not reset between tests
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 2000;
+  datalayer.battery_settings.max_percentage = 8000;
+  datalayer.battery.status.real_soc = 8000;
+  datalayer_extended.bydAtto3.native_termination_enabled = true;
+  datalayer_extended.bydAtto3.full_charge_every_days = 7;
+  datalayer_extended.bydAtto3.full_charge_hours = 7 * 24;
+
+  battery->transmit_can(100);
+  scale_pack_values(datalayer.battery);
+  update_aggregate_values();
+
+  EXPECT_TRUE(datalayer.battery_settings.soc_window_top_lifted);
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 7500);  // 80 % real in a 20-100 % window
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 7500);
+
+  datalayer_extended.bydAtto3.full_charge_hours = 0;  // What a terminated charge does
+  battery->transmit_can(200);
+  scale_pack_values(datalayer.battery);
+  update_aggregate_values();
+
+  EXPECT_FALSE(datalayer.battery_settings.soc_window_top_lifted);
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 10000);  // Back in the 20-80 % window
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 10000);
+
+  delete battery;
+  datalayer_extended.bydAtto3 = saved;
 }

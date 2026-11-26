@@ -219,8 +219,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 100% Example 8000 = 80.0% */
+   * will "see" 100% Example 8000 = 80.0%
+   * This is the window in use: MQTT SET_SCALESOC may move it until the next reboot */
   uint16_t max_percentage = 8000;
+  /** The maximum percentage the settings page set and the saved settings hold. Only the settings
+   * page changes it, so a save never persists a value MQTT SET_SCALESOC put in max_percentage */
+  uint16_t user_set_max_percentage = 8000;
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A, persisted to memory 
    * Updates later on via Settings */
   uint16_t max_user_set_charge_dA = 300;
@@ -249,8 +253,12 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
-   * will "see" 0% , Example 2000 = 20.0% */
+   * will "see" 0% , Example 2000 = 20.0%
+   * This is the window in use: MQTT SET_SCALESOC may move it until the next reboot */
   int16_t min_percentage = 2000;
+  /** The minimum percentage the settings page set and the saved settings hold, see
+   * user_set_max_percentage */
+  int16_t user_set_min_percentage = 2000;
 
   /** Sofar CAN Battery ID (0-15) used to parallel multiple packs */
   uint8_t sofar_user_specified_battery_id = 0;
@@ -498,6 +506,16 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** The relays as a BMS that is told about each of them is to see them (Nissan LEAF RLYP/BTONFN): those
+   *  the GPIO contactor control drives, the main pack's negative and positive contactor and precharge
+   *  relay and the single contactor of packs 2 and 3, as it drives them, except across a BMS reset that
+   *  keeps them closed. From when it cuts the BMS power they read open, and once that is back they close
+   *  again as after a cold start, see update_reported_relays(). All false without GPIO contactor control. */
+  bool reported_negative_closed = false;
+  bool reported_precharge_closed = false;
+  bool reported_positive_closed = false;
+  bool reported_battery2_closed = false;
+  bool reported_battery3_closed = false;
   /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
    *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
    *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).

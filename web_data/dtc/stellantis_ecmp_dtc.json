@@ -5,6 +5,11 @@
     "l_dsc": "Traction Battery Voltage Sensor"
   },
   {
+    "dtc": "P0AA1",
+    "s_dsc": "Positive Contactor Stuck Closed",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Circuit Stuck Closed (Welded)"
+  },
+  {
     "dtc": "P0AA6",
     "s_dsc": "Isolation issue",
     "l_dsc": "High voltage leak to protective earth"
@@ -15,19 +20,84 @@
     "l_dsc": "Traction Battery Positive Switch control"
   },
   {
-    "dtc": "P1AED01",
-    "s_dsc": "Detection Of a Vehicle Impace",
-    "l_dsc": "Detection Of a Vehicle Impace"
+    "dtc": "P056216",
+    "s_dsc": "12V Supply Voltage Too Low",
+    "l_dsc": "System 12V Supply Voltage Below Threshold"
+  },
+  {
+    "dtc": "P0ADC01",
+    "s_dsc": "Positive Contactor Control Circuit",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Control Circuit - General Electrical Failure"
+  },
+  {
+    "dtc": "P0AE112",
+    "s_dsc": "Precharge Contactor Circuit Short to +12V",
+    "l_dsc": "Hybrid/EV Battery Precharge Contactor Control Circuit - Short to Battery (+12V)"
+  },
+  {
+    "dtc": "P10F713",
+    "s_dsc": "Contactor / Auxiliary Sense Circuit 1 Open",
+    "l_dsc": "Traction Battery Contactor / Auxiliary Sense Circuit 1 - Open Circuit"
+  },
+  {
+    "dtc": "P10F913",
+    "s_dsc": "Contactor / Auxiliary Sense Circuit 2 Open",
+    "l_dsc": "Traction Battery Contactor / Auxiliary Sense Circuit 2 - Open Circuit"
+  },
+  {
+    "dtc": "P118F01",
+    "s_dsc": "Internal Positive Power Switch (P0AA1)",
+    "l_dsc": "Internal Positive Power Switch / Positive Contactor Stuck Closed or Output Voltage Plausibility Fault"
+  },
+  {
+    "dtc": "P158616",
+    "s_dsc": "Internal 5V Sensor Supply Too Low",
+    "l_dsc": "Traction Battery ECU Internal 5V Sensor Reference Supply - Voltage Below Threshold"
+  },
+  {
+    "dtc": "P1A1396",
+    "s_dsc": "Main Contactor / Relay Internal Fault",
+    "l_dsc": "Main Contactor / Relay Actuator - Component Internal Failure"
   },
   {
     "dtc": "P1AEA11",
-    "s_dsc": "Traction Battery Electric Circuit Breaker Connector ",
+    "s_dsc": "Traction Battery Electric Circuit Breaker Connector",
     "l_dsc": "Traction Battery Electric Circuit Breaker Connector - Short Circuit To Ground"
+  },
+  {
+    "dtc": "P1AEA16",
+    "s_dsc": "Circuit Breaker / Aux 12V Supply Too Low",
+    "l_dsc": "Traction Battery Electric Circuit Breaker / Auxiliary 12V Supply - Voltage Below Threshold"
+  },
+  {
+    "dtc": "P1AED01",
+    "s_dsc": "Detection Of a Vehicle Impact",
+    "l_dsc": "Detection Of a Vehicle Impact"
+  },
+  {
+    "dtc": "P1AF112",
+    "s_dsc": "Crash / Circuit Breaker Input Short to +12V",
+    "l_dsc": "Traction Battery Crash Signal / Circuit Breaker Input - Circuit Short to Battery (+12V)"
+  },
+  {
+    "dtc": "P1B0513",
+    "s_dsc": "HVIL / Service Plug Open Circuit",
+    "l_dsc": "High Voltage Interlock Loop (HVIL) / Service Plug Circuit - Open Circuit"
+  },
+  {
+    "dtc": "P1B4531",
+    "s_dsc": "Traction Battery ECU - No Signal",
+    "l_dsc": "Traction Battery ECU Internal / Sensor Signal - No Signal"
   },
   {
     "dtc": "P1B7915",
     "s_dsc": "Vehicle Crash Information Wire Circuit",
-    "l_dsc": "Vehicle Crash Information Wire Circuit"
+    "l_dsc": "Vehicle Crash Information Wire Circuit - Short to Battery or Open"
+  },
+  {
+    "dtc": "P1B7A00",
+    "s_dsc": "Vehicle Crash Detected (Wire + CAN)",
+    "l_dsc": "Vehicle Crash Detected (Received by Wire and via CAN)"
   },
   {
     "dtc": "P2C8501",
@@ -35,14 +105,49 @@
     "l_dsc": "Isolation of the power voltage in relation to the internal/external traction battery earth"
   },
   {
+    "dtc": "P2D5C73",
+    "s_dsc": "Positive Contactor Stuck Closed (Welded)",
+    "l_dsc": "Positive Power Switch (Contactor) - Actuator Stuck in Closed Position"
+  },
+  {
     "dtc": "P3078",
     "s_dsc": "Traction Battery ECU",
     "l_dsc": "Traction Battery ECU"
   },
   {
+    "dtc": "U040181",
+    "s_dsc": "Invalid CAN Data from VCU / ECM",
+    "l_dsc": "Invalid Serial CAN Data Received from VCU / Powertrain ECU"
+  },
+  {
+    "dtc": "U110E87",
+    "s_dsc": "Lost Comm with OBC / DC-DC",
+    "l_dsc": "Communication with On-Board Charger / DC-DC Converter ECU on CAN - Missing Message"
+  },
+  {
+    "dtc": "U114A87",
+    "s_dsc": "Lost Comm with E-VCU",
+    "l_dsc": "Communication with Electric Drivetrain Supervisor ECU (E-VCU) on CAN - Missing Message"
+  },
+  {
+    "dtc": "U114E87",
+    "s_dsc": "Lost Comm with Powertrain / Thermal ECU",
+    "l_dsc": "Communication with Powertrain / Thermal Management ECU on CAN - Missing Message"
+  },
+  {
+    "dtc": "U115E87",
+    "s_dsc": "Lost Comm with MCU (Inverter)",
+    "l_dsc": "No Communication with Electric Machine Management ECU (MCU) on CAN - Missing Message"
+  },
+  {
     "dtc": "U1207",
     "s_dsc": "Communication issue Electric Drive Train Supervisor ECU",
-    "l_dsc": "Infromation Sent By The Electric Drive Train Supervisor ECU (Electric Drive Train CAN)"
+    "l_dsc": "Information Sent By The Electric Drive Train Supervisor ECU (Electric Drive Train CAN)"
+  },
+  {
+    "dtc": "U120781",
+    "s_dsc": "Invalid CAN Data from E-VCU",
+    "l_dsc": "Invalid Information Sent By The Electric Drive Train Supervisor ECU (E-VCU)"
   },
   {
     "dtc": "U12DE81",
@@ -50,13 +155,38 @@
     "l_dsc": "Manufacturer or system-specific network communication fault. Description missing"
   },
   {
+    "dtc": "U134E82",
+    "s_dsc": "CAN Alive / Sequence Counter Error",
+    "l_dsc": "CAN Message Alive / Sequence Counter Incorrect or Not Updated"
+  },
+  {
+    "dtc": "U160187",
+    "s_dsc": "Lost Comm with BSI on CAN",
+    "l_dsc": "Communication with Built-in Systems Interface (BSI) on CAN - Lost Information / Missing Message"
+  },
+  {
     "dtc": "U180B",
     "s_dsc": "Collision detected",
     "l_dsc": "Collision detected"
   },
   {
+    "dtc": "U1F0000",
+    "s_dsc": "Fault Event Not Recorded",
+    "l_dsc": "Fault Event Not Recorded / Fault Memory Buffer Full"
+  },
+  {
     "dtc": "U2000",
     "s_dsc": "Remote Controlled Triggering CAN Signal",
     "l_dsc": "Remote Controlled Triggering CAN Signal"
+  },
+  {
+    "dtc": "U200006",
+    "s_dsc": "Main Wake-Up (RCD) Signal Fault",
+    "l_dsc": "Main Wake-Up (Principal RCD Wake-Up Signal Implausible or Absent)"
+  },
+  {
+    "dtc": "U214387",
+    "s_dsc": "CAN Communication Fault",
+    "l_dsc": "CAN Communication Fault - Missing Message"
   }
 ]

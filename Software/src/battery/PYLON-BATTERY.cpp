@@ -22,8 +22,11 @@ void PylonBattery::update_values() {
   datalayer_battery->status.max_discharge_power_W = current_dA_to_power_W(max_discharge_current_dA, voltage_dV);
 
   if (total_capacity_Wh > 0) {
-    //real Data from Dyness battery
+    //real Data from Dyness battery (0x18FF9A6E) has priority
     datalayer_battery->info.total_capacity_Wh = total_capacity_Wh;
+  } else if (capacity_from_7320_Wh > 0) {
+    //Fallback: nominal capacity from system equipment info (0x7320), Ah * voltage level
+    datalayer_battery->info.total_capacity_Wh = capacity_from_7320_Wh;
   }
 
   if (remaining_capacity_Wh > 0) {
@@ -95,6 +98,7 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cell_quantity_in_module = rx_frame.data.u8[3];
       voltage_level = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
       ah_number = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      capacity_from_7320_Wh = (uint32_t)ah_number * voltage_level;
       break;
     case 0x7330:
       manufacturer_name[0] = rx_frame.data.u8[0];
@@ -180,8 +184,8 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x18FF9A6E:
       if (rx_frame.data.u8[0] == 0x03) {
-        remaining_capacity_Wh = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) * 10;
-        total_capacity_Wh = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 10;
+        remaining_capacity_Wh = (uint32_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) * 10;
+        total_capacity_Wh = (uint32_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]) * 10;
       }
       break;
     case DYNESS_CELL_VOLTAGE_BASE_ID: {

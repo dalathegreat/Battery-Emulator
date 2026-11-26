@@ -90,10 +90,6 @@ void BydAttoBattery::
 
   datalayer_battery->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
-  if (dm_pack && datalayer_bydatto) {
-    datalayer_bydatto->native_termination_enabled = false;  // Atto session frames don't apply to DM packs
-  }
-
   // AC-like top-of-charge taper. A live charge session moves the taper window up to the BMS's own
   // termination band so the pack, not BE, decides when the charge is over.
   const bool native_termination = datalayer_bydatto && datalayer_bydatto->native_termination_enabled;
@@ -311,10 +307,14 @@ void BydAttoBattery::
     datalayer_bydatto->SOC_dashboard = BMS_SOC;
     //Resolved voltage, not raw 0x438, so the page matches the main view when 0x438 is rejected
     datalayer_bydatto->pack_voltage_dV = datalayer_battery->status.voltage_dV;
+    const bool fresh_35E = (last_35E_ms != 0) && (static_cast<uint32_t>(millis() - last_35E_ms) < 3000);
+    datalayer_bydatto->hv_bus_voltage_dV = battery_hv_bus_voltage_dV;
+    datalayer_bydatto->hv_bus_voltage_valid = fresh_35E;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
-    datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
+    datalayer_bydatto->iso_status_valid = fresh_35E;
     datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
+    datalayer_bydatto->dm_pack = dm_pack;
     memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures,
            sizeof(battery_daughterboard_temperatures));
 
@@ -585,6 +585,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // b0 bit 0x80 = isolation measurement active (set = running, clear = disabled/idle)
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         battery_iso_measurement_active = (rx_frame.data.u8[0] & 0x80) != 0;
+        battery_hv_bus_voltage_dV = rx_frame.data.u8[3] | (static_cast<uint16_t>(rx_frame.data.u8[4]) << 8);
         last_35E_ms = millis();
       } else {
         datalayer_battery->status.CAN_error_counter++;
@@ -977,8 +978,8 @@ void BydAttoBattery::confirm_charge_termination() {
 void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
   // Primary battery only: inverter charge limits are computed from battery 1 alone, so a session on
   // a secondary battery could never stop the bank when its BMS terminates.
-  const bool enabled = datalayer_bydatto && datalayer_bydatto->native_termination_enabled &&
-                       datalayer_battery == &datalayer.battery && !dm_pack;
+  const bool enabled =
+      datalayer_bydatto && datalayer_bydatto->native_termination_enabled && datalayer_battery == &datalayer.battery;
   const bool pack_closed = (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0;
   const bool charge_flag = (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) != 0;
   const int16_t current_dA = datalayer_battery->status.current_dA;
@@ -1947,6 +1948,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_441.data.u8[4] = (uint8_t)link_voltage;
         ATTO_3_441.data.u8[5] = (link_voltage >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
+        if (dm_pack && (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED)) {  // DM packs refuse a charge on FF
+          ATTO_3_441.data.u8[6] = (chargeSessionState != CHG_SESSION_IDLE) ? 0x04 : 0x00;
+        }
         ATTO_3_441.data.u8[7] = computeBydChecksum(ATTO_3_441.data.u8);
       }
       DM_343.data.u8[0] = (prechargeState == PRECHARGE_DONE && !report_link_voltage_low) ? 0xB5 : 0xB4;
