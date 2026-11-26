@@ -12,70 +12,7 @@
 /* Some of the original CAN frame parsing code below comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 /* Most of the additional CAN frame parsing/information/display comes from Josiah Higgs (https://github.com/josiahhiggs/) */
 
-inline const char* getContactorText(int index) {
-  switch (index) {
-    case 0:
-      return "UNKNOWN(0)";
-    case 1:
-      return "OPEN";
-    case 2:
-      return "CLOSING";
-    case 3:
-      return "BLOCKED";
-    case 4:
-      return "OPENING";
-    case 5:
-      return "CLOSED";
-    case 6:
-      return "UNKNOWN(6)";
-    case 7:
-      return "WELDED";
-    case 8:
-      return "POS_CL";
-    case 9:
-      return "NEG_CL";
-    case 10:
-      return "UNKNOWN(10)";
-    case 11:
-      return "UNKNOWN(11)";
-    case 12:
-      return "UNKNOWN(12)";
-    default:
-      return "UNKNOWN";
-  }
-}
-
-inline const char* getContactorState(int index) {
-  switch (index) {
-    case 0:
-      return "SNA";
-    case 1:
-      return "OPEN";
-    case 2:
-      return "PRECHARGE";
-    case 3:
-      return "BLOCKED";
-    case 4:
-      return "PULLED_IN";
-    case 5:
-      return "OPENING";
-    case 6:
-      return "ECONOMIZED";
-    case 7:
-      return "WELDED";
-    case 8:
-      return "UNKNOWN(8)";
-    case 9:
-      return "UNKNOWN(9)";
-    case 10:
-      return "UNKNOWN(10)";
-    case 11:
-      return "UNKNOWN(11)";
-    default:
-      return "UNKNOWN";
-  }
-}
-
+// Not the detail-page table: index 0 is "NOT OK" here and "UNKNOWN or CONTACTORS OPEN" on the page.
 inline const char* getHvilStatusState(int index) {
   switch (index) {
     case 0:

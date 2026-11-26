@@ -53,8 +53,10 @@ extern uint8_t user_selected_LEAF_chg_sta_rq[3];
 extern bool user_selected_LEAF_auto_current_offset;
 extern bool user_selected_tesla_digital_HVIL;
 #ifndef SMALL_FLASH_DEVICE
-extern uint8_t user_selected_bmw_i3_soc_havrla;  // 0=disable, 1=auto, 2=enable
-#endif                                           // SMALL_FLASH_DEVICE
+extern uint8_t user_selected_bmw_i3_soc_havrla;            // 0=disable, 1=auto, 2=enable
+extern uint8_t user_selected_bmw_i3_charge_ramp_shift_mV;  // moves the cell voltage charge ramp up (mV)
+extern uint16_t user_selected_bmw_i3_end_charge_power_W;   // charge power at the end of the cell voltage ramp
+#endif                                                     // SMALL_FLASH_DEVICE
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;
 extern uint16_t user_selected_tesla_GTW_mapRegion;
