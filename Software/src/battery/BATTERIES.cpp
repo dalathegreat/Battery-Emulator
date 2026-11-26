@@ -22,6 +22,7 @@
 #include "CMP-SMART-CAR-BATTERY.h"
 #include "DALY-BMS.h"
 #include "ECMP-BATTERY.h"
+#include "ECMP-V2-BATTERY.h"
 #include "ENNOID-BMS.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
@@ -168,6 +169,8 @@ const char* name_for_battery_type(BatteryType type) {
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
+    case BatteryType::StellantisEcmpV2:
+      return EcmpV2Battery::Name;
 #endif
     case BatteryType::MgGen1:
       return MgGen1Battery::Name;
@@ -337,6 +340,8 @@ Battery* create_battery(BatteryType type) {
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
+    case BatteryType::StellantisEcmpV2:
+      return new EcmpV2Battery();
 #endif
     case BatteryType::MgGen1:
       return new MgGen1Battery();
@@ -408,6 +413,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
+    case BatteryType::StellantisEcmpV2:
     case BatteryType::Kia64FD:
     case BatteryType::KiaHyundai64:
     case BatteryType::MgGen1:
@@ -456,6 +462,9 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::ChargebyteCCSBattery:
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::StellantisEcmpV2:
+#endif
     case BatteryType::FordMachE:
     case BatteryType::GeelyGeometryC:
     case BatteryType::GeelySea:
@@ -571,6 +580,11 @@ void setup_battery() {
         case BatteryType::StellantisEcmp:
           battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
           break;
+#ifndef SMALL_FLASH_DEVICE
+        case BatteryType::StellantisEcmpV2:
+          battery2 = new EcmpV2Battery(&datalayer.battery2, can_config.battery_double);
+          break;
+#endif
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
         case BatteryType::Kia64FD:
