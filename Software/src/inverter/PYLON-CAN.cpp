@@ -84,6 +84,11 @@ inline uint16_t current_with_offset(int32_t dA) {
   return (uint16_t)(v < 0 ? 0 : (v > 65535 ? 65535 : v));
 }
 // Pylon temperature encoding: 0.1 degC with +100 degC offset
+// Measured current on the wire: Battery-Emulator uses positive = charging, the Deye wire uses
+// below 30000 = charging, so the sign is flipped
+inline uint16_t current_measured(int32_t dA) {
+  return current_with_offset(-dA);
+}
 inline uint16_t temp_pylon(int16_t dC) {
   return (uint16_t)(dC + 1000);
 }
@@ -111,6 +116,11 @@ void PylonInverter::
   const uint16_t max_discharge_dA = fault ? 0 : datalayer.aggregate.max_discharge_current_dA;
   const bool charge_allowed = max_charge_dA != 0;
   const bool discharge_allowed = max_discharge_dA != 0;
+  // The battery closes its contactors by itself; we treat "not faulted and some current allowed" as closed.
+  // With charge forbidden (cell over-voltage) the battery opens only its charge contactor; with discharge
+  // forbidden (cell under-voltage) it keeps all contactors closed and just reports the 0 A limit.
+  const bool closed = !fault && (charge_allowed || discharge_allowed);
+  const bool charge_closed = closed && charge_allowed;
 
   // System description (0x7320)
   int modules = user_selected_inverter_modules;
@@ -122,8 +132,7 @@ void PylonInverter::
   }
   int cells_per_module =
       user_selected_inverter_cells_per_module > 0 ? user_selected_inverter_cells_per_module : CELLS_PER_MODULE;
-  int voltage_level =
-      user_selected_inverter_voltage_level > 0 ? user_selected_inverter_voltage_level : VOLTS_PER_MODULE * modules;
+  int voltage_level = user_selected_inverter_voltage_level > 0 ? user_selected_inverter_voltage_level : VOLTAGE_LEVEL;
   int ah = user_selected_inverter_ah_capacity > 0 ? user_selected_inverter_ah_capacity : AH_CAPACITY;
   put_u16le(PYLON_7320, 0, TOWERS);
   PYLON_7320.data.u8[2] = (uint8_t)modules;
@@ -137,7 +146,7 @@ void PylonInverter::
   // 0x4210 ensemble: voltage 0.1 V, current, temperature (battery sends its BMS board temperature;
   // we have none, so max cell temperature), SOC %, SOH %
   put_u16le(PYLON_4210, 0, datalayer.aggregate.voltage_dV);
-  put_u16le(PYLON_4210, 2, current_with_offset(datalayer.aggregate.current_dA));
+  put_u16le(PYLON_4210, 2, current_measured(datalayer.aggregate.current_dA));
   put_u16le(PYLON_4210, 4, temp_pylon(datalayer.aggregate.temperature_max_dC));
   PYLON_4210.data.u8[6] = (uint8_t)soc;
   PYLON_4210.data.u8[7] = (uint8_t)soh;
@@ -162,14 +171,20 @@ void PylonInverter::
   PYLON_4270 = PYLON_4240;
   PYLON_4270.ID = 0x4270;
 
-  // 0x4250 status: 0 = sleep/idle, 1 = charging, 2 = discharging (the battery sends 0 at zero current)
+  // 0x4250 byte 0: 0x00 with the contactors open (sleep); with them closed 1 charging, 2 discharging,
+  // 3 idle, plus 0x10 while the charge contactor is closed (0x13 at zero current, 0x03 when full)
   uint8_t status = 0;
-  if (!fault) {
-    if (datalayer.aggregate.current_dA < 0)
-      status = 1;
-    else if (datalayer.aggregate.current_dA > 0)
-      status = 2;
+  if (closed) {
+    if (datalayer.aggregate.current_dA > 0)  // Battery-Emulator: positive = charging
+      status = 0x01;
+    else if (datalayer.aggregate.current_dA < 0)
+      status = 0x02;
+    else
+      status = 0x03;
   }
+  const uint8_t direction = status;
+  if (charge_closed)
+    status |= 0x10;
   PYLON_4250.data.u8[0] = status;
 
   // 0x4260 module voltage extremes (mV, 16-bit; the battery has 0.1 V resolution) + module numbers;
@@ -185,7 +200,7 @@ void PylonInverter::
 
   // 0x5210 tower 1: voltage 0.1 V, current (0.1 A +30000), temperature degC+40, SOC %, SOH %
   put_u16le(PYLON_5210, 0, datalayer.aggregate.voltage_dV);
-  put_u16le(PYLON_5210, 2, current_with_offset(datalayer.aggregate.current_dA));
+  put_u16le(PYLON_5210, 2, current_measured(datalayer.aggregate.current_dA));
   put_u16le(PYLON_5210, 4, temp_deye(datalayer.aggregate.temperature_max_dC));
   PYLON_5210.data.u8[6] = (uint8_t)soc;
   PYLON_5210.data.u8[7] = (uint8_t)soh;
@@ -201,26 +216,47 @@ void PylonInverter::
   // 0x5230 tower cell temperatures: max degC+40 (u16), module, sensor, min degC+40 (u16), module, sensor
   put_u16le(PYLON_5230, 0, temp_deye(datalayer.aggregate.temperature_max_dC));
   PYLON_5230.data.u8[2] = 1;
-  PYLON_5230.data.u8[3] = 0;
+  PYLON_5230.data.u8[3] = 1;
   put_u16le(PYLON_5230, 4, temp_deye(datalayer.aggregate.temperature_min_dC));
   PYLON_5230.data.u8[6] = 1;
-  PYLON_5230.data.u8[7] = 0;
+  PYLON_5230.data.u8[7] = 1;
 
   // 0x5240 tower current limits: charge, discharge (0.1 A, no offset)
   put_u16le(PYLON_5240, 0, max_charge_dA);
   put_u16le(PYLON_5240, 2, max_discharge_dA);
 
-  // 0x5250 byte 1: module count
+  // 0x5250 byte 0: tower state: 0xF9 contactors open; closed: 0x03 idle, 0x0F charging, 0x09 discharging
+  // byte 1: module count
+  PYLON_5250.data.u8[0] = !closed ? 0xF9 : (direction == 0x01 ? 0x0F : (direction == 0x02 ? 0x09 : 0x03));
   PYLON_5250.data.u8[1] = (uint8_t)modules;
 
-  // 0x52A0 byte 1: modules present
-  PYLON_52A0.data.u8[1] = modules > 0 ? 1 : 0;
+  // 0x5290 bytes 0, 2, 3: BMS board temperature sensors (degC+40); we have none, so the max temperature
+  PYLON_5290.data.u8[0] = (uint8_t)temp_deye(datalayer.aggregate.temperature_max_dC);
+  PYLON_5290.data.u8[2] = (uint8_t)temp_deye(datalayer.aggregate.temperature_max_dC);
+  PYLON_5290.data.u8[3] = (uint8_t)temp_deye(datalayer.aggregate.temperature_max_dC);
+  // bytes 4-7: max module temperature (degC+40) + module number, twice (two sensor groups per module)
+  PYLON_5290.data.u8[4] = (uint8_t)temp_deye(datalayer.aggregate.temperature_max_dC);
+  PYLON_5290.data.u8[5] = 1;
+  PYLON_5290.data.u8[6] = (uint8_t)temp_deye(datalayer.aggregate.temperature_max_dC);
+  PYLON_5290.data.u8[7] = 1;
 
-  // 0x5280 voltage measurement points (0.1 V); bytes 2-3 are the tower voltage
+  // 0x52A0 bytes 0-1: min module temperature (degC+40) + module number
+  PYLON_52A0.data.u8[0] = (uint8_t)temp_deye(datalayer.aggregate.temperature_min_dC);
+  PYLON_52A0.data.u8[1] = 1;
+
+  // 0x5280 voltage measurement points (0.1 V): DC link, battery, battery behind main negative, AIN2.
+  // With the contactors open only the battery side (bytes 2-3) reads a voltage.
+  put_u16le(PYLON_5280, 0, closed ? datalayer.aggregate.voltage_dV : 0);
   put_u16le(PYLON_5280, 2, datalayer.aggregate.voltage_dV);
+  put_u16le(PYLON_5280, 4, closed ? datalayer.aggregate.voltage_dV : 0);
+  put_u16le(PYLON_5280, 6, closed ? datalayer.aggregate.voltage_dV : 0);
 
-  // 0x52F0 byte 0: bit 2 charge relay closed, bit 3 discharge relay closed
-  PYLON_52F0.data.u8[0] = (charge_allowed ? 0x04 : 0x00) | (discharge_allowed ? 0x08 : 0x00);
+  // 0x52F0 byte 0: bit 0 main negative, bit 1 precharge, bit 2 charge, bit 3 discharge contactor closed
+  PYLON_52F0.data.u8[0] = (closed ? 0x09 : 0x00) | (charge_closed ? 0x04 : 0x00);
+
+  // 0x5310 byte 4: charge contactor closed, byte 5: discharge contactor closed
+  PYLON_5310.data.u8[4] = charge_closed ? 1 : 0;
+  PYLON_5310.data.u8[5] = closed ? 1 : 0;
 }
 
 void PylonInverter::map_can_frame_to_variable(CAN_frame rx_frame) {

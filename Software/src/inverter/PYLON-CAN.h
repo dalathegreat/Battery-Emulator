@@ -13,7 +13,7 @@
  *      every ~5.5 s : 0x42E0, 0x42F0 ("Deye_HV"), 0x7310, 0x7320, 0x5210..0x52F0, 0x5310
  *    the content of the inverter's 0x4200 request is ignored (it only marks the inverter alive)
  *  - 0x4201 challenge is answered on 0x4202 with the first 8 bytes of SHA-256(challenge)
- *  - 0x7320 is [towers u16][modules u8][cells/module u8][voltage level V u16][Ah u16]
+ *  - 0x7320 is [towers u16][modules u8][cells/module u8][voltage level u16 (always 102)][Ah u16]
  *  - 0x7330/0x7340 are not sent; the manufacturer string is 0x42F0
  */
 class PylonInverter : public CanInverterProtocol {
@@ -30,11 +30,11 @@ class PylonInverter : public CanInverterProtocol {
 
   /* System description reported in 0x7320. Settings in the web UI override these:
      modules -> user_selected_inverter_modules, cells per module -> user_selected_inverter_cells_per_module,
-     voltage level -> user_selected_inverter_voltage_level, Ah -> user_selected_inverter_ah_capacity.
+     voltage level (default 102) -> user_selected_inverter_voltage_level, Ah -> user_selected_inverter_ah_capacity.
      If no module count is set it is derived from the max design voltage (16 cells x 3.6 V per module). */
   static const int TOWERS = 1;             // battery towers in parallel (one emulated battery = one tower)
   static const int CELLS_PER_MODULE = 16;  // Deye HV modules are 16S LFP
-  static const int VOLTS_PER_MODULE = 51;  // Deye reports 51 V per module as the voltage level
+  static const int VOLTAGE_LEVEL = 102;    // the battery always reports 102 here, whatever its module count
   static const int AH_CAPACITY = 40;       // per tower; the original battery reports 40 Ah
 
   static const int VOLTAGE_OFFSET_DV = 20;  // Small offset voltage to avoid generating voltage events
