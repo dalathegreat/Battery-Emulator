@@ -141,8 +141,12 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
 #define IU_NODE_MSG_MAX_ID 0x285u  // Node 24, msg 0x05
 
 /* ---- Contactor command byte (controller → node, data[0]) ---- */
-#define IU_CONTACTOR_ALLOW 0x01u  // Node may close contactor
+#define IU_CONTACTOR_ALLOW 0x01u  // bit 0: Node may close contactor (cleared = node must open contactor)
 #define IU_CONTACTOR_OPEN 0x00u   // Node must open contactor
+// bit 1: the system wants the batteries (controller's inverter allows closing and no e-stop). Sent to every
+// node, independent of that node's own ALLOW. A sleeping battery may wake up on it, but must not close
+// before ALLOW. When it is cleared, a battery that supports sleeping goes to sleep.
+#define IU_CONTACTOR_WAKE 0x02u
 
 /* ---- FLAGS byte in STATUS message (data[7]) ---- */
 #define IU_FAULT_BMS_FAULT 0x01u          // bit 0: BMS reports fault
@@ -196,7 +200,7 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
  *   [0]    : uint8_t   CRC
  *
  * CONTACTOR COMMAND — IU_CONTROLLER_CONTACTOR_ID(n), 2 bytes:
- *   [0]    : uint8_t   command — IU_CONTACTOR_ALLOW or IU_CONTACTOR_OPEN
+ *   [0]    : uint8_t   command — bit 0 IU_CONTACTOR_ALLOW (else open), bit 1 IU_CONTACTOR_WAKE
  *   [1]    : uint8_t   CRC
  *
  * STATUS message layout — IU_NODE_STATUS_ID(n), 8 bytes:

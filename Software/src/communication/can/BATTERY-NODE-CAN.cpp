@@ -83,11 +83,14 @@ void BatteryNodeCan::receive_can_frame(CAN_frame* rx_frame) {
       return;
     }
     bool allow = (rx_frame->data.u8[0] & IU_CONTACTOR_ALLOW) != 0;
-    if (datalayer.system.status.inverter_allows_contactor_closing != allow) {
-      logging.printf("Battery node CAN: contactor command received - %s (raw byte: 0x%02X)\n",
-                     allow ? "ALLOW CLOSE" : "BLOCK CLOSE", rx_frame->data.u8[0]);
+    bool wake = (rx_frame->data.u8[0] & IU_CONTACTOR_WAKE) != 0;
+    if (datalayer.system.status.inverter_allows_contactor_closing != allow ||
+        datalayer.system.status.interunit_wake_request != wake) {
+      logging.printf("Battery node CAN: contactor command received - %s, wake=%u (raw byte: 0x%02X)\n",
+                     allow ? "ALLOW CLOSE" : "BLOCK CLOSE", wake ? 1 : 0, rx_frame->data.u8[0]);
     }
     datalayer.system.status.inverter_allows_contactor_closing = allow;
+    datalayer.system.status.interunit_wake_request = wake;
     return;
   }
 }
@@ -97,6 +100,7 @@ void BatteryNodeCan::transmit(unsigned long currentMillis) {
   // contactor control only checks inverter_allows_contactor_closing, so we must set it here.
   if (!datalayer.system.status.controller_online) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
+    datalayer.system.status.interunit_wake_request = false;
   }
 
   // === Send reply frames if due ===

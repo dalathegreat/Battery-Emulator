@@ -529,6 +529,10 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
   bool controller_online = false;  // true when controller heartbeat received within timeout (node mode only)
+  /** Node mode only: the controller wants the batteries (its inverter allows closing and no e-stop). A battery
+   * that sleeps may wake up on this, but it must not close before inverter_allows_contactor_closing (ALLOW).
+   * False while the controller is offline. A battery that supports sleeping goes to sleep when this goes false. */
+  bool interunit_wake_request = false;
   /** Watchdog counter for the controller heartbeat (node mode only). Reset to IU_NODE_CONTROLLER_TIMEOUT_S on each
    * heartbeat and decremented every second in safety.cpp; reaching 0 raises EVENT_CAN_CONTROLLER_MISSING.
    * Starts at CAN_STILL_ALIVE - 1 so the first heartbeat has time to arrive before we flag it missing. */

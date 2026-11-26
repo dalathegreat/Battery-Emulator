@@ -208,11 +208,21 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
       bool was_balancing = node.balancing;
       node.balancing = (rem_word & IU_NODE_REM_BALANCING_BIT) != 0;
       if (!was_balancing && node.balancing) {
-        // Balancing just started: start hold timer — BMW I3 opens its own contactor ~20s later.
-        // Controller will block contactor_allowed after BALANCING_HOLD_SECONDS (50s).
-        balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
-        logging.printf("Controller CAN: Node %d offline balancing started — contactor held for %us\n", node_id,
-                       BALANCING_HOLD_SECONDS);
+        if (node.contactor_engaged) {
+          // User balancing started during operation: start hold timer — BMW I3 opens its own contactor
+          // ~54s later. Controller will block contactor_allowed after BALANCING_HOLD_SECONDS (50s).
+          balancing_hold_seconds[node_id - 1] = BALANCING_HOLD_SECONDS;
+          logging.printf("Controller CAN: Node %d offline balancing started — contactor held for %us\n", node_id,
+                         BALANCING_HOLD_SECONDS);
+        } else {
+          // Balancing started with the contactor open: the battery goes to sleep (e.g. after the inverter
+          // opened). Remove its permission at once. While it reports balancing it is never re-allowed, and
+          // once it has woken up it must pass the normal voltage check again before it gets ALLOW.
+          balancing_hold_seconds[node_id - 1] = 0;
+          node.contactor_allowed = false;
+          logging.printf("Controller CAN: Node %d asleep (balancing with contactor open) — permission removed\n",
+                         node_id);
+        }
       }
       break;
     }
@@ -312,17 +322,21 @@ void ControllerCan::send_contactor_commands(unsigned long currentMillis) {
     frame.ID = IU_CONTROLLER_CONTACTOR_ID(node_id);
     frame.DLC = 2;  // [0] = command, [1] = CRC
     frame.ext_ID = false;
-    bool allow_command = node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing &&
-                         !datalayer.system.info.equipment_stop_active;
-    frame.data.u8[0] = allow_command ? IU_CONTACTOR_ALLOW : IU_CONTACTOR_OPEN;
+    // Wake: the system wants the batteries. Sent to every node, independent of its own permission, so a
+    // sleeping battery can wake up and be voltage-checked again before it gets ALLOW.
+    bool wake_command =
+        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active;
+    bool allow_command = node.contactor_allowed && wake_command;
+    frame.data.u8[0] =
+        (allow_command ? IU_CONTACTOR_ALLOW : IU_CONTACTOR_OPEN) | (wake_command ? IU_CONTACTOR_WAKE : 0);
     iu_crc_stamp(frame.ID, frame.data.u8, frame.DLC);
 
     if (last_contactor_command[i] != frame.data.u8[0]) {
       last_contactor_command[i] = frame.data.u8[0];
       logging.printf(
-          "Controller CAN: TX contactor cmd node %u -> %s (node_allowed=%u inverter_allow=%u estop=%u pack_allow=%u "
-          "online=%u)\n",
-          node_id, allow_command ? "ALLOW" : "OPEN", node.contactor_allowed ? 1 : 0,
+          "Controller CAN: TX contactor cmd node %u -> %s wake=%u (node_allowed=%u inverter_allow=%u estop=%u "
+          "pack_allow=%u online=%u)\n",
+          node_id, allow_command ? "ALLOW" : "OPEN", wake_command ? 1 : 0, node.contactor_allowed ? 1 : 0,
           datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0,
           datalayer.system.info.equipment_stop_active ? 1 : 0,
           datalayer.system.status.battery_allows_contactor_closing ? 1 : 0, node.online ? 1 : 0);
