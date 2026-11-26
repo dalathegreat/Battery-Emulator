@@ -29,7 +29,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
   bool get_dtc_standard_code_string() override { return false; }
-  void read_DTC() override;
+  void reset_DTC() override;
 
  protected:
   // Called by the UDS superclass for every successful PID response. `data`
@@ -39,6 +39,14 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
 
  private:
+  enum ZoeUdsState : uint16_t {
+    // DTC clear sequence (normal + protected), followed by a DTC re-read
+    ZOE_STATE_CLEAR_START = 0x01,
+    ZOE_STATE_CLEAR_SESSION,    // 0x10 0xC0 (diagnostic session)
+    ZOE_STATE_CLEAR_NORMAL,     // 0x14 FF FF FF (ClearDiagnosticInformation)
+    ZOE_STATE_CLEAR_PROTECTED,  // 0x31 05 00 (KWP2000 StartRoutineByLocalIdentifier 0x05)
+  };
+
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
@@ -55,6 +63,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static const int GROUP2_CELLVOLTAGES_2_POLL = 0x42;  // Cells 63-96
   static const int GROUP3_METRICS = 0x61;              // Mileage + alltime energy
   static const int GROUP6_BALANCING = 0x07;            // Balancing status bits
+  static const int GROUP4_MODULE_TEMPS = 0x04;         // Per-module temperatures
+
+  static const uint8_t NUMBER_OF_MODULES = 12;
+  static const int16_t MODULE_TEMP_UNKNOWN = INT16_MIN;  // Not yet read, or sensor byte 0xFF
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000_69f = 0;
@@ -120,6 +132,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   uint32_t calculated_total_pack_voltage_mV = 0;
   uint16_t battery_mileage_in_km = 0;
   uint16_t kWh_from_beginning_of_battery_life = 0;
+  int16_t module_temperature_C[NUMBER_OF_MODULES] = {MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN,
+                                                     MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN, MODULE_TEMP_UNKNOWN};
 };
 
 #endif

@@ -95,6 +95,15 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
       datalayer_battery->status.balancing_status = any_balancing ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
       break;
     }
+    case GROUP4_MODULE_TEMPS:  // 0x04, 12 modules x [raw ADC hi, raw ADC lo, temp + 40]
+      for (uint8_t module = 0; module < NUMBER_OF_MODULES; module++) {
+        uint16_t offset = module * 3 + 2;
+        if (offset >= length) {
+          break;
+        }
+        module_temperature_C[module] = (data[offset] == 0xFF) ? MODULE_TEMP_UNKNOWN : (int16_t)data[offset] - 40;
+      }
+      break;
     default:  //Unknown PID, ignore
       break;
   }
@@ -216,7 +225,7 @@ inline String& operator<<(String& str, const T& value) {
 
 String RenaultZoeGen1Battery::get_uds_info_html() {
   String content;
-  content.reserve(270);
+  content.reserve(360);
 
   // clang-format off
   content << "Cell Under Voltage: " << (LB_CUV >= 2 ? "FAULT" : "OK") << "<br>"
@@ -230,6 +239,19 @@ String RenaultZoeGen1Battery::get_uds_info_html() {
              "Battery Mileage: " << battery_mileage_in_km << " km<br>"
              "Lifetime Energy: " << kWh_from_beginning_of_battery_life << " kWh<br>";
   // clang-format on
+
+  content << "Module Temps (&deg;C): ";
+  for (uint8_t module = 0; module < NUMBER_OF_MODULES; module++) {
+    if (module > 0) {
+      content << ", ";
+    }
+    if (module_temperature_C[module] == MODULE_TEMP_UNKNOWN) {
+      content << "-";
+    } else {
+      content << module_temperature_C[module];
+    }
+  }
+  content << "<br>";
 
   return content;
 }
@@ -245,6 +267,7 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
       GROUP1_CELLVOLTAGES_1_POLL,  // Cells 1-62
       GROUP2_CELLVOLTAGES_2_POLL,  // Cells 63-96
       GROUP6_BALANCING,            // Balancing status bits
+      GROUP4_MODULE_TEMPS,         // Per-module temperatures
       GROUP3_METRICS,              // Mileage + alltime energy
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
@@ -260,17 +283,30 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
-static const uint16_t ZOE_STATE_OPEN_SESSION = 1;
-
-void RenaultZoeGen1Battery::read_DTC() {
-  start_sequence(ZOE_STATE_OPEN_SESSION);
+void RenaultZoeGen1Battery::reset_DTC() {
+  start_sequence(ZOE_STATE_CLEAR_START);
 }
 
 void RenaultZoeGen1Battery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
-  if (state == ZOE_STATE_OPEN_SESSION) {
-    send_sequence_message(ZOE_STATE_OPEN_SESSION + 10, SID::DiagnosticSessionControl, (const uint8_t*)"\xC0", 1, 20, 2);
-  } else if (state == ZOE_STATE_OPEN_SESSION + 10 && sid == UDS_RESPONSE_SID_OF(SID::DiagnosticSessionControl)) {
-    // Session 0xC0 granted! Transmit UDS ReadDTCInformation with status mask 0x09 (Active/Confirmed DTCs)
-    send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2, 20, 2);
+  switch (state) {
+    case ZOE_STATE_CLEAR_START:
+      // Enter session 0xC0 first
+      send_sequence_message(ZOE_STATE_CLEAR_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\xC0", 1, 20, 2);
+      break;
+    case ZOE_STATE_CLEAR_SESSION:
+      if (sid == UDS_RESPONSE_SID_OF(SID::DiagnosticSessionControl)) {
+        // Do a standard DTC clear
+        send_sequence_message(ZOE_STATE_CLEAR_NORMAL, SID::ClearDiagnosticInformation, (const uint8_t*)"\xFF\xFF\xFF",
+                              3, 25, 2);
+      }
+      break;
+    case ZOE_STATE_CLEAR_NORMAL:
+      // Now do a protected-DTC clear using the routine
+      send_sequence_message(ZOE_STATE_CLEAR_PROTECTED, SID::RoutineControl, (const uint8_t*)"\x05\x00", 2, 25, 2);
+      break;
+    case ZOE_STATE_CLEAR_PROTECTED:
+      // Now re-read DTCs
+      send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2, 20, 2);
+      break;
   }
 }
