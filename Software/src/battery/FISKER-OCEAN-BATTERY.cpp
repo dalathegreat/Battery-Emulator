@@ -35,14 +35,16 @@ void FiskerOceanBattery::update_values() {
 }
 
 void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-
   if (handle_incoming_uds_can_frame(rx_frame)) {
+    datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     return;  // Handled by the UDS layer (DTC responses).
   }
 
+  // Only frames we recognise as coming from the pack renew the alive timeout;
+  // an unrelated frame must not keep a silent BMS looking alive.
   switch (rx_frame.ID) {
     case 0x0E9:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == expected_CRC(&rx_frame, 0x05)) {
         const int16_t fisker_current_raw =
             static_cast<int16_t>((static_cast<uint16_t>(rx_frame.data.u8[4]) << 8) | rx_frame.data.u8[5]);
@@ -55,6 +57,7 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x0F2:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.DLC >= 6) {
         const uint16_t cell_max_mV = ((static_cast<uint16_t>(rx_frame.data.u8[0]) << 8) | rx_frame.data.u8[1]) / 10;
         const uint16_t cell_min_mV = ((static_cast<uint16_t>(rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3]) / 10;
@@ -65,15 +68,18 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x2F5:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       broadcast_soc_percent = rx_frame.data.u8[0];
       broadcast_soc_valid = rx_frame.data.u8[0] <= 100;
       break;
     case 0x372:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // Byte 4/5 match the per-sensor readings in 0x6D0/0x6D1 (offset -50).
       cell_temperature_max_C = rx_frame.data.u8[4] - 50;
       cell_temperature_min_C = rx_frame.data.u8[5] - 50;
       break;
     case 0x6B0 ... 0x6CD: {
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       const uint8_t frame_offset = rx_frame.ID - CELLVOLTAGE_FRAME_START;
       for (uint8_t i = 0; i < 4; i++) {
         const uint16_t raw = (rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
