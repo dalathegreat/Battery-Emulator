@@ -55,6 +55,8 @@ class Kia64FDBattery : public UdsCanBattery {
   void set_voltage_minmax_limits();
   void set_cell_voltages(uint8_t reading, uint8_t cellNumber);
   void process_cell_voltage_group(const uint8_t* data, uint8_t baseCell);
+  uint16_t crc16_xmodem_update(uint16_t crc, uint8_t data);
+  bool hkg_canfd_crc_ok(uint32_t can_id, const uint8_t* d, uint8_t len);
 
   static const int MAX_PACK_VOLTAGE_96S_DV = 4032;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_96S_DV = 2400;
