@@ -1243,19 +1243,13 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         BMW_3E9.data.u8[4] = 0x00;
       } else {
         BMW_3E9.data.u8[2] = 0x21;  // Charge_active + PlugCharge (always in charging / calibration mode)
-        // Charging_Pwr = the battery's own measured charging power (active_power_W, positive = charging),
-        // a 12-bit field at 25 W/bit spread over byte3 bit4-7 (low nibble) + byte4 (high 8 bits).
+        // Charging_Pwr: a fixed 2000 W, so the battery always sees an active charging session with power,
+        // also while idle or discharging (the measured power would report 0 W then).
+        // 12-bit field at 25 W/bit spread over byte3 bit4-7 (low nibble) + byte4 (high 8 bits).
         // byte3 bit0-1 keeps Chg_Readiness=Ready (0x1).
-        int32_t charge_power_W = datalayer_battery ? datalayer_battery->status.active_power_W : 0;
-        if (charge_power_W < 0) {
-          charge_power_W = 0;  // Only report charging power; clamp discharge/idle to zero
-        }
-        uint16_t charge_pwr_raw = charge_power_W / 25;  // 25 W per bit
-        if (charge_pwr_raw > 0x0FFF) {
-          charge_pwr_raw = 0x0FFF;  // Saturate to the 12-bit field
-        }
-        BMW_3E9.data.u8[3] = 0x01 | ((charge_pwr_raw & 0x0F) << 4);  // Chg_Readiness=Ready + Charging_Pwr low nibble
-        BMW_3E9.data.u8[4] = (charge_pwr_raw >> 4) & 0xFF;           // Charging_Pwr high bits
+        const uint16_t charge_pwr_raw = CHARGING_PWR_REPORTED_W / 25;  // 25 W per bit
+        BMW_3E9.data.u8[3] = 0x01 | ((charge_pwr_raw & 0x0F) << 4);    // Chg_Readiness=Ready + Charging_Pwr low nibble
+        BMW_3E9.data.u8[4] = (charge_pwr_raw >> 4) & 0xFF;             // Charging_Pwr high bits
       }
 
       transmit_can_frame(&BMW_3E9);  // Load Status
