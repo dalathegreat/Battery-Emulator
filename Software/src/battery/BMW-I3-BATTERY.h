@@ -429,6 +429,8 @@ class BmwI3Battery : public CanBattery {
   static const int BALANCING_CONTACTOR_DELAY_MS = 54000;  // Open contactors ~54s after charge-finished
   static const int BALANCING_CAN_STOP_DELAY_MS = 96000;   // Stop all CAN ~96s after charge-finished (battery sleeps)
   static const int BALANCING_12F_STEPS = 9;
+  // Charging power reported to the battery in 0x3E9 while in charge mode (not balancing)
+  static const uint16_t CHARGING_PWR_REPORTED_W = 2000;
   const unsigned long balancing_12F_times[BALANCING_12F_STEPS] = {0, 625, 1250, 1875, 2500, 3125, 3750, 4375, 5000};
   const uint8_t balancing_12F_values[BALANCING_12F_STEPS] = {0xDD, 0x6D, 0x5D, 0x5C, 0x4C, 0x3C, 0x2C, 0x1C, 0x1A};
 
