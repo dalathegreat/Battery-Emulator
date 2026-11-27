@@ -43,79 +43,152 @@ inline String ascii_bytes(const uint8_t* p, uint8_t len) {
 // Human-readable name for each polled identifier (firmware signal names).
 inline const char* name(uint16_t did) {
   switch (did) {
-    case 0x2003: return "BatterySumVoltage";
-    case 0x2004: return "BatteryCurrent";
-    case 0x2005: return "BatteryCurrentValid";
-    case 0x2008: return "DischargeCurrentLimitBranches";
-    case 0x2009: return "RechargeCurrentLimitBranches";
-    case 0x2011: return "ChargeOvercurrentLimitBranches";
-    case 0x2016: return "HallSampleCurrentBranchA";
-    case 0x2019: return "CSUSampleCurrentBranchA";
-    case 0x2024: return "CSUCurrentStateBranchA";
-    case 0x2026: return "InletWaterTemperature";
-    case 0x2027: return "OutletWaterTemperature";
-    case 0x2031: return "MaxBalanceCircuitTemperature";
-    case 0x2032: return "BalanceTemperatureValidityVector";
-    case 0x2033: return "MaxChipTemperature";
-    case 0x2034: return "ChipTemperatureValidityVector";
-    case 0x2038: return "AverageModuleTemperature";
-    case 0x2039: return "MaxModuleTemperature";
-    case 0x2040: return "MinModuleTemperature";
-    case 0x2041: return "MaxModuleTemperaturePosition";
-    case 0x2042: return "MinModuleTemperaturePosition";
-    case 0x2043: return "ModuleTemperatureValidityVector";
-    case 0x2047: return "MaxVoltageCellSOC";
-    case 0x2048: return "MinVoltageCellSOC";
-    case 0x2049: return "AverageCellSOC";
-    case 0x2050: return "DisplayedPackSOC";
-    case 0x2053: return "UnexpectedPowerDownFault";
-    case 0x2054: return "ModuleTemperatureDaisyChainUpdated";
-    case 0x2055: return "CellVoltageDaisyChainUpdated";
-    case 0x2056: return "CMCResetErrorFlag";
-    case 0x2057: return "VCUCrashMessageState";
-    case 0x2058: return "HardwireCrashPWMPeriod";
-    case 0x2059: return "HardwireCrashPWMDutyCycle";
-    case 0x2060: return "ForceForbidIsolationDetectCommand";
-    case 0x2061: return "IsolationMeasurementStatus";
-    case 0x2062: return "IsolationMeasurementState";
-    case 0x2063: return "PositiveIsolationMeasurementVoltageRaw";
-    case 0x2064: return "NegativeIsolationMeasurementVoltageRaw";
-    case 0x2069: return "PositiveIsolationResistance";
-    case 0x2070: return "NegativeIsolationResistance";
-    case 0x2078: return "BalancingCircuitOpenErrorCMCPosition";
-    case 0x2079: return "BalancingCircuitOpenErrorCellPosition";
-    case 0x2080: return "BalancingCircuitShortErrorCMCPosition";
-    case 0x2081: return "BalancingCircuitShortErrorCellPosition";
-    case 0x2089: return "Channel0HighVoltage";
-    case 0x2090: return "Channel1HighVoltage";
-    case 0x2091: return "Channel2HighVoltage";
-    case 0x2092: return "Channel0LowVoltage";
-    case 0x2093: return "Channel1LowVoltage";
-    case 0x2094: return "Channel2LowVoltage";
-    case 0x2107: return "BatteryToG0Voltage";
-    case 0x2108: return "PVPositiveToG0Voltage";
-    case 0x2109: return "MainPositiveToG0Voltage";
-    case 0x2117: return "MainPositiveToG1Voltage";
-    case 0x2130: return "KL30CVoltage";
-    case 0x2133: return "MaxCellVoltagePosition";
-    case 0x2134: return "MinCellVoltagePosition";
-    case 0x2136: return "AverageCellVoltage";
-    case 0x2137: return "MaxCellVoltage";
-    case 0x2138: return "MinCellVoltage";
-    case 0x2143: return "CellVoltageValidityVector";
-    case 0x2144: return "PVPositiveContactorAging";
-    case 0x2145: return "PVNegativeContactorAging";
-    case 0xEFF6: return "Timestamp";
-    case 0xEFF7: return "VehicleSpeed";
-    case 0xEFF8: return "Mileage";
-    case 0xEFF9: return "BatteryVoltage12VAux";
-    case 0xEFFE: return "STMin";
-    case 0xF040: return "PVIUControlRead";
-    case 0xF055: return "ShippingModeRead";
-    case 0xF060: return "ContactorControlRead";
-    case 0xF184: return "ApplicationSoftwareFingerprint";
-    case 0xF190: return "VIN";
-    default: return "Unknown";
+    case 0x2003:
+      return "BatterySumVoltage";
+    case 0x2004:
+      return "BatteryCurrent";
+    case 0x2005:
+      return "BatteryCurrentValid";
+    case 0x2008:
+      return "DischargeCurrentLimitBranches";
+    case 0x2009:
+      return "RechargeCurrentLimitBranches";
+    case 0x2011:
+      return "ChargeOvercurrentLimitBranches";
+    case 0x2016:
+      return "HallSampleCurrentBranchA";
+    case 0x2019:
+      return "CSUSampleCurrentBranchA";
+    case 0x2024:
+      return "CSUCurrentStateBranchA";
+    case 0x2026:
+      return "InletWaterTemperature";
+    case 0x2027:
+      return "OutletWaterTemperature";
+    case 0x2031:
+      return "MaxBalanceCircuitTemperature";
+    case 0x2032:
+      return "BalanceTemperatureValidityVector";
+    case 0x2033:
+      return "MaxChipTemperature";
+    case 0x2034:
+      return "ChipTemperatureValidityVector";
+    case 0x2038:
+      return "AverageModuleTemperature";
+    case 0x2039:
+      return "MaxModuleTemperature";
+    case 0x2040:
+      return "MinModuleTemperature";
+    case 0x2041:
+      return "MaxModuleTemperaturePosition";
+    case 0x2042:
+      return "MinModuleTemperaturePosition";
+    case 0x2043:
+      return "ModuleTemperatureValidityVector";
+    case 0x2047:
+      return "MaxVoltageCellSOC";
+    case 0x2048:
+      return "MinVoltageCellSOC";
+    case 0x2049:
+      return "AverageCellSOC";
+    case 0x2050:
+      return "DisplayedPackSOC";
+    case 0x2053:
+      return "UnexpectedPowerDownFault";
+    case 0x2054:
+      return "ModuleTemperatureDaisyChainUpdated";
+    case 0x2055:
+      return "CellVoltageDaisyChainUpdated";
+    case 0x2056:
+      return "CMCResetErrorFlag";
+    case 0x2057:
+      return "VCUCrashMessageState";
+    case 0x2058:
+      return "HardwireCrashPWMPeriod";
+    case 0x2059:
+      return "HardwireCrashPWMDutyCycle";
+    case 0x2060:
+      return "ForceForbidIsolationDetectCommand";
+    case 0x2061:
+      return "IsolationMeasurementStatus";
+    case 0x2062:
+      return "IsolationMeasurementState";
+    case 0x2063:
+      return "PositiveIsolationMeasurementVoltageRaw";
+    case 0x2064:
+      return "NegativeIsolationMeasurementVoltageRaw";
+    case 0x2069:
+      return "PositiveIsolationResistance";
+    case 0x2070:
+      return "NegativeIsolationResistance";
+    case 0x2078:
+      return "BalancingCircuitOpenErrorCMCPosition";
+    case 0x2079:
+      return "BalancingCircuitOpenErrorCellPosition";
+    case 0x2080:
+      return "BalancingCircuitShortErrorCMCPosition";
+    case 0x2081:
+      return "BalancingCircuitShortErrorCellPosition";
+    case 0x2089:
+      return "Channel0HighVoltage";
+    case 0x2090:
+      return "Channel1HighVoltage";
+    case 0x2091:
+      return "Channel2HighVoltage";
+    case 0x2092:
+      return "Channel0LowVoltage";
+    case 0x2093:
+      return "Channel1LowVoltage";
+    case 0x2094:
+      return "Channel2LowVoltage";
+    case 0x2107:
+      return "BatteryToG0Voltage";
+    case 0x2108:
+      return "PVPositiveToG0Voltage";
+    case 0x2109:
+      return "MainPositiveToG0Voltage";
+    case 0x2117:
+      return "MainPositiveToG1Voltage";
+    case 0x2130:
+      return "KL30CVoltage";
+    case 0x2133:
+      return "MaxCellVoltagePosition";
+    case 0x2134:
+      return "MinCellVoltagePosition";
+    case 0x2136:
+      return "AverageCellVoltage";
+    case 0x2137:
+      return "MaxCellVoltage";
+    case 0x2138:
+      return "MinCellVoltage";
+    case 0x2143:
+      return "CellVoltageValidityVector";
+    case 0x2144:
+      return "PVPositiveContactorAging";
+    case 0x2145:
+      return "PVNegativeContactorAging";
+    case 0xEFF6:
+      return "Timestamp";
+    case 0xEFF7:
+      return "VehicleSpeed";
+    case 0xEFF8:
+      return "Mileage";
+    case 0xEFF9:
+      return "BatteryVoltage12VAux";
+    case 0xEFFE:
+      return "STMin";
+    case 0xF040:
+      return "PVIUControlRead";
+    case 0xF055:
+      return "ShippingModeRead";
+    case 0xF060:
+      return "ContactorControlRead";
+    case 0xF184:
+      return "ApplicationSoftwareFingerprint";
+    case 0xF190:
+      return "VIN";
+    default:
+      return "Unknown";
   }
 }
 
