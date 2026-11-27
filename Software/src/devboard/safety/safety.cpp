@@ -156,7 +156,9 @@ static void check_cell_voltages(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
     pack.status.max_charge_power_W = 0;
   }
   // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
-  if (pack.status.cell_max_voltage_mV >= (pack.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
+  // Raised from the highest cell voltage, or from the pack's own BMS when it reports a confirmed cell overvoltage fault.
+  if ((pack.status.cell_max_voltage_mV >= (pack.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) ||
+      pack.status.bms_reports_cell_critical_overvoltage) {
     set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0, number);
   }
 
