@@ -6,6 +6,7 @@
 #include "../../charger/CanCharger.h"
 #endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
@@ -78,14 +79,27 @@ void init_stored_settings() {
     datalayer.battery2.info.total_capacity_Wh = temp;
     datalayer.battery3.info.total_capacity_Wh = temp;
   }
-  temp = settings.getUInt("MAXPERCENTAGE", false);
-  if (temp != 0) {
-    datalayer.battery_settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
+  /* The saved SOC window, held to the same limits as an edit on the settings page: an end that is
+     missing or outside them keeps its default, and so does a minimum that is not below the
+     maximum. Saved in 0.1 % steps for backwards compatibility, hence the * 10. */
+  const uint32_t saved_max = settings.getUInt("MAXPERCENTAGE", 0);
+  if (saved_max >= (uint32_t)(SOC_MAX_PERCENTAGE_LOWEST / 10) &&
+      saved_max <= (uint32_t)(SOC_MAX_PERCENTAGE_HIGHEST / 10)) {
+    datalayer.battery_settings.max_percentage = (uint16_t)(saved_max * 10);
   }
-  int32_t temp2 = settings.getInt("MINPERCENTAGE", false);
-  if (temp2 <= 500 && temp2 >= -100) {
-    datalayer.battery_settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
+  int32_t saved_min = settings.getInt("MINPERCENTAGE", INT32_MIN);
+  if (saved_min == INT32_MIN && settings.settingExists("MINPERCENTAGE")) {
+    /* Saved unsigned until negative minimums came in (October 2025). getInt() cannot read such an
+       entry, so an install that has not changed its minimum since got 0 % at every boot */
+    saved_min = (int32_t)settings.getUInt("MINPERCENTAGE", 0);
   }
+  if (saved_min >= SOC_MIN_PERCENTAGE_LOWEST / 10 && saved_min <= SOC_MIN_PERCENTAGE_HIGHEST / 10 &&
+      soc_window_valid(saved_min * 10, datalayer.battery_settings.max_percentage)) {
+    datalayer.battery_settings.min_percentage = (int16_t)(saved_min * 10);
+  }
+  // The window in use starts out as the saved one. MQTT SET_SCALESOC moves only the one in use
+  datalayer.battery_settings.user_set_max_percentage = datalayer.battery_settings.max_percentage;
+  datalayer.battery_settings.user_set_min_percentage = datalayer.battery_settings.min_percentage;
   datalayer.battery_settings.max_user_set_charge_dA =
       settings.getUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
   datalayer.battery_settings.max_user_set_discharge_dA =
@@ -170,6 +184,16 @@ void init_stored_settings() {
   if (user_selected_bmw_i3_soc_havrla > 2) {
     user_selected_bmw_i3_soc_havrla = 0;
   }
+  uint32_t bmw_i3_end_charge_power_W = settings.getUInt("BMWI3ENDCHGW", 400);
+  if (bmw_i3_end_charge_power_W < 100 || bmw_i3_end_charge_power_W > 5000) {
+    bmw_i3_end_charge_power_W = 400;
+  }
+  user_selected_bmw_i3_end_charge_power_W = (uint16_t)bmw_i3_end_charge_power_W;
+  uint32_t bmw_i3_charge_ramp_shift_mV = settings.getUInt("BMWI3RAMPMV", 0);
+  if (bmw_i3_charge_ramp_shift_mV > 10) {
+    bmw_i3_charge_ramp_shift_mV = 0;
+  }
+  user_selected_bmw_i3_charge_ramp_shift_mV = (uint8_t)bmw_i3_charge_ramp_shift_mV;
 #endif  // SMALL_FLASH_DEVICE
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
@@ -422,8 +446,10 @@ void store_settings() {
 
   settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.saveBool("USE_SCALED_SOC", datalayer.battery_settings.soc_scaling_active);
-  settings.saveUInt("MAXPERCENTAGE", datalayer.battery_settings.max_percentage / 10);
-  settings.saveInt("MINPERCENTAGE", datalayer.battery_settings.min_percentage / 10);
+  // The saved window, not the one in use: that may hold an MQTT SET_SCALESOC value, which must
+  // not outlive a reboot just because some other setting was saved meanwhile
+  settings.saveUInt("MAXPERCENTAGE", datalayer.battery_settings.user_set_max_percentage / 10);
+  settings.saveInt("MINPERCENTAGE", datalayer.battery_settings.user_set_min_percentage / 10);
   settings.saveUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
   settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery_settings.max_user_set_discharge_dA);
   settings.saveBool("USEVOLTLIMITS", datalayer.battery_settings.user_set_voltage_limits_active);

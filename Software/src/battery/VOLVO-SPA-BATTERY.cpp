@@ -32,13 +32,16 @@ void VolvoSpaBattery::
   datalayer.battery.status.cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
   datalayer.battery.status.cell_min_voltage_mV = CELL_U_MIN * 10;
 
-  //Map all cell voltages to the global array
+  //Map the last completed cell voltage sweep to the global array. The working buffer is filled module by module
+  //over many CAN round trips, and an unfinished sweep is abandoned after 60s, so mapping it directly would mix
+  //cells from two different sweeps.
   for (int i = 0; i < 108; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages_complete[i];
   }
 
-  //If we have enough cell values populated (atleast 96 read) AND number_of_cells not initialized yet
-  if (cell_voltages[95] > 0 && datalayer.battery.info.number_of_cells == 0) {
+  //If a completed sweep has populated at least 96 cells AND number_of_cells not initialized yet. Checking only
+  //completed sweeps also means a 108S pack cannot be taken for 96S when this runs midway through the first sweep.
+  if (cell_voltages_complete[95] > 0 && datalayer.battery.info.number_of_cells == 0) {
     // We can determine whether we have 96S or 108S battery
     if (datalayer.battery.status.cell_voltages_mV[107] > 0) {
       datalayer.battery.info.number_of_cells = 108;
@@ -262,6 +265,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             transmit_can_frame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
           } else {                                  //Last pack read, calculate min/max cell voltage
             cell_voltage_read_in_progress = false;
+            memcpy(cell_voltages_complete, cell_voltages, sizeof(cell_voltages));  //Publish the whole sweep at once
             min_max_voltage[0] = 9999;
             min_max_voltage[1] = 0;
             for (cellcounter = 0; cellcounter < 108; cellcounter++) {

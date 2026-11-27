@@ -131,6 +131,7 @@ add_executable(tests
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/ECMP-V2-BATTERY.cpp
     ../Software/src/battery/ENNOID-BMS.cpp
     ../Software/src/battery/FISKER-OCEAN-BATTERY.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp

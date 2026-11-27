@@ -523,6 +523,7 @@ class BydAttoBattery : public CanBattery {
   bool battery_insulation_valid = false;        // Zero is a valid 0x43A fault reading, so track receipt separately
   bool battery_iso_measurement_active = false;  // 0x35E b0 bit0x80
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
+  uint16_t battery_hv_bus_voltage_dV = 0;       // 0x35E b3-4 LE, deci-volts
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};

@@ -29,4 +29,8 @@ class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
   String get_status_html();
 };
 
+// HVP contactor labels, shared with the serial log. Past the table the text is "UNKNOWN".
+const char* getContactorText(int index);
+const char* getContactorState(int index);
+
 #endif

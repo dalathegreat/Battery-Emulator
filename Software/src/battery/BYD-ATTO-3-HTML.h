@@ -163,6 +163,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
+    content += "<h4>HV bus voltage: ";
+    if (byd_datalayer->hv_bus_voltage_valid) {
+      content += String(byd_datalayer->hv_bus_voltage_dV / 10.0f, 1) + " V</h4>";
+    } else {
+      content += "Not received</h4>";
+    }
     content +=
         "<h4>Capacity original: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100.0f) + " Ah</h4>";
     content +=

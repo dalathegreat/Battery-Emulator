@@ -126,6 +126,25 @@ static String calculatedValuesBlock(const DATALAYER_INFO_TESLA& tesla, const DAT
          temperatureRow(tesla, status) + "<h3>Raw values</h3>";
 }
 
+// A raw CAN index can be wider than the table (unused codes, all-ones). That used to read off the end.
+template <size_t N>
+static const char* txt(const char* (&table)[N], unsigned index) {
+  return index < N ? table[index] : "UNKNOWN";
+}
+
+const char* getContactorText(int index) {
+  static const char* table[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
+                                "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
+                                "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
+  return index < 0 ? "UNKNOWN" : txt(table, static_cast<unsigned>(index));
+}
+
+const char* getContactorState(int index) {
+  static const char* table[] = {"SNA",        "OPEN",   "PRECHARGE",  "BLOCKED",    "PULLED_IN",   "OPENING",
+                                "ECONOMIZED", "WELDED", "UNKNOWN(8)", "UNKNOWN(9)", "UNKNOWN(10)", "UNKNOWN(11)"};
+  return index < 0 ? "UNKNOWN" : txt(table, static_cast<unsigned>(index));
+}
+
 String TeslaHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
   String content = calculatedValuesBlock(tesla, core_data->status);
@@ -217,9 +236,6 @@ String TeslaHtmlRenderer::get_status_html() {
   //float HVP_shuntBarTempDbg = static_cast<float>(tesla.HVP_shuntBarTempDbg) * 0.01f;
   //float HVP_shuntAsicTempDbg = static_cast<float>(tesla.HVP_shuntAsicTempDbg) * 0.01f;
 
-  static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
-                                        "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
-                                        "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
   static const char* hvilStatusState[] = {"UNKNOWN or CONTACTORS OPEN",
                                           "STATUS_OK",
                                           "CURRENT_SOURCE_FAULT",
@@ -236,9 +252,6 @@ String TeslaHtmlRenderer::get_status_html() {
                                           "UNKNOWN(13)",
                                           "UNKNOWN(14)",
                                           "UNKNOWN(15)"};
-  static const char* contactorState[] = {"SNA",        "OPEN",       "PRECHARGE",   "BLOCKED",
-                                         "PULLED_IN",  "OPENING",    "ECONOMIZED",  "WELDED",
-                                         "UNKNOWN(8)", "UNKNOWN(9)", "UNKNOWN(10)", "UNKNOWN(11)"};
   static const char* BMS_state[] = {"STANDBY",     "DRIVE", "SUPPORT", "CHARGE", "FEIM",
                                     "CLEAR_FAULT", "FAULT", "WELD",    "TEST",   "SNA"};
   static const char* BMS_contactorState[] = {"SNA", "OPEN", "OPENING", "CLOSING", "CLOSED", "WELDED", "BLOCKED"};
@@ -295,23 +308,26 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>Battery Total Charge: " + String(total_charge) + " kWh</h4>";
   //0x20A 522 HVP_contactorState + HVIL
   //content += "<h4>HVIL Fault: " + String(noYes[tesla.BMS_hvilFault]) + "</h4>";
-  content += "<h4>HVIL Status: " + String(hvilStatusState[tesla.hvil_status]) + "</h4>";
-  content += "<h4>HVP Contactor State: " + String(contactorText[tesla.packContactorSetState]) + "</h4>";
-  content += "<h4>BMS Contactor State: " + String(BMS_contactorState[tesla.BMS_contactorState]) + "</h4>";
-  content += "<h4>Negative Contactor: " + String(contactorState[tesla.packContNegativeState]) + "</h4>";
-  content += "<h4>Positive Contactor: " + String(contactorState[tesla.packContPositiveState]) + "</h4>";
+  content += "<h4>HVIL Status: " + String(txt(hvilStatusState, tesla.hvil_status)) + "</h4>";
+  content += "<h4>HVP Contactor State: " + String(getContactorText(tesla.packContactorSetState)) + "</h4>";
+  content += "<h4>BMS Contactor State: " + String(txt(BMS_contactorState, tesla.BMS_contactorState)) + "</h4>";
+  content += "<h4>Negative Contactor: " + String(getContactorState(tesla.packContNegativeState)) + "</h4>";
+  content += "<h4>Positive Contactor: " + String(getContactorState(tesla.packContPositiveState)) + "</h4>";
   if (tesla.packContactorSetState == 5) {  //Closed
-    content += "<h4>Closing blocked: " + String(noYes[tesla.packCtrsClosingBlocked]) + " (already CLOSED)</h4>";
+    content += "<h4>Closing blocked: " + String(txt(noYes, tesla.packCtrsClosingBlocked)) + " (already CLOSED)</h4>";
   } else {
-    content += "<h4>Closing blocked: " + String(noYes[tesla.packCtrsClosingBlocked]) + "</h4>";
+    content += "<h4>Closing blocked: " + String(txt(noYes, tesla.packCtrsClosingBlocked)) + "</h4>";
   }
-  content += "<h4>Pyrotest in progress: " + String(noYes[tesla.pyroTestInProgress]) + "</h4>";
-  content += "<h4>Contactors Open Now Requested: " + String(noYes[tesla.battery_packCtrsOpenNowRequested]) + "</h4>";
-  content += "<h4>Contactors Open Requested: " + String(noYes[tesla.battery_packCtrsOpenRequested]) + "</h4>";
-  content += "<h4>Contactors Request Status: " + String(HVP_contactor[tesla.battery_packCtrsRequestStatus]) + "</h4>";
+  content += "<h4>Pyrotest in progress: " + String(txt(noYes, tesla.pyroTestInProgress)) + "</h4>";
   content +=
-      "<h4>Contactors Reset Request Required: " + String(noYes[tesla.battery_packCtrsResetRequestRequired]) + "</h4>";
-  content += "<h4>DC Link Allowed to Energize: " + String(noYes[tesla.battery_dcLinkAllowedToEnergize]) + "</h4>";
+      "<h4>Contactors Open Now Requested: " + String(txt(noYes, tesla.battery_packCtrsOpenNowRequested)) + "</h4>";
+  content += "<h4>Contactors Open Requested: " + String(txt(noYes, tesla.battery_packCtrsOpenRequested)) + "</h4>";
+  content +=
+      "<h4>Contactors Request Status: " + String(txt(HVP_contactor, tesla.battery_packCtrsRequestStatus)) + "</h4>";
+  content +=
+      "<h4>Contactors Reset Request Required: " + String(txt(noYes, tesla.battery_packCtrsResetRequestRequired)) +
+      "</h4>";
+  content += "<h4>DC Link Allowed to Energize: " + String(txt(noYes, tesla.battery_dcLinkAllowedToEnergize)) + "</h4>";
   // TODO(tesla): the rows of this page that are not marked as raw (from master) are not yet checked for N/A / SNA values
   // Comment what data you would like to display, order can be changed.
   //0x352 850 BMS_energyStatus
@@ -321,7 +337,7 @@ String TeslaHtmlRenderer::get_status_html() {
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " kWh</h4>";
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " kWh</h4>";
     content += "<h4>Energy Buffer: " + String(energy_buffer) + " kWh</h4>";
-    content += "<h4>Full Charge Complete: " + String(noYes[tesla.battery_full_charge_complete]) + "</h4>";  //bool
+    content += "<h4>Full Charge Complete: " + String(txt(noYes, tesla.battery_full_charge_complete)) + "</h4>";  //bool
   }
   //0x352 850 BMS_energyStatus
   if (tesla.BMS352_mux == true) {
@@ -331,7 +347,7 @@ String TeslaHtmlRenderer::get_status_html() {
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " kWh</h4>";
     content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " kWh</h4>";
     content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " kWh</h4>";
-    content += "<h4>Fully Charged: " + String(noYes[tesla.battery_fully_charged]) + "</h4>";
+    content += "<h4>Fully Charged: " + String(txt(noYes, tesla.battery_fully_charged)) + "</h4>";
   }
   // Nominal energy remaining, the pack's own value (what the UI SOC is based on). Both 0x352 variants are always
   // listed, the one the pack does not send stays N/A: 11 bit, 0.1 kWh without mux, 16 bit, 0.02 kWh with mux 0
@@ -345,9 +361,9 @@ String TeslaHtmlRenderer::get_status_html() {
   content += rawEnergyRow("Total Capacity When New (0x292)", tesla.bol_0x292_seen, tesla.bol_0x292_x10, 1023, 0.1f, 1);
   //0x212 530 BMS_status
   content += "<h4>Isolation Resistance: " + String(isolationResistance) + " kOhms</h4>";
-  content += "<h4>BMS State: " + String(BMS_state[tesla.BMS_state]) + "</h4>";
-  content += "<h4>BMS HV State: " + String(BMS_hvState[tesla.BMS_hvState]) + "</h4>";
-  content += "<h4>BMS UI Charge Status: " + String(BMS_uiChargeStatus[tesla.BMS_uiChargeStatus]) + "</h4>";
+  content += "<h4>BMS State: " + String(txt(BMS_state, tesla.BMS_state)) + "</h4>";
+  content += "<h4>BMS HV State: " + String(txt(BMS_hvState, tesla.BMS_hvState)) + "</h4>";
+  content += "<h4>BMS UI Charge Status: " + String(txt(BMS_uiChargeStatus, tesla.BMS_uiChargeStatus)) + "</h4>";
   content += "<h4>BMS_buildConfigId: " + String(tesla.BMS_info_buildConfigId) + "</h4>";
   content += "<h4>BMS_hardwareId: " + String(tesla.BMS_info_hardwareId) + "</h4>";
   content += "<h4>BMS_componentId: " + String(tesla.BMS_info_componentId) + "</h4>";
@@ -404,7 +420,7 @@ String TeslaHtmlRenderer::get_status_html() {
   //content += "<h4>Max Stationary Heat Power: " + String(BMS_maxStationaryHeatPower) + " kWh</h4>"; // Not giving useable data
   //content += "<h4>HVAC Power Budget: " + String(BMS_hvacPowerBudget) + " kW</h4>"; // Not giving useable data
   //content += "<h4>Not Enough Power For Heat Pump: " + String(noYes[tesla.BMS_notEnoughPowerForHeatPump]) + "</h4>"; // Not giving useable data
-  content += "<h4>Power Limit State: " + String(BMS_powerLimitState[tesla.BMS_powerLimitState]) + "</h4>";
+  content += "<h4>Power Limit State: " + String(txt(BMS_powerLimitState, tesla.BMS_powerLimitState)) + "</h4>";
   //content += "<h4>Inverter TQF: " + String(tesla.BMS_inverterTQF) + "</h4>"; // Not giving useable data
   //0x312 786 BMS_thermalStatus
   content += "<h4>Power Dissipation: " + String(BMS_powerDissipation) + " kW</h4>";
@@ -418,22 +434,24 @@ String TeslaHtmlRenderer::get_status_html() {
   appendFault(content, "PCS No Flow Request", tesla.BMS_pcsNoFlowRequest);
   appendFault(content, "BMS No Flow Request", tesla.BMS_noFlowRequest);
   //0x224 548 PCS_dcdcStatus
-  content += "<h4>Precharge Status: " + String(PCS_dcdcStatus[tesla.PCS_dcdcPrechargeStatus]) + "</h4>";
-  content += "<h4>12V Support Status: " + String(PCS_dcdcStatus[tesla.PCS_dcdc12VSupportStatus]) + "</h4>";
-  content += "<h4>HV Bus Discharge Status: " + String(PCS_dcdcStatus[tesla.PCS_dcdcHvBusDischargeStatus]) + "</h4>";
-  content += "<h4>Main State: " + String(PCS_dcdcMainState[tesla.PCS_dcdcMainState]) + "</h4>";
-  content += "<h4>Sub State: " + String(PCS_dcdcSubState[tesla.PCS_dcdcSubState]) + "</h4>";
+  content += "<h4>Precharge Status: " + String(txt(PCS_dcdcStatus, tesla.PCS_dcdcPrechargeStatus)) + "</h4>";
+  content += "<h4>12V Support Status: " + String(txt(PCS_dcdcStatus, tesla.PCS_dcdc12VSupportStatus)) + "</h4>";
+  content +=
+      "<h4>HV Bus Discharge Status: " + String(txt(PCS_dcdcStatus, tesla.PCS_dcdcHvBusDischargeStatus)) + "</h4>";
+  content += "<h4>Main State: " + String(txt(PCS_dcdcMainState, tesla.PCS_dcdcMainState)) + "</h4>";
+  content += "<h4>Sub State: " + String(txt(PCS_dcdcSubState, tesla.PCS_dcdcSubState)) + "</h4>";
   appendFault(content, "PCS Faulted", tesla.PCS_dcdcFaulted);
   appendFault(content, "Output Is Limited", tesla.PCS_dcdcOutputIsLimited);
   content += "<h4>Max Output Current Allowed: " + String(PCS_dcdcMaxOutputCurrentAllowed) + " A</h4>";
-  content += "<h4>Precharge Rty Cnt: " + String(falseTrue[tesla.PCS_dcdcPrechargeRtyCnt]) + "</h4>";
-  content += "<h4>12V Support Rty Cnt: " + String(falseTrue[tesla.PCS_dcdc12VSupportRtyCnt]) + "</h4>";
-  content += "<h4>Discharge Rty Cnt: " + String(falseTrue[tesla.PCS_dcdcDischargeRtyCnt]) + "</h4>";
+  content += "<h4>Precharge Rty Cnt: " + String(txt(falseTrue, tesla.PCS_dcdcPrechargeRtyCnt)) + "</h4>";
+  content += "<h4>12V Support Rty Cnt: " + String(txt(falseTrue, tesla.PCS_dcdc12VSupportRtyCnt)) + "</h4>";
+  content += "<h4>Discharge Rty Cnt: " + String(txt(falseTrue, tesla.PCS_dcdcDischargeRtyCnt)) + "</h4>";
   appendFault(content, "PWM Enable Line", tesla.PCS_dcdcPwmEnableLine);
   appendFault(content, "Supporting Fixed LV Target", tesla.PCS_dcdcSupportingFixedLvTarget);
-  content += "<h4>Precharge Restart Cnt: " + String(falseTrue[tesla.PCS_dcdcPrechargeRestartCnt]) + "</h4>";
+  content += "<h4>Precharge Restart Cnt: " + String(txt(falseTrue, tesla.PCS_dcdcPrechargeRestartCnt)) + "</h4>";
   content +=
-      "<h4>Initial Precharge Substate: " + String(PCS_dcdcSubState[tesla.PCS_dcdcInitialPrechargeSubState]) + "</h4>";
+      "<h4>Initial Precharge Substate: " + String(txt(PCS_dcdcSubState, tesla.PCS_dcdcInitialPrechargeSubState)) +
+      "</h4>";
   //0x3C4 PCS_info
   content += "<h4>PCS_buildConfigId: " + String(tesla.PCS_info_buildConfigId) + "</h4>";
   content += "<h4>PCS_hardwareId: " + String(tesla.PCS_info_hardwareId) + "</h4>";
@@ -496,9 +514,9 @@ String TeslaHtmlRenderer::get_status_html() {
   appendFault(content, "HVP_gpioPortSelSpiRdy", tesla.HVP_gpioPortSelSpiRdy);
   appendFault(content, "HVP_gpioPyroUnlock", tesla.HVP_gpioPyroUnlock);
   content += "<h4>HVP_shuntCurrentDebug: " + String(HVP_shuntCurrentDebug) + " A</h4>";
-  content += "<h4>HVP_packCurrentMia: " + String(noYes[tesla.HVP_packCurrentMia]) + "</h4>";
-  content += "<h4>HVP_auxCurrentMia: " + String(noYes[tesla.HVP_auxCurrentMia]) + "</h4>";
-  content += "<h4>HVP_currentSenseMia: " + String(noYes[tesla.HVP_currentSenseMia]) + "</h4>";
+  content += "<h4>HVP_packCurrentMia: " + String(txt(noYes, tesla.HVP_packCurrentMia)) + "</h4>";
+  content += "<h4>HVP_auxCurrentMia: " + String(txt(noYes, tesla.HVP_auxCurrentMia)) + "</h4>";
+  content += "<h4>HVP_currentSenseMia: " + String(txt(noYes, tesla.HVP_currentSenseMia)) + "</h4>";
   //content += "<h4>HVP_fcLinkVoltage: " + String(HVP_fcLinkVoltage) + " V</h4>"; // Not giving useable data
   //content += "<h4>HVP_packNegativeV: " + String(HVP_packNegativeV) + " V</h4>"; // Not giving useable data
   //content += "<h4>HVP_packPositiveV: " + String(HVP_packPositiveV) + " V</h4>"; // Not giving useable data

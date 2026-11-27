@@ -311,6 +311,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "", supports_byd_autocal_metrics},
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
+    {"hv_bus_voltage", "HV Bus Voltage", "V", "voltage", supports_byd_metrics},
     {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
     {"leaf_soh_raw", "State of Health (raw)", "%", "", supports_leaf_metrics},
     {"leaf_vbat", "VBAT +12 level", "V", "voltage", supports_leaf_metrics},
@@ -431,11 +432,14 @@ enum ButtonCommand {
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
   BTN_SET_SCALESOC,
+  BTN_RESET_DTC,
+  BTN_SET_VOLTLIMITS,
+  BTN_SET_SOCSCALING,
   BTN_COUNT
 };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET",   "PAUSE",           "RESUME",          "RESTART",
-                                                 "STOP",       "TESLA_BMS_RESET", "TESLA_SOC_RESET", "SET_LIMITS",
-                                                 "ESPNOW_RUN", "SET_SCALESOC"};
+static const char* button_commands[BTN_COUNT] = {
+    "BMSRESET",   "PAUSE",      "RESUME",       "RESTART",   "STOP",           "TESLA_BMS_RESET", "TESLA_SOC_RESET",
+    "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC", "RESET_DTC", "SET_VOLTLIMITS", "SET_SOCSCALING"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -671,6 +675,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
         (battery_index == 2) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
     doc["min_cell_number"] = byd.BMS_min_cell_voltage_number;
     doc["max_cell_number"] = byd.BMS_max_cell_voltage_number;
+    // Omit missing or stale readings so HA shows unknown; zero volts is valid.
+    if (byd.hv_bus_voltage_valid) {
+      doc["hv_bus_voltage"] = static_cast<float>(byd.hv_bus_voltage_dV) / 10.0f;
+    }
   }
   if (supports_leaf_metrics(::battery)) {
     const DATALAYER_INFO_NISSAN_LEAF& leaf = (battery_index == 3)   ? datalayer_extended.nissanleaf_3
@@ -1281,7 +1289,7 @@ static void subscribe() {
   esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
 }
 
-void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len) {
+void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len, bool retained) {
 
   char* topic = strndup(topic_raw, topic_len);
 
@@ -1381,11 +1389,15 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   // Runtime change of the SOC rescale limits. Payload: {"max_pct": 50.0-100.0, "min_pct": -10.0-50.0}.
-  // Either key may be omitted to leave that limit unchanged. Only the live datalayer values are
-  // touched (nothing is written to NVS), so a reboot restores the saved settings.
+  // Either key may be omitted to leave that limit unchanged. Only the window in use is moved: the
+  // saved one stays as it is, also through a later save from the settings page, so a reboot
+  // restores it. A retained copy is not applied, since the broker hands it out again on every
+  // reconnect and after every boot, which would undo exactly that.
   if (strcmp(topic, button_command_topics[BTN_SET_SCALESOC].c_str()) == 0) {
     if (!datalayer.battery_settings.soc_scaling_active) {
       // Limits have no effect without "Rescale SOC", so the command is ignored.
+    } else if (retained) {
+      logging.println("MQTT: SET_SCALESOC retained copy ignored, publish it without retain");
     } else {
       JsonDocument doc;
       char* data_str = strndup(data, data_len);
@@ -1396,10 +1408,12 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         //logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
       } else {
         // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
+        int32_t max_percentage = datalayer.battery_settings.max_percentage;
+        int32_t min_percentage = datalayer.battery_settings.min_percentage;
         if (doc["max_pct"].is<float>()) {
           float max_pct = doc["max_pct"].as<float>();
           if (max_pct >= 50.0f && max_pct <= 100.0f) {
-            datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
+            max_percentage = lroundf(max_pct * 100.0f);
           } else {
             logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
           }
@@ -1407,11 +1421,142 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
         if (doc["min_pct"].is<float>()) {
           float min_pct = doc["min_pct"].as<float>();
           if (min_pct >= -10.0f && min_pct <= 50.0f) {
-            datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
+            min_percentage = lroundf(min_pct * 100.0f);
           } else {
             logging.printf("MQTT: SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
           }
         }
+        // Both ranges allow 50.0 %, and both ends there would leave a window with no width
+        if (soc_window_valid(min_percentage, max_percentage)) {
+          datalayer.battery_settings.max_percentage = (uint16_t)max_percentage;
+          datalayer.battery_settings.min_percentage = (int16_t)min_percentage;
+        } else {
+          logging.printf("MQTT: SET_SCALESOC min %.2f not below max %.2f, ignored\n", min_percentage / 100.0f,
+                         max_percentage / 100.0f);
+        }
+      }
+    }
+  }
+
+  // Clear the diagnostic trouble codes of a battery, like the "Reset DTC" button on the battery
+  // page. Payload: battery number 1, 2 or 3; an empty payload means battery 1.
+  if (strcmp(topic, button_command_topics[BTN_RESET_DTC].c_str()) == 0) {
+    Battery* bat = nullptr;
+    if (data_len == 0 || (data_len == 1 && data[0] == '1')) {
+      bat = battery;
+    } else if (data_len == 1 && data[0] == '2') {
+      bat = battery2;
+    } else if (data_len == 1 && data[0] == '3') {
+      bat = battery3;
+    } else {
+      logging.printf("MQTT: invalid RESET_DTC payload [%.*s], expected 1, 2 or 3\n", data_len, data);
+    }
+    if (bat != nullptr) {
+      if (bat->supports_reset_DTC()) {
+        bat->reset_DTC();
+        logging.println("MQTT: RESET_DTC sent");
+      } else {
+        logging.println("MQTT: RESET_DTC not supported by this battery");
+      }
+    }
+  }
+
+  // The user set voltage limits, as on the settings page. Runtime only: the stored settings are
+  // not changed, so a reboot restores the values from the settings page.
+  // Payload: {"active": true/false, "max_v": 0.1-1000.0, "min_v": 0.1-1000.0}. Any key may be
+  // omitted to leave that value unchanged. Nothing is changed unless min_v ends up below max_v.
+  if (strcmp(topic, button_command_topics[BTN_SET_VOLTLIMITS].c_str()) == 0) {
+    JsonDocument doc;
+    char* data_str = strndup(data, data_len);
+    DeserializationError err = deserializeJson(doc, data_str);
+    free(data_str);
+
+    if (err) {
+      logging.printf("MQTT: SET_VOLTLIMITS has invalid JSON payload [%.*s]\n", data_len, data);
+    } else {
+      bool valid = true;
+      // The datalayer stores these in dV (4100 = 410.0 V), hence the *10.
+      uint16_t max_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
+      uint16_t min_dV = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
+      if (doc["max_v"].is<float>()) {
+        float max_v = doc["max_v"].as<float>();
+        if (max_v > 0.0f && max_v <= 1000.0f) {
+          max_dV = (uint16_t)lroundf(max_v * 10.0f);
+        } else {
+          logging.printf("MQTT: SET_VOLTLIMITS max_v %.1f out of range (0.1-1000.0)\n", max_v);
+          valid = false;
+        }
+      }
+      if (doc["min_v"].is<float>()) {
+        float min_v = doc["min_v"].as<float>();
+        if (min_v > 0.0f && min_v <= 1000.0f) {
+          min_dV = (uint16_t)lroundf(min_v * 10.0f);
+        } else {
+          logging.printf("MQTT: SET_VOLTLIMITS min_v %.1f out of range (0.1-1000.0)\n", min_v);
+          valid = false;
+        }
+      }
+      if (valid && min_dV >= max_dV) {
+        logging.println("MQTT: SET_VOLTLIMITS min_v must be below max_v");
+        valid = false;
+      }
+      if (valid) {
+        datalayer.battery_settings.max_user_set_charge_voltage_dV = max_dV;
+        datalayer.battery_settings.max_user_set_discharge_voltage_dV = min_dV;
+        if (doc["active"].is<bool>()) {
+          datalayer.battery_settings.user_set_voltage_limits_active = doc["active"].as<bool>();
+        }
+        logging.printf("MQTT: voltage limits %s, max %.1f V, min %.1f V\n",
+                       datalayer.battery_settings.user_set_voltage_limits_active ? "on" : "off", max_dV / 10.0f,
+                       min_dV / 10.0f);
+      }
+    }
+  }
+
+  // "Rescale SOC" as on the settings page. Unlike SET_SCALESOC above, it can also switch the
+  // scaling on or off. Runtime only, a reboot restores the values from the settings page.
+  // Payload: {"active": true/false, "max_pct": 50.0-100.0, "min_pct": -10.0-50.0}. Any key may be
+  // omitted to leave it unchanged.
+  if (strcmp(topic, button_command_topics[BTN_SET_SOCSCALING].c_str()) == 0) {
+    JsonDocument doc;
+    char* data_str = strndup(data, data_len);
+    DeserializationError err = deserializeJson(doc, data_str);
+    free(data_str);
+
+    if (err) {
+      logging.printf("MQTT: SET_SOCSCALING has invalid JSON payload [%.*s]\n", data_len, data);
+    } else {
+      bool valid = true;
+      // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
+      uint16_t max_pptt = datalayer.battery_settings.max_percentage;
+      int16_t min_pptt = datalayer.battery_settings.min_percentage;
+      if (doc["max_pct"].is<float>()) {
+        float max_pct = doc["max_pct"].as<float>();
+        if (max_pct >= 50.0f && max_pct <= 100.0f) {
+          max_pptt = (uint16_t)lroundf(max_pct * 100.0f);
+        } else {
+          logging.printf("MQTT: SET_SOCSCALING max_pct %.1f out of range (50.0-100.0)\n", max_pct);
+          valid = false;
+        }
+      }
+      if (doc["min_pct"].is<float>()) {
+        float min_pct = doc["min_pct"].as<float>();
+        if (min_pct >= -10.0f && min_pct <= 50.0f) {
+          min_pptt = (int16_t)lroundf(min_pct * 100.0f);
+        } else {
+          logging.printf("MQTT: SET_SOCSCALING min_pct %.1f out of range (-10.0-50.0)\n", min_pct);
+          valid = false;
+        }
+      }
+      if (valid) {
+        datalayer.battery_settings.max_percentage = max_pptt;
+        datalayer.battery_settings.min_percentage = min_pptt;
+        if (doc["active"].is<bool>()) {
+          datalayer.battery_settings.soc_scaling_active = doc["active"].as<bool>();
+        }
+        logging.printf("MQTT: SOC scaling %s, max %.1f %%, min %.1f %%\n",
+                       datalayer.battery_settings.soc_scaling_active ? "on" : "off", max_pptt / 100.0f,
+                       min_pptt / 100.0f);
       }
     }
   }
@@ -1439,7 +1584,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       set_event(EVENT_MQTT_DISCONNECT, 0);  // also printing a log entry
       break;
     case MQTT_EVENT_DATA:
-      mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
+      // retain is only set on what the broker holds and hands out when a subscription is made
+      mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len, event->retain);
       break;
     case MQTT_EVENT_ERROR:
       // logging.println("MQTT_ERROR");
