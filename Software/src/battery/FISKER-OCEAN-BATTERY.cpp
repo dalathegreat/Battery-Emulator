@@ -1,6 +1,8 @@
 #include "FISKER-OCEAN-BATTERY.h"
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  // For the CRC table
+#include "FISKER-OCEAN-DID-DECODE.h"
 
 // CRC-8, polynomial 0x1D, init 0xFF, with a per-message XorOut. Byte 0 holds the
 // CRC itself, so it is computed over bytes 1-7.
@@ -148,8 +150,70 @@ void FiskerOceanBattery::setup() {
     *allows_contactor_closing = true;
   }
 
-  // Enable UDS for DTC read/clear on the BMS diagnostic addresses.
+  // Enable UDS for DTC read/clear on the BMS diagnostic addresses, then scan the
+  // diagnostic identifier set; responses are decoded on the battery page.
   setup_uds(0x7E1, 0x7E9);
+  for (uint16_t i = 0; i < NUM_DIDS; i++) {
+    did_results[i].did = poll_commands[i];
+  }
+  set_pid_scan_list(poll_commands, NUM_DIDS);
+}
+
+const uint16_t FiskerOceanBattery::poll_commands[FiskerOceanBattery::NUM_DIDS] = {
+    0x2003, 0x2004, 0x2005, 0x2008, 0x2009, 0x2011, 0x2016, 0x2019, 0x2024, 0x2026, 0x2027, 0x2031,
+    0x2032, 0x2033, 0x2034, 0x2038, 0x2039, 0x2040, 0x2041, 0x2042, 0x2043, 0x2047, 0x2048, 0x2049,
+    0x2050, 0x2053, 0x2054, 0x2055, 0x2056, 0x2057, 0x2058, 0x2059, 0x2060, 0x2061, 0x2062, 0x2063,
+    0x2064, 0x2069, 0x2070, 0x2078, 0x2079, 0x2080, 0x2081, 0x2089, 0x2090, 0x2091, 0x2092, 0x2093,
+    0x2094, 0x2107, 0x2108, 0x2109, 0x2117, 0x2130, 0x2133, 0x2134, 0x2136, 0x2137, 0x2138, 0x2143,
+    0x2144, 0x2145, 0xEFF6, 0xEFF7, 0xEFF8, 0xEFF9, 0xEFFE, 0xF040, 0xF055, 0xF060, 0xF184, 0xF190};
+
+uint16_t FiskerOceanBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  (void)value;
+  for (uint16_t i = 0; i < NUM_DIDS; i++) {
+    if (did_results[i].did != pid) {
+      continue;
+    }
+    did_results[i].payload_length = length < MAX_DID_PAYLOAD ? static_cast<uint8_t>(length) : MAX_DID_PAYLOAD;
+    memcpy(did_results[i].payload, data, did_results[i].payload_length);
+    did_results[i].last_update_ms = millis();
+    did_results[i].valid = true;
+    break;
+  }
+  return 0;
+}
+
+String FiskerOceanBattery::get_uds_info_html() {
+  String content =
+      "<h4>Fisker diagnostic identifiers (UDS 0x22)</h4>"
+      "<div style='overflow-x:auto'><table style='width:100%'><thead><tr>"
+      "<th style='text-align:left'>Identifier</th><th>Decoded</th><th>Response</th></tr></thead><tbody>";
+  char buf[8];
+  for (uint16_t i = 0; i < NUM_DIDS; i++) {
+    const DidResult& r = did_results[i];
+    snprintf(buf, sizeof(buf), "0x%04X", poll_commands[i]);
+    content += "<tr><td style='text-align:left'><strong>" + String(FiskerDidDecode::name(poll_commands[i])) +
+               "</strong><br><code>" + buf + "</code></td><td>";
+    content += r.valid ? FiskerDidDecode::decode(r.did, r.payload, r.payload_length) : String("&ndash;");
+    content += "</td><td><code>";
+    if (r.valid) {
+      char b[4];
+      content += "62 ";
+      snprintf(b, sizeof(b), "%02X ", r.did >> 8);
+      content += b;
+      snprintf(b, sizeof(b), "%02X", r.did & 0xFF);
+      content += b;
+      for (uint8_t k = 0; k < r.payload_length; k++) {
+        snprintf(b, sizeof(b), " %02X", r.payload[k]);
+        content += b;
+      }
+      content += "</code><br><small>" + String((millis() - r.last_update_ms) / 1000) + "s ago</small>";
+    } else {
+      content += "no response</code>";
+    }
+    content += "</td></tr>";
+  }
+  content += "</tbody></table></div>";
+  return content;
 }
 
 void FiskerOceanBattery::transmit_ready_frame(CAN_frame* frame, uint8_t& counter, uint8_t high_nibble,

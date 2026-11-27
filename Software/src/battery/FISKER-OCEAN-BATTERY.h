@@ -44,6 +44,13 @@ class FiskerOceanBattery : public UdsCanBattery {
   // Human-readable names for the DTCs read over UDS.
   const char* get_dtc_json_filename() override { return "fisker_ocean_dtc.json"; }
 
+  // Decoded 0x22 ReadDataByIdentifier values, shown on the battery page.
+  String get_uds_info_html() override;
+
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
@@ -63,6 +70,21 @@ class FiskerOceanBattery : public UdsCanBattery {
   uint16_t pack_voltage = 37000;  // dV*10, replaced by the first 0x0E9 reading
   uint8_t broadcast_soc_percent = 0;
   bool broadcast_soc_valid = false;
+
+  // UDS 0x22 ReadDataByIdentifier polling. The list is scanned continuously by
+  // the UDS superclass; each response is stored here and rendered decoded on the
+  // battery page by get_uds_info_html(). See FISKER-OCEAN-DID-DECODE.h.
+  static constexpr uint16_t NUM_DIDS = 72;
+  static constexpr uint8_t MAX_DID_PAYLOAD = 40;
+  struct DidResult {
+    uint16_t did;
+    uint8_t payload[MAX_DID_PAYLOAD];
+    uint8_t payload_length;
+    uint32_t last_update_ms;
+    bool valid;
+  };
+  DidResult did_results[NUM_DIDS] = {};
+  static const uint16_t poll_commands[NUM_DIDS];
 
   static constexpr uint16_t CELLVOLTAGE_FRAME_START = 0x6B0;
   static constexpr uint16_t NUM_CELLS = 102;
