@@ -32,8 +32,13 @@ class BatteryHtmlRenderer {
   // reworking a battery integration for double/triple support.
   virtual bool renders_own_battery_data() { return false; }
 
+  // Renders a DTC table under the given heading. The JSON description loader
+  // uses fixed element IDs and annotates every DTC table on the page, so a page
+  // showing several sections must include it in exactly one of them: the first
+  // one for which dtc_section_has_table() is true.
   static String render_dtc_section_html(DATALAYER_BATTERY_DTC_TYPE& dtc, const char* json_filename,
-                                        bool standard_code_string) {
+                                        bool standard_code_string, const char* title = "Diagnostic Trouble Codes",
+                                        bool include_json_loader = true) {
     CheckedHtml content;
 
     // Reserve enough space to avoid reallocs
@@ -41,7 +46,9 @@ class BatteryHtmlRenderer {
     // Underline hugs the title instead of spanning the page
     content +=
         "<h4 style='margin:20px auto 0;width:fit-content;color:#27b06c;border-bottom:2px solid #27b06c;"
-        "padding-bottom:5px;'>&#128295; Diagnostic Trouble Codes</h4>";
+        "padding-bottom:5px;'>&#128295; ";
+    content += title;
+    content += "</h4>";
     if (dtc.dtc_last_read_millis == 0) {
       content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
     } else if (dtc.dtc_read_failed) {
@@ -110,14 +117,22 @@ class BatteryHtmlRenderer {
         content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
       }
       content += "</tbody></table></div>";
-      String loader = get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename);
-      if (loader.isEmpty()) {
-        return String();
+      if (include_json_loader) {
+        String loader = get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename);
+        if (loader.isEmpty()) {
+          return String();
+        }
+        content += loader;
       }
-      content += loader;
     }
 
     return content.take();
+  }
+
+  // True when render_dtc_section_html() would draw a code table (and hence the
+  // JSON loader) for this DTC state.
+  static bool dtc_section_has_table(const DATALAYER_BATTERY_DTC_TYPE& dtc) {
+    return dtc.dtc_last_read_millis != 0 && !dtc.dtc_read_failed && dtc.dtc_count > 0;
   }
 
   // Base URL for the upstream GitHub repository's data folder.
