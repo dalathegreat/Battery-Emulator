@@ -33,6 +33,8 @@ static uint32_t scale_color(uint32_t color, uint8_t brightness) {
 #define FLOW_IDLE_BAND_W 200
 /* Energy Flow's charge/discharge ramp: 2.91 s one way, 0.09 s the other, of the 3 s period */
 #define FLOW_RAMP_SCALED 970  // 0.97 * 1000
+uint8_t user_selected_led_pin = 255;
+uint8_t user_selected_led_count = 0;
 
 static LED* led = nullptr;
 
@@ -60,7 +62,9 @@ uint16_t map_int(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min,
 }
 
 bool led_init(void) {
-  gpio_num_t led_pin = esp32hal->LED_PIN();
+  // A user-set GPIO overrides the board default. GPIO_NUM_MAX bounds it; alloc_pins() below
+  // still rejects a pin another peripheral already owns.
+  gpio_num_t led_pin = (user_selected_led_pin < GPIO_NUM_MAX) ? (gpio_num_t)user_selected_led_pin : esp32hal->LED_PIN();
 
   if (led_pin == GPIO_NUM_NC) {
     return true;
@@ -71,7 +75,10 @@ bool led_init(void) {
     return false;
   }
 
-  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT());
+  // A user-set strip length overrides the board default, so one build suits any strip.
+  const uint8_t led_count = user_selected_led_count > 0 ? user_selected_led_count : esp32hal->LED_COUNT();
+
+  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), led_count);
 
   return true;
 }
@@ -89,6 +96,14 @@ void LED::exe(void) {
   if (led_override_active && led_override_period_ms > 0) {
     const bool on = (millis() / (led_override_period_ms / 2)) % 2;
     pixels.setPixelColor(on ? led_override_color : 0);
+    pixels.show();
+    return;
+  }
+
+  // SOC bar owns the whole strip: length shows charge level, colour is the status colour. It
+  // writes every pixel itself, so it skips the status/indicator handling below.
+  if (mode == led_mode_enum::SOC_BAR) {
+    soc_bar_run();
     pixels.show();
     return;
   }
@@ -153,6 +168,54 @@ void LED::exe(void) {
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.
+}
+
+void LED::soc_bar_run(void) {
+  // Same colours as the other modes: green when all is well, yellow for a warning, steady red for
+  // a fault, blue while updating. Bar length says how full the pack is.
+  uint32_t hue = COLOR_GREEN(0xFF);
+  bool steady = false;
+
+  switch (get_emulator_status()) {
+    case EMULATOR_STATUS::STATUS_WARNING:
+      hue = COLOR_YELLOW(0xFF);
+      break;
+    case EMULATOR_STATUS::STATUS_ERROR:
+      hue = COLOR_RED(0xFF);
+      steady = true;
+      break;
+    case EMULATOR_STATUS::STATUS_UPDATING:
+      hue = COLOR_BLUE(0xFF);
+      steady = true;
+      break;
+    default:
+      break;
+  }
+
+  // Each pixel is one 1/num_leds slice of the pack. The pixel the level currently sits in is
+  // dimmed in proportion to how far into its slice the SOC has got, giving sub-slice resolution
+  // instead of the bar jumping a whole pixel at a time. Outside faults and updates that pixel
+  // also pulses like the status LED of the other modes, so a live strip never looks frozen.
+  const uint8_t pulse = steady ? max_brightness : up_down(500);
+  const uint32_t scaled = (uint32_t)datalayer.battery.status.reported_soc * num_leds;  // soc is 0-10000
+  const uint8_t filled = (uint8_t)(scaled / 10000);
+  const uint32_t partial = scaled % 10000;
+
+  for (uint8_t i = 0; i < num_leds; i++) {
+    uint8_t level;
+    if (i < filled) {
+      level = max_brightness;
+    } else if (i == filled) {
+      level = (uint8_t)((uint32_t)max_brightness * partial / 10000);
+      level = (uint8_t)((uint32_t)level * pulse / max_brightness);
+      if (level < 2) {
+        level = 2;  // keep the first pixel faintly lit at 0 %, so the strip never looks dead
+      }
+    } else {
+      level = 0;
+    }
+    pixels.setPixelColor(i, level > 0 ? scale_color(hue, level) : 0);
+  }
 }
 
 void LED::classic_run(void) {
