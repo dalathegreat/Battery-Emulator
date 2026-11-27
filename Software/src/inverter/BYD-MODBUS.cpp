@@ -7,9 +7,58 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "../devboard/utils/system_clock.h"
 #include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
+
+/* The emulator events reported to the inverter, and the fault type each one is reported as. The
+   types are those of the BYD2 table the inverter holds for the BYD Battery-Box Premium HVS/HVM. Its
+   event log shows the code with a short text, such as "BYD2-45 Battery Break", and Solar.web shows a
+   cause and a solution for it. Each event goes to the code whose cause fits it, given after the line:
+   the cause in Solar.web, or for MODBUS_INVERTER_MISSING the inverter's text. An event at error level
+   goes in as a Fault2, any other as a Fault1. */
+const BydModbusInverter::FaultMapping BydModbusInverter::FAULT_MAP[] = {
+    {EVENT_CAN_BATTERY2_MISSING, 2, 0},          // The BCU cannot communicate with one of the battery modules
+    {EVENT_CAN_BATTERY_MISSING, 1, 1},           // BCU communication error
+    {EVENT_DISCHARGE_LIMIT_EXCEEDED, 3, 7},      // The discharge current is too high
+    {EVENT_CELL_UNDER_VOLTAGE, 3, 13},           // Undervoltage of the cells, voltage below 2.0 V
+    {EVENT_BATTERY_UNDERVOLTAGE, 3, 13},         // Undervoltage of the cells, voltage below 2.0 V
+    {EVENT_CHARGE_LIMIT_EXCEEDED, 3, 18},        // The charging current is too high
+    {EVENT_CELL_OVER_VOLTAGE, 3, 24},            // Cell-Overvoltage
+    {EVENT_CELL_CRITICAL_OVER_VOLTAGE, 3, 24},   // Cell-Overvoltage
+    {EVENT_BATTERY_OVERVOLTAGE, 3, 24},          // Cell-Overvoltage
+    {EVENT_BATTERY_OVERHEAT, 3, 27},             // The maximum cell temperature is more than 70 degrees centigrade
+    {EVENT_THERMAL_RUNAWAY, 3, 27},              // The maximum cell temperature is more than 70 degrees centigrade
+    {EVENT_BATTERY_FROZEN, 3, 29},               // The minimum cell temperature is lower than -10 degrees centigrade
+    {EVENT_BATTERY_COLD, 3, 29},                 // The minimum cell temperature is lower than -10 degrees centigrade
+    {EVENT_CELL_DEVIATION_HIGH, 3, 32},          // Voltage differences between the cells
+    {EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 3, 38},  // The minimum cell voltage is lower than 1.5 V
+    {EVENT_BATTERY_DISCHG_STOP_REQ, 3, 44},      // The battery can't be discharged
+    {EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 3, 44},  // The battery can't be discharged
+    {EVENT_CONTACTOR_OPEN, 3, 45},               // Battery main switch has tripped
+    {EVENT_BYD_CONTACTOR_FORCE_OPEN, 3, 45},     // Battery main switch has tripped
+    {EVENT_BATTERY_FUSE, 3, 45},                 // Battery main switch has tripped
+    {EVENT_ERROR_OPEN_CONTACTOR, 1, 45},         // Battery main switch has tripped
+    {EVENT_EQUIPMENT_STOP, 1, 45},               // Battery main switch has tripped
+    {EVENT_MODBUS_INVERTER_MISSING, 1, 46},      // Communication error between inverter and battery
+    {EVENT_RESET_UNKNOWN, 1, 46},                // A restart process has been initiated: unknown cause
+    {EVENT_RESET_PANIC, 4, 46},                  // A restart process has been initiated: panic or a watchdog
+    {EVENT_RESET_BROWNOUT, 1, 46},               // A restart process has been initiated: low supply voltage
+    {EVENT_RESET_EFUSE, 3, 46},                  // A restart process has been initiated: efuse, glitch, lockup
+    {EVENT_CONTACTOR_WELDED, 3, 47},             // Internal hardware failure at the battery control unit (BCU)
+    {EVENT_WATER_INGRESS, 3, 47},                // Internal hardware failure at the battery control unit (BCU)
+    {EVENT_PRECHARGE_FAILURE, 1, 48},            // Precharging takes too long
+    {EVENT_AUTOMATIC_PRECHARGE_FAILURE, 1, 48},  // Precharging takes too long
+    {EVENT_CONTACTOR_WATCHDOG_FAILED, 3, 48},    // Precharging takes too long
+    {EVENT_INTERNAL_OPEN_FAULT, 3, 49},          // Faulty wiring of the battery supply line
+    {EVENT_HVIL_FAILURE, 3, 49},                 // Faulty wiring of the battery supply line
+    {EVENT_BATTERY_ISOLATION, 3, 49},            // Faulty wiring of the battery supply line
+};
+// The unexpected reset causes, taken above as runs of the enum: PANIC to WDT, EFUSE to CPU_LOCKUP
+static_assert(EVENT_RESET_WDT == EVENT_RESET_PANIC + 3 && EVENT_RESET_CPU_LOCKUP == EVENT_RESET_EFUSE + 2,
+              "FAULT_MAP takes the reset causes as runs of the enum");
+const uint8_t BydModbusInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
 void BydModbusInverter::update_values() {
   verify_temperature();
@@ -17,6 +66,7 @@ void BydModbusInverter::update_values() {
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
+  update_fault_buffers();
 }
 
 void BydModbusInverter::handle_static_data() {
@@ -48,6 +98,12 @@ void BydModbusInverter::handle_static_data() {
                                    75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
   for (int i = 0; i < sizeof(init_p301) / sizeof(uint16_t); i++) {
     mbPV[300 + i] = init_p301[i];
+  }
+  // FaultBuffers, filled in by update_fault_buffers(). Created here, before the Modbus task starts:
+  // a read of a register the map does not hold yet would insert it, from that task, while this one
+  // writes to the same map.
+  for (uint16_t reg = REG_FAULTS; reg < REG_FAULTS + FAULT_ENTRIES * FAULT_ENTRY_SIZE; reg++) {
+    mbPV[reg] = 0;
   }
 }
 
@@ -149,6 +205,65 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[323] = datalayer.aggregate.soh_pptt;  //SOH
 }
 
+void BydModbusInverter::put_u64(uint16_t reg, uint64_t value) {
+  for (uint8_t i = 0; i < 4; i++) {
+    mbPV[reg + i] = (value >> (48 - 16 * i)) & 0xFFFF;
+  }
+}
+
+void BydModbusInverter::push_fault(uint16_t type, uint16_t severity, uint8_t battery, int16_t data, uint32_t now_ms) {
+  const uint8_t slot = fault_count % FAULT_ENTRIES;
+  const uint16_t entry = REG_FAULTS + slot * FAULT_ENTRY_SIZE;
+  fault_count++;
+  // The inverter takes an entry as valid when its timestamp is set, so that goes in last
+  put_u64(entry, 0);
+  mbPV[entry + 4] = fault_count;              // Number, counts up with every fault
+  mbPV[entry + 5] = type;                     // Type
+  mbPV[entry + 6] = severity;                 // Severity
+  mbPV[entry + 7] = (uint16_t)data;           // Info_0, the data of the emulator event
+  mbPV[entry + 8] = 0;                        // Info_1
+  mbPV[entry + 9] = (battery << 8) | 0x00FF;  // Info_2, which pack. Low byte FF = the pack as a whole
+  const uint64_t time_s = clock_utc_s();
+  fault_entry_ms[slot] = now_ms;
+  fault_entry_unstamped[slot] = (time_s == 0);
+  put_u64(entry, time_s);  // Timestamp. 0 while the clock is not valid, see stamp_faults()
+}
+
+void BydModbusInverter::stamp_faults(uint32_t now_ms) {
+  const uint64_t time_s = clock_utc_s();
+  if (time_s == 0) {
+    return;
+  }
+  for (uint8_t slot = 0; slot < FAULT_ENTRIES; slot++) {
+    if (fault_entry_unstamped[slot]) {
+      const uint32_t ago_s = (uint32_t)(now_ms - fault_entry_ms[slot]) / 1000;
+      put_u64(REG_FAULTS + slot * FAULT_ENTRY_SIZE, ago_s < time_s ? time_s - ago_s : 1);
+      fault_entry_unstamped[slot] = false;
+    }
+  }
+}
+
+void BydModbusInverter::update_fault_buffers() {
+  const uint32_t now = millis();
+  stamp_faults(now);
+
+  for (uint8_t i = 0; i < FAULT_MAP_SIZE; i++) {
+    for (uint8_t n = 0; n < FAULT_MAP[i].count; n++) {
+      const EVENTS_ENUM_TYPE id = (EVENTS_ENUM_TYPE)(FAULT_MAP[i].event + n);
+      const EVENTS_STRUCT_TYPE* event = get_event_pointer(id);
+      const bool active = event->state == EVENT_STATE_ACTIVE || event->state == EVENT_STATE_ACTIVE_LATCHED;
+      if (!active) {
+        fault_reported.reset(id);
+      } else if (!fault_reported.test(id)) {
+        fault_reported.set(id);
+        const uint8_t pack = event_battery_number(id);
+        push_fault(FAULT_MAP[i].code, event->level == EVENT_LEVEL_ERROR ? SEVERITY_FAULT2 : SEVERITY_FAULT1,
+                   pack > 0 ? pack : 1, event->data, now);
+      }
+    }
+  }
+}
+
 void BydModbusInverter::verify_temperature() {
   reported_temperature_min_dC = datalayer.aggregate.temperature_min_dC;
   reported_temperature_max_dC = datalayer.aggregate.temperature_max_dC;
@@ -218,11 +333,16 @@ void BydModbusInverter::handle_inverter_control_data() {
     inverter_modbus_watchdog_changed = true;
   }
 
-  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. Kept for display only.
+  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. The inverter writes its clock here
+  // once an hour. Each new time sets the ESP32's clock, which keeps it running in between.
   const uint64_t inverter_utc =
       ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
-  if (inverter_utc > 0) {
-    inverter_modbus_utc_epoch_s = inverter_utc;
+  if (inverter_utc > 0 && inverter_utc != last_inverter_utc_s) {
+    last_inverter_utc_s = inverter_utc;
+    const bool first = !clock_valid;
+    if (clock_set_utc(inverter_utc) && first) {
+      logging.println("Clock set from the inverter's time");
+    }
   }
 
   // RebootCommand (407). The inverter writes 0 here as part of every ControlData block write, so only
