@@ -47,6 +47,21 @@ class SolaxInverter : public CanInverterProtocol {
   // LockAfterFirstClose = run state machine, wait for first close request, then lock
   inverter_contactor_mode_enum configured_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
 
+  // Alternate SolaX protocol (BMS 0x18xxF3F4 <-> inverter 0x1810F4F3 / 0x1812F4F3), used e.g. by the
+  // X3-Hybrid G4 for HS51-type batteries. Selected automatically when the inverter polls with 0x1810F4F3.
+  static const uint32_t ALT_INVERTER_POLL_ID = 0x1810F4F3;
+  static const uint8_t ALT_DEFAULT_BATTERY_TYPE = 0x91;  // HS51
+  static const uint8_t ALT_REQUEST_CLOSE = 1;            // 0x1810F4F3 byte 0 low nibble
+  static const uint8_t ALT_REQUEST_OPEN = 2;
+  static const uint8_t ALT_BMS_STATE_OPEN = 0;  // 0x1824F3F4 byte 0
+  static const uint8_t ALT_BMS_STATE_CLOSED = 3;
+  bool alt_protocol = false;
+  bool alt_first_close_seen = false;
+  uint8_t alt_battery_type = ALT_DEFAULT_BATTERY_TYPE;
+  void map_can_frame_alt(const CAN_frame& rx_frame);
+  void transmit_frames_alt();
+  void transmit_frame(uint32_t id, const uint8_t data[8]);
+
   //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 
   CAN_frame SOLAX_1801 = {.FD = false,

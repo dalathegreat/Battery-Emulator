@@ -14,7 +14,7 @@
 void SolaxInverter::update_values() {
   // If not receiving any communication from the inverter, open contactors and
   // return to battery announce state
-  if (millis() - LastFrameTime >= INTERVAL_2_S &&
+  if (millis() - LastFrameTime >= INTERVAL_5_S &&
       configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     if (STATE != BATTERY_ANNOUNCE) {
@@ -175,6 +175,10 @@ void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half,
 }
 
 void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
+  if (rx_frame.ID == ALT_INVERTER_POLL_ID) {
+    map_can_frame_alt(rx_frame);
+    return;
+  }
 
   if (rx_frame.ID == 0x1871) {
     datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -325,9 +329,162 @@ bool SolaxInverter::setup(void) {  // Performs one time setup at startup
 
   configured_contactor_mode = user_selected_inverter_contactor_mode;
 
+  // The alternate protocol defaults to HS51 battery type
+  alt_battery_type =
+      user_selected_inverter_battery_type > 0 ? user_selected_inverter_battery_type : ALT_DEFAULT_BATTERY_TYPE;
+
   if (configured_contactor_mode != inverter_contactor_mode_enum::AlwaysClosed) {
     datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   }
 
   return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Alternate SolaX protocol (BMS 0x18xxF3F4, inverter 0x1810F4F3 / 0x1812F4F3)
+//
+// Some batteries (HS51) use an alternate protocol, supported by inverters such
+// as X3G4 and AELIO. On the AELIO the original protocol isn't supported, so
+// the alternate protocol is used automatically on receipt of the first inverter
+// poll.
+// ---------------------------------------------------------------------------------------------------------
+
+static void put16(uint8_t* p, uint16_t v) {
+  p[0] = (uint8_t)v;
+  p[1] = (uint8_t)(v >> 8);
+}
+
+static uint8_t temperature_byte(int16_t temperature_dC) {  // degC + 50
+  int16_t t = temperature_dC / 10 + 50;
+  return (uint8_t)(t < 0 ? 0 : (t > 255 ? 255 : t));
+}
+
+// Same 3.0..3.5 V rescaling as the classic 0x1874 frame
+static uint16_t rescaled_cell_mV(int32_t cell_mV) {
+  if (cell_mV == 0) {
+    cell_mV = 3300;
+  }
+  int32_t span = datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV;
+  if (span <= 0) {
+    return (uint16_t)cell_mV;
+  }
+  return (uint16_t)(3000 + ((cell_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) / span);
+}
+
+// Transmit a CAN frame (to only allocate one on the stack at a time)
+void SolaxInverter::transmit_frame(uint32_t id, const uint8_t data[8]) {
+  CAN_frame frame = {.FD = false, .ext_ID = true, .DLC = 8, .ID = id, .data = {}};
+  memcpy(frame.data.u8, data, 8);
+  transmit_can_frame(&frame);
+}
+
+void SolaxInverter::map_can_frame_alt(const CAN_frame& rx_frame) {
+  datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  LastFrameTime = millis();
+  if (!alt_protocol) {
+    logging.println("[Solax] Inverter polls with 0x1810F4F3, using the alternate protocol");
+    alt_protocol = true;
+  }
+
+  const uint8_t request = rx_frame.data.u8[0] & 0x0F;
+  switch (configured_contactor_mode) {
+    case inverter_contactor_mode_enum::AlwaysClosed:
+      datalayer.system.status.inverter_allows_contactor_closing = true;
+      break;
+    default:
+      if (request == ALT_REQUEST_CLOSE) {
+        if (!datalayer.system.status.inverter_allows_contactor_closing) {
+          logging.println("[Solax] Alternate protocol: inverter allows closing");
+        }
+        datalayer.system.status.inverter_allows_contactor_closing = true;
+        alt_first_close_seen = true;
+      } else if (request == ALT_REQUEST_OPEN && datalayer.system.status.inverter_allows_contactor_closing &&
+                 (configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround || !alt_first_close_seen)) {
+        set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
+        datalayer.system.status.inverter_allows_contactor_closing = false;
+      }
+      break;
+  }
+
+  transmit_frames_alt();
+}
+
+void SolaxInverter::transmit_frames_alt() {
+  const bool always_closed = configured_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed;
+  const bool closed = always_closed || (datalayer.system.status.inverter_allows_contactor_closing &&
+                                        datalayer.system.status.dc_bus_live);
+
+  // The inverter won't close contactors for a pack reporting 0A discharge (as in update_values)
+  uint16_t max_discharge_current_dA = datalayer.aggregate.max_discharge_current_dA;
+  if (max_discharge_current_dA == 0 && !closed && !datalayer.system.info.equipment_stop_active &&
+      datalayer.system.status.system_status != FAULT) {
+    max_discharge_current_dA = ANNOUNCE_DISCHARGE_dA;
+  }
+  const int16_t temperature_avg_dC =
+      (datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2;
+
+  uint8_t d[8];
+
+  // 0x1820: max / min cell voltage (mV), positions of those cells
+  memset(d, 0, 8);
+  put16(d + 0, rescaled_cell_mV(datalayer.aggregate.cell_max_voltage_mV));
+  put16(d + 2, rescaled_cell_mV(datalayer.aggregate.cell_min_voltage_mV));
+  transmit_frame(0x1820F3F4, d);
+
+  // 0x1821: max / min temperature (degC + 50), positions
+  memset(d, 0, 8);
+  d[0] = temperature_byte(datalayer.aggregate.temperature_max_dC);
+  d[1] = temperature_byte(datalayer.aggregate.temperature_min_dC);
+  transmit_frame(0x1821F3F4, d);
+
+  // 0x1822: SOC (0.1 %), pack voltage (0.1 V), SOH (0.1 %, not used by the X3), current (0.1 A + 10000)
+  memset(d, 0, 8);
+  put16(d + 0, datalayer.aggregate.reported_soc / 10);
+  put16(d + 2, datalayer.aggregate.voltage_dV);
+  put16(d + 4, datalayer.aggregate.soh_pptt / 10);
+  put16(d + 6, (uint16_t)(datalayer.aggregate.current_dA + 10000));
+  transmit_frame(0x1822F3F4, d);
+
+  // 0x1823: max discharge / max charge current (1 A)
+  memset(d, 0, 8);
+  put16(d + 0, max_discharge_current_dA / 10);
+  put16(d + 2, datalayer.aggregate.max_charge_current_dA / 10);
+  transmit_frame(0x1823F3F4, d);
+
+  // 0x1824: BMS state (3 = contactor closed, 0 = open)
+  memset(d, 0, 8);
+  d[0] = closed ? ALT_BMS_STATE_CLOSED : ALT_BMS_STATE_OPEN;
+  transmit_frame(0x1824F3F4, d);
+
+  // 0x1825: alarm / protection bits (none)
+  memset(d, 0, 8);
+  transmit_frame(0x1825F3F4, d);
+
+  // 0x1835: clusters, modules, remaining capacity (0.1 kWh)
+  memset(d, 0, 8);
+  d[0] = 1;
+  d[1] = (uint8_t)configured_number_of_modules;
+  put16(d + 4, datalayer.aggregate.reported_remaining_capacity_Wh / 100);
+  transmit_frame(0x1835F3F4, d);
+
+  // 0x1836: byte 0 flags (as the classic 0x187A byte 1; 0 = inverter manages the contactor), average temp + 50
+  memset(d, 0, 8);
+  d[5] = temperature_byte(temperature_avg_dC);
+  transmit_frame(0x1836F3F4, d);
+
+  // 0x1837: min / max design voltage (1 V), total capacity (0.1 kWh)
+  memset(d, 0, 8);
+  put16(d + 0, (datalayer.aggregate.min_design_voltage_dV + 9) / 10);
+  put16(d + 2, datalayer.aggregate.max_design_voltage_dV / 10);
+  put16(d + 4, datalayer.aggregate.reported_total_capacity_Wh / 100);
+  transmit_frame(0x1837F3F4, d);
+
+  // 0x1840: energy counters (not tracked)
+  memset(d, 0, 8);
+  transmit_frame(0x1840F3F4, d);
+
+  // 0x1841: module 0 versions and battery type; also the inverter's keep-alive
+  memset(d, 0, 8);
+  put16(d + 5, alt_battery_type);
+  transmit_frame(0x1841F3F4, d);
 }
