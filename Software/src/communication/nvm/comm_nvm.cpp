@@ -8,6 +8,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/display/display_modes.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/utils/logging.h"
@@ -299,6 +300,8 @@ void init_stored_settings() {
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
+  // Missing key and any value other than Health (1) or Cell bars (2) are Status.
+  user_selected_display_mode = display_mode_from_raw(settings.getUInt("DISPMODE", 0));
 
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);

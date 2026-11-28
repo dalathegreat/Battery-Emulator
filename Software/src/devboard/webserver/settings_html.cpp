@@ -9,6 +9,7 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
+#include "../display/display_modes.h"
 #include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
@@ -116,6 +117,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 #else
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
+
+// OLED page. 0 is Status. 3 rotates the three pages. Anything else is also Status.
+static const std::map<int, String> display_modes = {{0, "Status"},
+                                                    {1, "Health"},
+                                                    {2, "Cell bars"},
+                                                    {3, "Cycle (every 4 s)"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
@@ -463,6 +470,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "DISPMODE") {
+    return options_from_map(static_cast<int>(display_mode_from_raw(settings.getUInt("DISPMODE", 0))), display_modes);
   }
 
   if (var == "PERBMSRESETH") {
@@ -1278,6 +1289,21 @@ String qnhck_zero_text(uint16_t zero_mV) {
   return String(zero_mV / 1000.0f, 3) + (zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
 }
 #endif  // SMALL_FLASH_DEVICE
+
+#ifndef SMALL_FLASH_DEVICE
+#define DISPMODE_SETTING \
+  R"rawliteral(
+    <label for="DISPMODE">Display mode:</label>
+    <div>
+      <select id="DISPMODE" name="DISPMODE">
+        %DISPMODE%
+      </select>
+      <div style="font-size:0.85em;margin-top:4px;">Cycle shows Status, Health and Cell bars in turn, 4 seconds each. Status is the default.</div>
+    </div>
+  )rawliteral"
+#else
+#define DISPMODE_SETTING ""
+#endif
 
 #ifdef HW_LILYGO2CAN
 #define GPIOOPT1_SETTING \
@@ -2531,6 +2557,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
         )rawliteral" GPIOOPT5_SETTING R"rawliteral(
         )rawliteral" GPIOOPT6_SETTING R"rawliteral(
+        )rawliteral" DISPMODE_SETTING R"rawliteral(
 
         </div>
         </div>

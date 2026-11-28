@@ -1,4 +1,7 @@
 #include "types.h"
+#include "../display/display_modes.h"
+
+DisplayMode user_selected_display_mode = DisplayMode::Status;
 
 // Function to get string representation of system_status_enum
 std::string getBMSStatus(system_status_enum status) {
