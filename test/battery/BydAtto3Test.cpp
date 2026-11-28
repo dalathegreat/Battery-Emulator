@@ -887,6 +887,51 @@ TEST(BydAtto3PrechargeTests, WaitsForALateBmsResponseBeforeRamping) {
   delete battery;
 }
 
+CAN_frame hv_bus_frame(uint16_t dV) {
+  return byd_checksummed_frame(0x35E, {0x01, 0, 0x60, (uint8_t)(dV & 0xFF), (uint8_t)(dV >> 8), 0, 0});
+}
+
+// A slow inverter DC link must hold the reported link down until the BMS has closed main.
+TEST(BydAtto3PrechargeTests, FollowsTheMeasuredBusUntilMainCloses) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+
+  rx_at(battery, hv_bus_frame(0), 550);
+  rx_at(battery, contactor_state_frame(0x00, 0x40), 600);
+  EXPECT_EQ(link_on_tick(battery, 600), kLowLink);
+  rx_at(battery, hv_bus_frame(2000), 650);
+  EXPECT_EQ(link_on_tick(battery, 700), 200);
+  rx_at(battery, hv_bus_frame(3000), 1650);
+  EXPECT_EQ(link_on_tick(battery, 1700), 300);
+  rx_at(battery, hv_bus_frame(4300), 1750);
+  EXPECT_EQ(link_on_tick(battery, 1800), kPackVolts - 1);
+
+  rx_at(battery, contactor_state_frame(0x84, 0x41), 1850);
+  EXPECT_EQ(link_on_tick(battery, 1900), kPackVolts - 1);
+  rx_at(battery, hv_bus_frame(0), 1950);
+  EXPECT_EQ(link_on_tick(battery, 2000), kPackVolts - 1);
+
+  delete battery;
+}
+
+TEST(BydAtto3PrechargeTests, FallsBackToTheTimedRampWhenTheBusReadingIsStale) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+  rx_at(battery, hv_bus_frame(2000), 500);
+
+  rx_at(battery, contactor_state_frame(0x00, 0x40), 3600);
+  EXPECT_EQ(link_on_tick(battery, 3600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 3700), 268);
+
+  delete battery;
+}
+
 namespace {
 
 // 0x444 charging at 5A: b2:b3 = 5000 - 50, b5 = whole-percent SOC.

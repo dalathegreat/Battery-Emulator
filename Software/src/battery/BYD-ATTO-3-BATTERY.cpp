@@ -1917,6 +1917,8 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       // the contactors. Report the low floating link while open, else we hold close while opening.
       const bool pack_open = contactorState == CONTACTORS_OPEN_SETTLE || contactorState == CONTACTORS_STANDBY ||
                              contactorState == CONTACTORS_BOOT_ESTOP;
+      // Follow the BMS's own bus reading through precharge; the timed curve is only a fallback
+      const bool bus_fresh = last_35E_ms != 0 && static_cast<uint32_t>(currentMillis - last_35E_ms) < 3000;
       if (pack_open) {
         prechargeState = PRECHARGE_WAIT;  // next close ramps from the floating link again
         prechargeEdgeSeen = false;
@@ -1926,18 +1928,27 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         } else if (prechargeEdgeSeen) {
           prechargeState = PRECHARGE_RAMP;
         }
-      } else if (prechargeState == PRECHARGE_RAMP && currentMillis - prechargeRampStartMillis >= PRECHARGE_RAMP_MS) {
+      } else if (prechargeState == PRECHARGE_RAMP &&
+                 (bus_fresh ? (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0
+                            : currentMillis - prechargeRampStartMillis >= PRECHARGE_RAMP_MS)) {
         prechargeState = PRECHARGE_DONE;
       }
       // Pack voltage before the BMS has precharged reads as a stuck contactor - P1A3400
       bool report_link_voltage_low = !BMS_voltage_available || pack_open || prechargeState == PRECHARGE_WAIT;
       uint16_t link_voltage = battery_voltage ? (uint16_t)(battery_voltage - 1) : 0;
       if (prechargeState == PRECHARGE_RAMP && !report_link_voltage_low && battery_voltage > 12) {
-        const uint32_t since = currentMillis - prechargeRampStartMillis;
-        uint32_t pct = (since < 100)   ? (62 * since) / 100
-                       : (since < 400) ? 62 + (33 * (since - 100)) / 300
-                                       : 95 + (5 * (since - 400)) / 500;
-        link_voltage = (uint16_t)(12 + ((uint32_t)(link_voltage - 12) * pct) / 100);
+        if (bus_fresh) {
+          const uint16_t bus_V = battery_hv_bus_voltage_dV / 10;
+          if (bus_V < link_voltage) {
+            link_voltage = (bus_V > 12) ? bus_V : 12;  // never below the floating link it ramps from
+          }
+        } else {
+          const uint32_t since = currentMillis - prechargeRampStartMillis;
+          uint32_t pct = (since < 100)   ? (62 * since) / 100
+                         : (since < 400) ? 62 + (33 * (since - 100)) / 300
+                                         : 95 + (5 * (since - 400)) / 500;
+          link_voltage = (uint16_t)(12 + ((uint32_t)(link_voltage - 12) * pct) / 100);
+        }
       }
       if (report_link_voltage_low) {
         ATTO_3_441.data.u8[4] = 0x0C;
