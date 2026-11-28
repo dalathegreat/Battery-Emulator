@@ -1,0 +1,412 @@
+# Inter-Unit Controller/Node CAN Protocol
+
+Documentation for the Battery Emulator's internal Controller/Node communication protocol.
+
+Relevant source files:
+- `Software/src/communication/can/INTER-UNIT-PROTOCOL.h` — CAN ID macros and payload definitions
+- `Software/src/communication/can/CONTROLLER-CAN.cpp` / `CONTROLLER-CAN.h` — Controller-side logic
+- `Software/src/communication/can/BATTERY-NODE-CAN.cpp` / `BATTERY-NODE-CAN.h` — Battery-node-side logic
+
+---
+
+## Overview
+
+A Battery Emulator can be configured as **Controller** or **Battery Node** via the settings page.
+
+| Role | Function |
+|------|----------|
+| **Controller** | Communicates with the inverter. Aggregates data from all nodes. Controls contactors. |
+| **Battery Node** | Communicates with a battery. Sends battery data to the controller. Opens/closes contactor on controller command. |
+
+Up to **24 battery nodes** are supported (Node ID 1–24). Each node can itself run a **double or triple battery** setup — see [Double / triple battery on a node](#double--triple-battery-on-a-node).
+
+The whole feature is compiled out on `SMALL_FLASH_DEVICE` builds (LilyGo T-CAN485, ESP32 DevKit), so the controller and every node must run on a larger board (e.g. LilyGo T-2CAN, Stark CMR).
+
+CAN bus, **500 kbps**: the controller runs the inter-unit protocol on its **battery** interface (`BATTCOMM`), the node on its **inverter** interface (`INVCOMM`). There is no separate inter-unit bus.
+
+---
+
+## Hardware Topology
+
+Each unit is a separate ESP32 board (e.g. LilyGo). The controller and all nodes share one inter-unit CAN bus. Each node connects to its own real battery; the controller connects to the inverter.
+
+```
+        ┌───────────┐
+        │  Inverter │
+        └─────┬─────┘
+              │ CAN
+        ┌─────┴─────────────┐
+        │ CONTROLLER LilyGo │
+        └─────┬─────────────┘
+              │
+   ═══════════╪═══════════════════════════╗   Inter-Unit CAN bus
+              │                            ║   500 kbps
+        ┌─────┴───────────┐   ┌────────────╫────┐
+        │ NODE 1 LilyGo   │   │ NODE 2 LilyGo    │   ... up to 24 nodes
+        └─────┬───────────┘   └────────────┬────┘
+              │ CAN                         │ CAN
+        ┌─────┴─────┐               ┌───────┴───┐
+        │  Battery  │               │  Battery  │
+        │ (BMW i3)  │               │ (BMW i3)  │
+        └───────────┘               └───────────┘
+```
+
+- All inter-unit nodes share one 500 kbps bus; terminate it with 120 Ω at both physical ends like any CAN bus, and tie all node grounds together.
+
+---
+
+## Double / triple battery on a node
+
+A node can drive two or three packs of the same type, exactly as a standalone Battery Emulator can. Enable **Double battery** (or **Triple battery**) in the node's own settings; the option is only offered for battery types that support it, and each extra pack needs its own battery interface on the node.
+
+Because a node is set up as its unit's *inverter*, it reports the same combined figures a real inverter would get from that unit (`datalayer.aggregate`), not pack 1 alone:
+
+| Sent to controller | From the node's packs |
+|--------------------|-----------------------|
+| Voltage | Pack 1's measured voltage (all packs share the node's DC link) |
+| Current | Sum of all packs |
+| Total / remaining capacity | Sum of all packs |
+| SOC | Lowest joined pack, blending towards the fullest one above 90% |
+| SOH | Lowest pack that reports one (standard Battery Emulator behaviour; the controller then averages across nodes, see [Node Data Aggregation](#7-node-data-aggregation-to-inverter)) |
+| Max charge / discharge power | **Lowest** joined pack's limit (same rule the inverter gets without a node) |
+| Cell max/min, temperature max/min | Highest max / lowest min across the packs |
+| Design voltage max / min | Lowest max / highest min across the packs |
+| Offline balancing, battery CAN timeout | Set if **any** pack has it |
+
+What this means in practice:
+- The controller sees each node as **one** node, whatever is behind it. Capacity and current add up correctly.
+- Packs 2 and 3 join the node's DC link through the node's own parallel-battery voltage check, exactly like without a node. The controller only opens/closes the node as a whole.
+- The power limit of a double/triple node is that of its weakest pack, not the sum. Since the controller uses *lowest per-node limit × number of engaged nodes*, the installation is conservative (never above what any pack allows), but a double node does not contribute double power.
+- Capacity travels in 10 Wh steps, so one node can report up to ~327 kWh remaining / ~655 kWh total.
+
+---
+
+## CAN ID Allocation
+
+| CAN ID | Direction | Description |
+|--------|-----------|-------------|
+| `0x300` | Controller → Broadcast | Heartbeat (no payload) |
+| `0x301`–`0x318` | Controller → Node N | Contactor command to Node N |
+| `0x110 + N×0x10` | Node N → Controller | STATUS message (msg 0x00) |
+| `0x111 + N×0x10` | Node N → Controller | POWER message (msg 0x01) |
+| `0x112 + N×0x10` | Node N → Controller | INFO message (msg 0x02) |
+| `0x113 + N×0x10` | Node N → Controller | IP address message (msg 0x03) |
+| `0x114 + N×0x10` | Node N → Controller | CELL message (msg 0x04) |
+| `0x115 + N×0x10` | Node N → Controller | IDENT message (msg 0x05, startup only) |
+
+Example for Node 1 (N=1): STATUS = `0x110`, POWER = `0x111`, etc.
+
+---
+
+## Timing
+
+| Message | Sent by | Interval |
+|---------|---------|----------|
+| Heartbeat | Controller | Every 1 second |
+| STATUS | Node | Every heartbeat (1s) |
+| POWER | Node | Every heartbeat (1s) |
+| CELL | Node | Every 2nd heartbeat (2s) |
+| INFO | Node | Every 10th heartbeat (10s) |
+| IP | Node | First 3 heartbeats + every 10 minutes |
+| IDENT | Node | First 3 heartbeats only (re-announced after a controller-reboot gap) |
+
+**Collision avoidance:** Nodes reply with a delay of `NodeID × 5 ms` after heartbeat.  
+Node 1 = 5 ms, Node 2 = 10 ms, ..., Node 24 = 120 ms.
+
+---
+
+## Message Layouts
+
+> **Integrity (protocol v2):** every frame carries a 1-byte application CRC in its **last data
+> byte**, computed by `iu_crc8()` over the preceding bytes seeded with the CAN ID's low byte. The
+> receiver re-checks it and drops any frame that fails. Because STATUS/POWER/INFO were already 8
+> bytes full, a few fields are packed tighter on the wire (SOC/SOH in 0.5% steps, remaining_Wh in
+> 10 Wh steps) to free the CRC byte; the receiver rescales them back to internal units. See
+> [Frame Integrity (CRC)](#8-frame-integrity-crc) below.
+
+### Heartbeat — `0x300` (1 byte)
+
+| Byte | Content |
+|------|---------|
+| [0] | CRC |
+
+Carries no other payload — used only to signal that the controller is online.
+
+---
+
+### Contactor Command — `0x300 + N` (2 bytes)
+
+| Byte | Content |
+|------|---------|
+| [0] | `0x01` = allow contactor closing, `0x00` = open contactor |
+| [1] | CRC |
+
+---
+
+### STATUS — `0x110 + N×0x10` (8 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–1] | uint16 | Pack voltage in deciVolts (3700 = 370.0 V) |
+| [2] | uint8 | SOC ÷ 50 (0.5% steps on the wire; receiver ×50 → 0.01%) |
+| [3–4] | int16 | Current in deciAmpere (positive = charging) |
+| [5] | int8 | Max temperature in °C |
+| [6] | uint8 | Flags — see table below |
+| [7] | uint8 | CRC |
+
+#### FLAGS byte (data[6])
+
+| Bit | Constant | Meaning | Classification |
+|-----|----------|---------|----------------|
+| 0 | `IU_FAULT_BMS_FAULT` | BMS reports a fault | **Error (red)** |
+| 1 | `IU_FAULT_CELL_OVERVOLTAGE` | Cell over-voltage | Warning (yellow) |
+| 2 | `IU_FAULT_CELL_UNDERVOLTAGE` | Cell under-voltage | Warning (yellow) |
+| 3 | `IU_FAULT_OVERTEMPERATURE` | Over-temperature (>55°C) | Warning (yellow) |
+| 4 | `IU_FAULT_CONTACTOR_FAILED` | Contactor failed to close | **Error (red)** |
+| 5 | `IU_FAULT_BATTERY_TIMEOUT` | Battery CAN timeout on node | **Error (red)** |
+| 6 | `IU_FLAG_CONTACTOR_ENGAGED` | Contactor is physically closed (not a fault) | Info |
+| 7 | `IU_FLAG_STATUS_TOGGLE` | Toggle bit — flips every frame (stale detection) | Internal |
+
+---
+
+### POWER — `0x111 + N×0x10` (8 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–1] | uint16 | Max charge power ÷ 10 (10 W steps, rounded down; receiver ×10 → W) |
+| [2–3] | uint16 | Max discharge power ÷ 10 (10 W steps, rounded down; receiver ×10 → W) |
+| [4–5] | uint16 | `rem_word`: bit 15 = offline-balancing flag (`IU_NODE_REM_BALANCING_BIT`), bits 0–14 = remaining capacity ÷ 10 (10 Wh steps, receiver ×10 → Wh) |
+| [6] | int8 | Min temperature in °C |
+| [7] | uint8 | CRC |
+
+---
+
+### INFO — `0x112 + N×0x10` (8 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–1] | uint16 | Total capacity ÷ 10 (10 Wh steps, receiver ×10 → Wh) |
+| [2–3] | uint16 | Max design voltage in dV |
+| [4–5] | uint16 | Min design voltage in dV |
+| [6] | uint8 | SOH ÷ 50 (0.5% steps on the wire; receiver ×50 → 0.01%) |
+| [7] | uint8 | CRC |
+
+---
+
+### IP — `0x113 + N×0x10` (5 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–3] | uint32 | IPv4 address, big-endian (192.168.1.10 = 0xC0A8010A) |
+| [4] | uint8 | CRC |
+
+Only sent if the node is connected to WiFi.
+
+---
+
+### CELL — `0x114 + N×0x10` (5 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–1] | uint16 | Highest cell voltage in mV |
+| [2–3] | uint16 | Lowest cell voltage in mV |
+| [4] | uint8 | CRC |
+
+---
+
+### IDENT — `0x115 + N×0x10` (8 bytes)
+
+| Bytes | Type | Content |
+|-------|------|---------|
+| [0–1] | uint16 | Firmware version: `(major << 8) | minor` — e.g. 10.6 = `0x0A06` |
+| [2–3] | uint16 | Battery type ID (`BatteryType` enum cast to uint16) |
+| [4] | uint8 | Protocol version (`IU_PROTOCOL_VERSION`, currently 4). The controller only accepts an IDENT carrying its own version, so a node on an older wire layout never verifies and its contactor stays open. |
+| [5–6] | — | Reserved (must be 0) |
+| [7] | uint8 | CRC |
+
+---
+
+## Safety Features
+
+### 1. Startup Grace Period
+**Duration:** 20 seconds (`IU_STARTUP_GRACE_S`)
+
+At startup the controller holds all contactors **open** for 20 seconds regardless of node state.  
+This gives all nodes time to announce their voltage before the inverter begins charging or discharging, preventing inrush current from large voltage differences between packs.
+
+---
+
+### 2. Node Offline Detection
+**Timeout:** 60 seconds (`CAN_STILL_ALIVE`, decremented at 1 Hz)
+
+The controller maintains a countdown from 60 for each node, reset on every received message.  
+When the counter reaches 0:
+- Node is marked **offline**
+- Contactor is **blocked**
+- Event `EVENT_BATTERY_NODE_MISSING` (WARNING) is raised
+
+On the node side, the controller heartbeat has its own, much shorter timeout: **15 seconds** (`IU_NODE_CONTROLLER_TIMEOUT_S`). When it runs out the node opens its contactor and raises `EVENT_CAN_CONTROLLER_MISSING`. See #3 for why it is timed this way.
+
+---
+
+### 3. Stale Data Detection (Toggle Bit) and Lost-Link Sequencing
+**Timeout:** 3 seconds (`IU_STATUS_STALE_SECONDS`)
+
+The STATUS message contains a toggle bit (bit 7) that flips on **every** frame.  
+The controller monitors whether bit 7 is changing. If it has not changed for 3 seconds the data is considered frozen (node software hung, or the CAN link to that node is broken). Event `EVENT_BATTERY_NODE_STATUS_STALE` (WARNING) is raised and the node is never newly allowed while stale.
+
+A stale node that was closed may still be on the DC bus, and if its link is broken it cannot receive commands. Both sides therefore follow fixed timings so the node opens at **no load**:
+
+| Time | Controller | Node |
+|------|------------|------|
+| stale > 3 s | Holds the **whole pack at 0 W** charge/discharge (inverter ramps down) | — |
+| 15 s | Commands the node OPEN (`IU_STALE_OPEN_SECONDS`) — reaches it if only its data froze | No heartbeat for 15 s → opens its own contactor (`IU_NODE_CONTROLLER_TIMEOUT_S`) |
+| stale > 20 s | Drops the node; the remaining nodes resume as N-1 (`IU_STALE_DROP_SECONDS`) | — |
+
+If the node's data recovers before 15 s it keeps its permission and the pack resumes with all nodes. Once the link is back after an open, the node rejoins through the normal voltage check.
+
+---
+
+### 4. Firmware and Battery Type Mismatch (IDENT)
+
+At startup the node sends an IDENT message containing its firmware version and battery type ID.  
+The controller verifies:
+- **Firmware version** matches the controller's compiled version (`iu_fw_version_num()`)
+- **Battery type** matches the first node that reported one (all nodes must use the same battery type)
+
+On mismatch (applies to **both** the firmware version and the battery type comparison):
+- A not-yet-closed contactor is **blocked from closing** (entry gate)
+- An **already-closed contactor stays closed** — a mismatch never force-opens a live pack,
+  so a momentary IDENT glitch (one corrupted frame) cannot drop the whole system
+- Event `EVENT_BATTERY_NODE_IDENT_MISMATCH` (WARNING) is raised
+- Automatically cleared if subsequent IDENT data matches
+
+> **Note:** The firmware version is derived automatically from `version_number` in `Software.cpp` via `iu_fw_version_num()` (parses `"10.11.dev"` → `0x0A0B`). There is nothing to update manually — both controller and node compile the same value.
+
+---
+
+### 5. Fault Flag → Event Mapping
+
+Fault bits in the STATUS flags byte are automatically translated to events on the controller:
+
+| Fault | Classification | Consequence | Event |
+|-------|---------------|-------------|-------|
+| BMS fault | **ERROR** | Contactor blocked | `EVENT_BATTERY_NODE_FAULT` |
+| Battery CAN timeout | **ERROR** | Contactor blocked | `EVENT_BATTERY_NODE_FAULT` |
+| Contactor failed | **ERROR** | Contactor blocked | `EVENT_BATTERY_NODE_FAULT` |
+| Cell over-voltage | WARNING | Advisory only | `EVENT_BATTERY_NODE_WARNING` |
+| Cell under-voltage | WARNING | Advisory only | `EVENT_BATTERY_NODE_WARNING` |
+| Over-temperature | WARNING | Advisory only | `EVENT_BATTERY_NODE_WARNING` |
+
+Events are automatically cleared when the fault condition disappears.
+
+---
+
+### 6. Voltage Synchronisation Before Contactor Allow
+
+Before the controller allows a node to close its contactor it must verify that the node's pack voltage is close enough to the already-active nodes. There are two paths depending on how far apart the voltages are.
+
+#### Direct-close path (diff ≤ 1.5 V)
+When the voltage difference is at or below `VOLTAGE_DIFF_THRESHOLD_dV` (1.5 V) for `VOLTAGE_DIFF_SECONDS_LIMIT` (10 s) the contactor is allowed — no power capping is applied. This is the normal case after a brief disconnection.
+
+#### Prejoin path (1.5 V < diff ≤ 1.8 V with inverter active)
+When the raw voltage difference is between 1.5 V and 1.8 V (`PREJOIN_ENTER_DIFF_dV`) and the inverter is delivering meaningful power (absolute load > `PREJOIN_LOW_POWER_ABORT_W`, 300 W), the controller enters **prejoin mode** for that node. Prejoin does **not** cap or reduce inverter power. The ongoing charge/discharge current naturally pulls the idle pack's voltage toward the active pack; prejoin simply monitors that convergence and imposes a stricter, direction-aware close gate so the contactor only closes once the gap has shrunk into a safe window.
+
+How it works:
+1. Prejoin activates when the diff first falls to ≤ 1.8 V while the inverter is working.
+2. While active, the controller tracks a **close window** that depends on the load direction:
+   - **Charging** (load ≥ 0): close window is diff ≤ `PREJOIN_CLOSE_RAW_DIFF_dV` (0.5 V).
+   - **Discharging** (load < 0): close window requires the node voltage to be at or above the reference **and** diff ≤ 0.7 V, so the joining pack is never pulled down by an already-loaded bus.
+3. The diff must stay inside the close window for `PREJOIN_CLOSE_DWELL_S` (2 s) of stable dwell.
+4. The contactor is allowed when **both** the standard voltage timer (diff ≤ 1.5 V for 10 s) and the prejoin gate (close window satisfied + dwell met) pass.
+5. Prejoin aborts if the absolute inverter load stays below `PREJOIN_LOW_POWER_ABORT_W` (300 W) for `PREJOIN_LOW_POWER_ABORT_S` (30 s) — e.g. when solar disappears mid-prejoin — and the node falls back to waiting for the direct-close path.
+
+If neither path can close the contactor (diff > 1.8 V, or the inverter is idle) the node remains blocked.
+
+The reference voltage is the DC bus itself: it is taken from a node that **reports its contactor closed** (`IU_FLAG_CONTACTOR_ENGAGED`) with fresh data — not from a node the controller has merely allowed, since an allowed node may not have closed. While another node is allowed but has not reported closed yet, further joins wait. A node that is sent ALLOW but does not report closed within 60 s has its permission revoked and must re-qualify (after a 60 s cool-down), so a stuck node cannot hold the others back. After 3 failed attempts in a row the node is left open instead of being cycled again (some packs, e.g. Tesla, do not tolerate repeated open/close well) until it goes offline or the controller restarts.  
+If no node is closed or closing, the node is the first one and is allowed directly.  
+All voltage checks are skipped during the startup grace period; when it ends, all online nodes at matching voltage are allowed together as before.
+
+> **Safety override order:** Voltage safety runs first (may allow), then stale detection, IDENT mismatch, and fault flags each run afterwards — so any blocking condition always has the final say over `contactor_allowed`.
+
+---
+
+### 7. Node Data Aggregation to Inverter
+
+The controller combines data from all online nodes whose contactor is actually **engaged** (physically closed). A node that is merely allowed but has not closed its contactor is not part of the pack and is excluded — otherwise its zero power limits would wrongly cap the whole pack:
+
+| Parameter | Method |
+|-----------|--------|
+| Total capacity | Sum of all engaged nodes |
+| Remaining capacity | Sum of all engaged nodes |
+| Max charge power | Lowest per-node limit × number of engaged nodes (0 if any engaged node blocks charging) |
+| Max discharge power | Lowest per-node limit × number of engaged nodes (0 if any engaged node blocks discharging) |
+| Voltage | First available node (parallel = same for all) |
+| Current | Sum of all engaged nodes |
+| Reported SOC | Lowest SOC normally. When the highest node SOC reaches 95%, the reported value blends linearly from lowest toward highest as the top node rises from 95% to 100%, so the inverter sees a smooth rise rather than a sudden jump at full charge. |
+| SOH | Average of the engaged nodes that report one, rounded to whole percent |
+| Temperature max/min | Highest max, lowest min across all engaged nodes |
+| Max design voltage | **Lowest** across all engaged nodes (protects against overcharge) |
+| Min design voltage | **Highest** across all engaged nodes (protects against over-discharge) |
+
+**Why SOH is averaged:** SOH is informational only. Nothing in the protection path uses it: power limits, design voltages and SOC already follow the weakest node, so a degraded pack is protected whatever SOH is reported. The inverter sees the whole installation as one battery, and an average describes that battery better than the weakest pack does. Reporting the minimum would make the whole bank look degraded because of one older pack. Each node's own SOH is still shown on the controller's web page.
+
+---
+
+### 8. Frame Integrity (CRC)
+
+Every inter-unit frame carries a 1-byte application **CRC** in its last data byte (`iu_crc8()`, SAE J1850 poly `0x1D`), computed over the preceding bytes **seeded with the CAN ID's low byte**. This sits on top of classic CAN's own 15-bit CRC and additionally guards against ID aliasing (a foreign device transmitting on an inter-unit ID), mis-delivered frames, and software/buffer corruption.
+
+The receiver re-checks the CRC **before using any field** and drops a frame that fails. The behaviour on a dropped frame is **fail-safe** — a rejected frame never improves the safety state:
+- **Controller** ignores a bad node frame *without* resetting that node's `still_alive`/`online`, so persistent corruption runs the node down to offline and opens its contactor.
+- **Node** ignores a bad heartbeat (watchdog is not refreshed → contactor opens on timeout) and ignores a bad contactor command (keeps the previous state rather than acting on a garbled ALLOW/OPEN).
+
+CRC mismatches are counted and logged on each side.
+
+Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 10 Wh steps (15 bits, with the offline-balancing flag in bit 15), and since v4 the power limits in 10 W steps. The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
+
+> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2; v3 moved capacity to 10 Wh steps and puts the protocol version in IDENT byte [4]; v4 moved the power limits to 10 W steps. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline, and a node on an older protocol version has its IDENT rejected by the controller (and vice versa), so it is never verified and its contactor is never allowed. Flash the controller and all nodes together.
+
+This complements — and does not replace — the toggle-bit stale detection (#3): a CRC-valid frame can still carry frozen data, which only the toggle bit catches.
+
+---
+
+### 9. Contactor Command Must Be Followed
+
+Everything above relies on the node actually opening and closing its contactor when the controller says so, and reporting back when it is closed. Two layers make sure of that.
+
+**On the node — capability gate.** Each pack on the node must either use GPIO contactor control for its slot, or run a battery protocol that declares `reports_contactor_state()`: it closes its contactors over CAN only while `inverter_allows_contactor_closing` is set, and reports the result in `contactors_engaged`. Protocols declaring this today: BMW i3, Tesla Model 3/Y and Model S/X (`BMS_contactorState`; not the separate "Tesla Model S/X 2012-2020" protocol), Stellantis Pro One (0x150 contactor status) and Relion LV (commanded state, the pack has no feedback). Any other protocol can be added once it does both. If a pack does not qualify, the node raises `EVENT_NODE_CONTACTOR_UNSUPPORTED` (ERROR) and reports `IU_FAULT_CONTACTOR_FAILED`, so the controller never allows it.
+
+Only `contactors_engaged == 1` (closed) is reported as engaged — not a fault-latched open contactor or a running precharge — since the controller uses it as the DC bus reference.
+
+**On the controller — obedience check.** Once a node has had 10 s to act on an OPEN command, it must not report its contactor closed or carry more than 2 A. If it does for 5 s, `EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED` (WARNING) is raised and the whole pack is held at 0 W until it opens — that pack sits on the bus uncontrolled and outside the aggregation. This also catches a protocol that is declared but does not behave.
+
+---
+
+## Web UI
+
+The controller web UI shows a **Battery Nodes** section with a colour-coded status box:
+
+| Colour | Meaning |
+|--------|---------|
+| Blue-grey `#303E47` | Normal operation, no faults |
+| Yellow `#F5CC00` | Warning on at least one node |
+| Red `#A70107` | Error on at least one node (contactor blocked) |
+| Blue `#2B35AF` | OTA firmware update in progress |
+
+Each node is shown as an individual card with SOC, voltage, current, power, temperature, remaining capacity, max charge/discharge power, and contactor status.
+
+---
+
+## Configuration
+
+Settings are applied via the web UI under **Settings**:
+
+| Setting | Description |
+|---------|-------------|
+| Battery type = **Inter-Unit Controller** | Selects Controller role. The controller's `BATTCOMM` interface carries the inter-unit protocol. |
+| Inverter protocol = **Inter-Unit Node** | Selects Battery Node role. The node's `INVCOMM` interface carries the inter-unit protocol. |
+| Battery node ID | Node ID for this battery node (1–24). Stored under the NVM key `SLAVENODEID` (kept for backward compatibility). |
+| Double / Triple battery (on a node) | Optional. Lets one node drive 2 or 3 packs; the controller sees their combined values as one node. |
+
+> The node role is derived from the battery/inverter selection — there is no separate `NODE_MODE` setting.

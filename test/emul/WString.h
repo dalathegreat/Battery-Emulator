@@ -96,6 +96,18 @@ class String {
   bool isEmpty() const { return data.empty(); }
   const char* c_str() const { return data.c_str(); }
 
+  void remove(unsigned int index) {
+    if (index < data.length()) {
+      data.erase(index);
+    }
+  }
+
+  void remove(unsigned int index, unsigned int count) {
+    if (index < data.length()) {
+      data.erase(index, count);
+    }
+  }
+
   // Arduino String::reserve returns bool; pre-allocates capacity.
   bool reserve(unsigned int size) {
     data.reserve(size);
