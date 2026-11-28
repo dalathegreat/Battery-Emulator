@@ -24,6 +24,7 @@
 #include "ECMP-BATTERY.h"
 #include "ECMP-V2-BATTERY.h"
 #include "ENNOID-BMS.h"
+#include "FISKER-OCEAN-BATTERY.h"
 #include "FORD-MACH-E-BATTERY.h"
 #include "FOXESS-BATTERY.h"
 #include "GEELY-GEOMETRY-C-BATTERY.h"
@@ -130,6 +131,8 @@ const char* name_for_battery_type(BatteryType type) {
       return CmpSmartCarBattery::Name;
     case BatteryType::EnnoidBMS:
       return EnnoidBms::Name;
+    case BatteryType::FiskerOcean:
+      return FiskerOceanBattery::Name;
     case BatteryType::FordMachE:
       return FordMachEBattery::Name;
     case BatteryType::Foxess:
@@ -301,6 +304,8 @@ Battery* create_battery(BatteryType type) {
       return new CmpSmartCarBattery();
     case BatteryType::EnnoidBMS:
       return new EnnoidBms();
+    case BatteryType::FiskerOcean:
+      return new FiskerOceanBattery();
     case BatteryType::FordMachE:
       return new FordMachEBattery();
     case BatteryType::Foxess:

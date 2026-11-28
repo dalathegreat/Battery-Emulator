@@ -65,6 +65,7 @@ enum class BatteryType {
   StellantisProOne = 58,
   BYDBatteryBoxPremium = 59,
   StellantisEcmpV2 = 60,
+  FiskerOcean = 61,
   Highest
 };
 

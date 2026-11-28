@@ -133,6 +133,7 @@ add_executable(tests
     ../Software/src/battery/ECMP-BATTERY.cpp
     ../Software/src/battery/ECMP-V2-BATTERY.cpp
     ../Software/src/battery/ENNOID-BMS.cpp
+    ../Software/src/battery/FISKER-OCEAN-BATTERY.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
