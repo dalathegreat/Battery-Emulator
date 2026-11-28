@@ -521,9 +521,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x245:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      if (rx_frame.data.u8[0] == 0x01) {
-        battery_temperature_ambient = (rx_frame.data.u8[4] - 40);
+      if (rx_frame.data.u8[0] == 0x01) {  // mux 03 carries no checksum
+        if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+          datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+          battery_temperature_ambient = (rx_frame.data.u8[4] - 40);
+        } else {
+          datalayer_battery->status.CAN_error_counter++;
+        }
       }
       break;
     case 0x286:
@@ -536,25 +540,27 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x344:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      lastContactorFeedbackMillis = millis();
-      // b0 reports pack mode; b1 bit 0x40 reports closing/precharge/running
-      if (!prechargeEdgeSeen && ((rx_frame.data.u8[0] & BMS_FEEDBACK_PRECHARGING) || (rx_frame.data.u8[1] & 0x40))) {
-        prechargeRampStartMillis = millis();  // BMS started precharging
-        prechargeEdgeSeen = true;
-      }
-      contactor_feedback = rx_frame.data.u8[0];
-      if (contactor_feedback & BMS_FEEDBACK_DM_PACK) {
-        dm_pack = true;
-      }
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+        lastContactorFeedbackMillis = millis();
+        // b0 reports pack mode; b1 bit 0x40 reports closing/precharge/running
+        if (!prechargeEdgeSeen && ((rx_frame.data.u8[0] & BMS_FEEDBACK_PRECHARGING) || (rx_frame.data.u8[1] & 0x40))) {
+          prechargeRampStartMillis = millis();  // BMS started precharging
+          prechargeEdgeSeen = true;
+        }
+        contactor_feedback = rx_frame.data.u8[0];
+        if (contactor_feedback & BMS_FEEDBACK_DM_PACK) {
+          dm_pack = true;
+        }
         BMS_charge_state = rx_frame.data.u8[2] & 0x0F;
         BMS_charge_gun = (rx_frame.data.u8[5] >> 2) & 0x07;
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
       }
       break;
     case 0x345:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         BMS_allowed_discharge_power = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];  // 0.1kW, same as DID 0x000E
         BMS_allowed_charge_power = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];     // 0.1kW, same as DID 0x000A
       } else {
@@ -562,8 +568,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x347:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         chargeGrant = rx_frame.data.u8[1];
         // The BMS withdraws its grant about a second before it clears the charge flag: stop offering
         // current on that falling edge.
@@ -581,9 +587,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x35E:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // b0 bit 0x80 = isolation measurement active (set = running, clear = disabled/idle)
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         battery_iso_measurement_active = (rx_frame.data.u8[0] & 0x80) != 0;
         battery_hv_bus_voltage_dV = rx_frame.data.u8[3] | (static_cast<uint16_t>(rx_frame.data.u8[4]) << 8);
         last_35E_ms = millis();
@@ -598,8 +604,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x438:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         //b5..b6 is not pack voltage on every pack family (142S decodes to thousands of volts).
         //Only a resolution upgrade on 0x444, so adopt it once seen and the two agree.
         const uint16_t candidate_dV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5];
@@ -614,8 +620,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x43A:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         if (rx_frame.data.u8[0] > 0 && rx_frame.data.u8[0] <= MAX_AMOUNT_CELLS) {
           datalayer_battery->info.number_of_cells = rx_frame.data.u8[0];  //b0 = cells, b1 = modules
         }
@@ -629,22 +635,26 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x43C:
-      if (rx_frame.data.u8[0] == 0x00) {  //Mux
-        battery_daughterboard_temperatures[0] = (rx_frame.data.u8[1] - 40);
-        battery_daughterboard_temperatures[1] = (rx_frame.data.u8[2] - 40);
-        battery_daughterboard_temperatures[2] = (rx_frame.data.u8[3] - 40);
-        battery_daughterboard_temperatures[3] = (rx_frame.data.u8[4] - 40);
-        battery_daughterboard_temperatures[4] = (rx_frame.data.u8[5] - 40);
-        battery_daughterboard_temperatures[5] = (rx_frame.data.u8[6] - 40);
-      }
-      if (rx_frame.data.u8[0] == 0x01) {  //Mux
-        //Some packs have unpopulated modules at the end, (0xFF), we dont show those in webserver
-        battery_daughterboard_temperatures[6] = (rx_frame.data.u8[1] - 40);
-        battery_daughterboard_temperatures[7] = (rx_frame.data.u8[2] - 40);
-        battery_daughterboard_temperatures[8] = (rx_frame.data.u8[3] - 40);
-        battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
-        battery_daughterboard_temperatures[10] = (rx_frame.data.u8[5] - 40);
-        battery_daughterboard_temperatures[11] = (rx_frame.data.u8[6] - 40);
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        if (rx_frame.data.u8[0] == 0x00) {  //Mux
+          battery_daughterboard_temperatures[0] = (rx_frame.data.u8[1] - 40);
+          battery_daughterboard_temperatures[1] = (rx_frame.data.u8[2] - 40);
+          battery_daughterboard_temperatures[2] = (rx_frame.data.u8[3] - 40);
+          battery_daughterboard_temperatures[3] = (rx_frame.data.u8[4] - 40);
+          battery_daughterboard_temperatures[4] = (rx_frame.data.u8[5] - 40);
+          battery_daughterboard_temperatures[5] = (rx_frame.data.u8[6] - 40);
+        }
+        if (rx_frame.data.u8[0] == 0x01) {  //Mux
+          //Some packs have unpopulated modules at the end, (0xFF), we dont show those in webserver
+          battery_daughterboard_temperatures[6] = (rx_frame.data.u8[1] - 40);
+          battery_daughterboard_temperatures[7] = (rx_frame.data.u8[2] - 40);
+          battery_daughterboard_temperatures[8] = (rx_frame.data.u8[3] - 40);
+          battery_daughterboard_temperatures[9] = (rx_frame.data.u8[4] - 40);
+          battery_daughterboard_temperatures[10] = (rx_frame.data.u8[5] - 40);
+          battery_daughterboard_temperatures[11] = (rx_frame.data.u8[6] - 40);
+        }
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
       }
       break;
     case 0x43D:  //Cellvoltage monitoring, 54 frames for 160cells
@@ -662,8 +672,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x444:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
         battery_current_dA = (int16_t)(((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 5000);
         lastCurrentSampleMillis = millis();
@@ -676,8 +686,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x445:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         // BMS estimate at the present charge current, FF FF when not charging
         BMS_charge_time_remaining_h = rx_frame.data.u8[2];
         BMS_charge_time_remaining_min = rx_frame.data.u8[3];
@@ -686,17 +696,21 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x446:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // Broadcast cell extrema summary (~1Hz), fresher than the UDS round-robin. b0/b4 = 1-based
       // min/max cell number (0-based on DM packs); min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
-      BMS_min_cell_voltage_number = rx_frame.data.u8[0] + dm_pack;
-      BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
-      BMS_max_cell_voltage_number = rx_frame.data.u8[4] + dm_pack;
-      BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+        BMS_min_cell_voltage_number = rx_frame.data.u8[0] + dm_pack;
+        BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
+        BMS_max_cell_voltage_number = rx_frame.data.u8[4] + dm_pack;
+        BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x447:
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
         BMS_min_temp_module_number = rx_frame.data.u8[0] + dm_pack;  // 1-based coldest sensor
         BMS_lowest_cell_temperature = (rx_frame.data.u8[1] - 40);
         BMS_max_temp_module_number = rx_frame.data.u8[2] + dm_pack;  // 1-based hottest sensor
